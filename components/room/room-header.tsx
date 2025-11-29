@@ -25,11 +25,9 @@ export function RoomHeader({ room, race }: RoomHeaderProps) {
             variant={
               room.status === "open"
                 ? "default"
-                : room.status === "locked"
-                  ? "secondary"
-                  : room.status === "scored"
-                    ? "outline"
-                    : "outline"
+                : room.status === "archived"
+                  ? "outline"
+                  : "outline"
             }
           >
             {room.status}
