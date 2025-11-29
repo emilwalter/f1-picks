@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/lib/convex";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { AppHeader } from "@/components/layout/app-header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +33,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ClerkProvider
-          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || ""}
         >
           <ThemeProvider
             attribute="class"
@@ -41,7 +42,10 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ConvexClientProvider>
-              {children}
+              <div className="flex min-h-screen flex-col bg-zinc-50 font-sans dark:bg-black">
+                <AppHeader />
+                <main className="flex-1">{children}</main>
+              </div>
               <Toaster />
             </ConvexClientProvider>
           </ThemeProvider>

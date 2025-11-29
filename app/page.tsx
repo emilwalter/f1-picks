@@ -1,67 +1,43 @@
 "use client";
 
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
-import { SignInButton, UserButton } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ActiveRooms } from "@/components/dashboard/active-rooms";
 import { JoinRoomDialog } from "@/components/dashboard/join-room-dialog";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 font-sans dark:bg-black">
-      <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <h1 className="text-2xl font-bold text-black dark:text-zinc-50">
-            F1 Picks
-          </h1>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <Authenticated>
-              <UserButton />
-            </Authenticated>
-            <Unauthenticated>
-              <SignInButton mode="modal">
-                <button className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200">
-                  Sign In
-                </button>
-              </SignInButton>
-            </Unauthenticated>
-          </div>
+    <div className="container mx-auto flex-1 px-4 py-8">
+      <AuthLoading>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-zinc-600 dark:text-zinc-400">Loading...</div>
         </div>
-      </header>
+      </AuthLoading>
 
-      <main className="container mx-auto flex-1 px-4 py-8">
-        <AuthLoading>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-zinc-600 dark:text-zinc-400">Loading...</div>
-          </div>
-        </AuthLoading>
+      <Unauthenticated>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <h2 className="mb-4 text-2xl font-semibold text-black dark:text-zinc-50">
+            Welcome to F1 Picks
+          </h2>
+          <p className="mb-8 max-w-md text-zinc-600 dark:text-zinc-400">
+            Make predictions and compete with friends on Formula 1 races. Sign
+            in to get started!
+          </p>
+          <SignInButton mode="modal">
+            <button className="rounded-md bg-black px-6 py-3 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200">
+              Sign In to Continue
+            </button>
+          </SignInButton>
+        </div>
+      </Unauthenticated>
 
-        <Unauthenticated>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <h2 className="mb-4 text-2xl font-semibold text-black dark:text-zinc-50">
-              Welcome to F1 Picks
-            </h2>
-            <p className="mb-8 max-w-md text-zinc-600 dark:text-zinc-400">
-              Make predictions and compete with friends on Formula 1 races. Sign
-              in to get started!
-            </p>
-            <SignInButton mode="modal">
-              <button className="rounded-md bg-black px-6 py-3 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200">
-                Sign In to Continue
-              </button>
-            </SignInButton>
-          </div>
-        </Unauthenticated>
-
-        <Authenticated>
-          <DashboardContent />
-        </Authenticated>
-      </main>
+      <Authenticated>
+        <DashboardContent />
+      </Authenticated>
     </div>
   );
 }
