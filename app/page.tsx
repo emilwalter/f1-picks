@@ -1,14 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { UpcomingRaces } from "@/components/dashboard/upcoming-races";
 import { ActiveRooms } from "@/components/dashboard/active-rooms";
 import { JoinRoomDialog } from "@/components/dashboard/join-room-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -70,7 +67,6 @@ export default function Home() {
 }
 
 function DashboardContent() {
-  const [activeTab, setActiveTab] = useState("upcoming");
   const currentUser = useQuery(api.queries.auth.getCurrentUser);
   const activeRooms = useQuery(
     api.queries.rooms.getUserActiveRooms,
@@ -81,21 +77,19 @@ function DashboardContent() {
 
   return (
     <>
-      {/* Quick Actions Bar */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      {/* Header with actions */}
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
-            Quick Actions
+          <h2 className="text-2xl font-semibold text-black dark:text-zinc-50">
+            Your Rooms
           </h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Create a new room or join an existing one
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Create a new room or join an existing one to start making
+            predictions
           </p>
         </div>
         <div className="flex gap-2">
           <JoinRoomDialog />
-          <Button variant="outline" onClick={() => setActiveTab("upcoming")}>
-            Browse Races
-          </Button>
           <Button asChild>
             <a href="/rooms/create">Create Room</a>
           </Button>
@@ -104,18 +98,18 @@ function DashboardContent() {
 
       {/* Welcome message if no active rooms */}
       {!hasActiveRooms && activeRooms !== undefined && (
-        <Card className="mb-6 border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-          <CardContent className="py-8 text-center">
-            <h3 className="mb-2 text-lg font-semibold text-black dark:text-zinc-50">
+        <Card className="mb-8 border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+          <CardContent className="py-12 text-center">
+            <h3 className="mb-2 text-xl font-semibold text-black dark:text-zinc-50">
               Welcome to F1 Picks!
             </h3>
-            <p className="mb-4 text-zinc-600 dark:text-zinc-400">
+            <p className="mb-6 text-zinc-600 dark:text-zinc-400">
               Get started by creating a room for an upcoming race or joining a
               room with a join code.
             </p>
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-center gap-3">
               <JoinRoomDialog />
-              <Button asChild>
+              <Button asChild size="lg">
                 <a href="/rooms/create">Create Room</a>
               </Button>
             </div>
@@ -123,39 +117,20 @@ function DashboardContent() {
         </Card>
       )}
 
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        defaultValue={hasActiveRooms ? "active" : "upcoming"}
-        className="w-full"
-      >
-        <TabsList className="mb-6">
-          <TabsTrigger value="upcoming">Upcoming Races</TabsTrigger>
-          <TabsTrigger value="active">
-            Active Rooms
-            {activeRooms && activeRooms.length > 0 && (
-              <span className="ml-2 rounded-full bg-zinc-200 px-2 py-0.5 text-xs dark:bg-zinc-700">
-                {activeRooms.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="standings">Season Standings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="upcoming">
-          <UpcomingRaces />
-        </TabsContent>
-
-        <TabsContent value="active">
-          <ActiveRooms />
-        </TabsContent>
-
-        <TabsContent value="standings">
-          <div className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-            Season standings coming soon...
+      {/* Active Rooms */}
+      <div>
+        {hasActiveRooms && (
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-black dark:text-zinc-50">
+              Active Rooms ({activeRooms.length})
+            </h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Click on a room to view predictions and leaderboard
+            </p>
           </div>
-        </TabsContent>
-      </Tabs>
+        )}
+        <ActiveRooms />
+      </div>
     </>
   );
 }
