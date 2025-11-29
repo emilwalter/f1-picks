@@ -202,10 +202,10 @@ Access the dashboard at the URL provided when you run `convex:dev`.
 Deploy Convex functions to production:
 
 ```bash
-pnpm convex:deploy --prod
+pnpm convex:deploy
 ```
 
-Set production environment variables in Convex dashboard or via CLI.
+Set the `CONVEX_DEPLOY_KEY` environment variable to your production deploy key (found in Convex dashboard). Set production environment variables in Convex dashboard or via CLI.
 
 ## Contributing
 
