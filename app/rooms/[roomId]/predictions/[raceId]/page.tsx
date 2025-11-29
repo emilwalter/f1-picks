@@ -145,6 +145,7 @@ export default function PredictionPage() {
             room={room}
             race={selectedRace}
             currentPrediction={userPrediction}
+            isLocked={isLocked}
           />
         ) : (
           <Card>

@@ -15,6 +15,7 @@ interface PredictionFormProps {
   room: Doc<"rooms">;
   race: Doc<"races">;
   currentPrediction: Doc<"predictions"> | null | undefined;
+  isLocked?: boolean; // Whether predictions are locked based on room settings
 }
 
 interface Driver {
@@ -29,6 +30,7 @@ export function PredictionForm({
   room,
   race,
   currentPrediction,
+  isLocked: isLockedProp,
 }: PredictionFormProps) {
   const submitPrediction = useMutation(
     api.mutations.predictions.submitPrediction,
@@ -116,7 +118,11 @@ export function PredictionForm({
 
   // Check if race is locked or in the past
   const isPast = race.date < Date.now();
-  const isLocked = room.status !== "open" || isPast;
+  // Use prop if provided (from room lockout settings), otherwise fall back to basic checks
+  const isLocked =
+    isLockedProp !== undefined
+      ? isLockedProp
+      : room.status !== "open" || isPast;
 
   const handleSubmit = async () => {
     if (isLocked) {
