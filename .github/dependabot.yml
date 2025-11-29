@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # Enable version updates for npm (pnpm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Group updates to reduce PR noise
+    groups:
+      # Group all patch and minor updates for non-critical dependencies
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore major version updates for critical packages (review manually)
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "convex"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@clerk/nextjs"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@clerk/clerk-react"
+        update-types: ["version-update:semver-major"]
+
