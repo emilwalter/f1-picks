@@ -10,39 +10,51 @@ export const getUserSeasonStats = query({
     seasonId: v.id("seasons"),
   },
   handler: async (ctx, args) => {
-    // Get all rooms for races in this season
+    // Get all rooms for this season
+    const rooms = await ctx.db
+      .query("rooms")
+      .withIndex("by_season", (q) => q.eq("seasonId", args.seasonId))
+      .collect();
+
+    // Get all races for this season
     const races = await ctx.db
       .query("races")
       .withIndex("by_season", (q) => q.eq("seasonId", args.seasonId))
       .collect();
 
-    const raceIds = races.map((r) => r._id);
-
-    // Get all rooms for these races
-    const rooms = await Promise.all(
-      raceIds.map(async (raceId) => {
-        return await ctx.db
-          .query("rooms")
-          .withIndex("by_race", (q) => q.eq("raceId", raceId))
-          .collect();
-      }),
-    );
-
-    const allRooms = rooms.flat();
-
-    // Get user's scores for these rooms
-    const scores = await Promise.all(
-      allRooms.map(async (room) => {
-        return await ctx.db
-          .query("scores")
+    // Get user's cumulative scores across all races in rooms they participate in
+    const userRooms = await Promise.all(
+      rooms.map(async (room) => {
+        const participant = await ctx.db
+          .query("roomParticipants")
           .withIndex("by_room_user", (q) =>
             q.eq("roomId", room._id).eq("userId", args.userId),
           )
           .first();
+        return participant ? room : null;
       }),
     );
 
-    const validScores = scores.filter((s) => s !== null);
+    const validUserRooms = userRooms.filter((r) => r !== null);
+
+    // Get all scores for user across all races in their rooms
+    const allScores = await Promise.all(
+      validUserRooms.flatMap((room) =>
+        races.map(async (race) => {
+          return await ctx.db
+            .query("scores")
+            .withIndex("by_room_race_user", (q) =>
+              q
+                .eq("roomId", room!._id)
+                .eq("raceId", race._id)
+                .eq("userId", args.userId),
+            )
+            .first();
+        }),
+      ),
+    );
+
+    const validScores = allScores.filter((s) => s !== null);
 
     // Calculate statistics
     const totalPoints = validScores.reduce(
@@ -51,21 +63,18 @@ export const getUserSeasonStats = query({
     );
     const averagePoints =
       validScores.length > 0 ? totalPoints / validScores.length : 0;
-    const roomsParticipated = validScores.length;
-    const roomsWon = validScores.filter((score) => {
-      // Check if this user has the highest score in the room
-      // This is a simplified check - in production, you might want to cache this
-      return score!.points > 0; // Placeholder logic
-    }).length;
+    const racesParticipated = validScores.length;
+    const roomsParticipated = validUserRooms.length;
 
     return {
       userId: args.userId,
       seasonId: args.seasonId,
       totalPoints,
       averagePoints,
+      racesParticipated,
       roomsParticipated,
-      roomsWon,
-      totalRooms: allRooms.length,
+      totalRooms: rooms.length,
+      totalRaces: races.length,
     };
   },
 });

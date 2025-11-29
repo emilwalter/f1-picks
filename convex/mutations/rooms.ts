@@ -3,11 +3,12 @@ import { v } from "convex/values";
 import { ensureUser } from "../lib/userHelpers";
 
 /**
- * Create a new prediction room
+ * Create a new prediction room for a season
  */
 export const createRoom = mutation({
   args: {
-    raceId: v.id("races"),
+    seasonId: v.id("seasons"),
+    name: v.optional(v.string()),
     lockoutConfig: v.union(
       v.object({
         type: v.literal("before_session"),
@@ -30,7 +31,7 @@ export const createRoom = mutation({
       }),
       v.object({
         type: v.literal("custom"),
-        timestamp: v.number(),
+        hoursBeforeRace: v.number(),
       }),
     ),
     scoringConfig: v.object({
@@ -53,13 +54,20 @@ export const createRoom = mutation({
       throw new Error("Failed to get user");
     }
 
+    // Verify season exists
+    const season = await ctx.db.get(args.seasonId);
+    if (!season) {
+      throw new Error("Season not found");
+    }
+
     // Generate a unique join code (6 characters, alphanumeric)
     const joinCode = generateJoinCode();
 
     const now = Date.now();
     const roomId = await ctx.db.insert("rooms", {
       hostId: user._id,
-      raceId: args.raceId,
+      seasonId: args.seasonId,
+      name: args.name,
       lockoutConfig: args.lockoutConfig,
       scoringConfig: args.scoringConfig,
       status: "open",
@@ -139,9 +147,109 @@ export const joinRoom = mutation({
 });
 
 /**
- * Lock a room (prevent new predictions, but allow viewing)
+ * Update room settings (name, lockout config, scoring config)
+ * Only the host can update room settings
  */
-export const lockRoom = mutation({
+export const updateRoom = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    name: v.optional(v.string()),
+    lockoutConfig: v.optional(
+      v.union(
+        v.object({
+          type: v.literal("before_session"),
+          session: v.union(
+            v.literal("fp1"),
+            v.literal("fp2"),
+            v.literal("fp3"),
+            v.literal("qualifying"),
+            v.literal("race"),
+          ),
+        }),
+        v.object({
+          type: v.literal("before_session_end"),
+          session: v.union(
+            v.literal("fp1"),
+            v.literal("fp2"),
+            v.literal("fp3"),
+            v.literal("qualifying"),
+          ),
+        }),
+        v.object({
+          type: v.literal("custom"),
+          hoursBeforeRace: v.number(),
+        }),
+      ),
+    ),
+    scoringConfig: v.optional(
+      v.object({
+        positionPoints: v.array(v.number()),
+        fastestLapPoints: v.number(),
+        polePositionPoints: v.number(),
+        dnfPenalty: v.number(),
+      }),
+    ),
+    status: v.optional(v.union(v.literal("open"), v.literal("archived"))),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    // Get user from Clerk identity
+    const authProviderId = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_provider_id", (q) =>
+        q.eq("authProviderId", authProviderId),
+      )
+      .first();
+
+    if (!user || user._id !== room.hostId) {
+      throw new Error("Only the host can update room settings");
+    }
+
+    // Build update object with only provided fields
+    const updates: {
+      name?: string;
+      lockoutConfig?: typeof args.lockoutConfig;
+      scoringConfig?: typeof args.scoringConfig;
+      status?: typeof args.status;
+      updatedAt: number;
+    } = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.name !== undefined) {
+      updates.name = args.name.trim() || undefined;
+    }
+    if (args.lockoutConfig !== undefined) {
+      updates.lockoutConfig = args.lockoutConfig;
+    }
+    if (args.scoringConfig !== undefined) {
+      updates.scoringConfig = args.scoringConfig;
+    }
+    if (args.status !== undefined) {
+      updates.status = args.status;
+    }
+
+    await ctx.db.patch(args.roomId, updates);
+
+    return args.roomId;
+  },
+});
+
+/**
+ * Archive a room (season ended, room is archived)
+ * Note: Lockout is now automatic per-race based on lockoutConfig
+ */
+export const archiveRoom = mutation({
   args: {
     roomId: v.id("rooms"),
   },
@@ -166,15 +274,15 @@ export const lockRoom = mutation({
       .first();
 
     if (!user || user._id !== room.hostId) {
-      throw new Error("Only the host can lock a room");
+      throw new Error("Only the host can archive a room");
     }
 
-    if (room.status !== "open") {
-      throw new Error("Room is already locked or scored");
+    if (room.status === "archived") {
+      throw new Error("Room is already archived");
     }
 
     await ctx.db.patch(args.roomId, {
-      status: "locked",
+      status: "archived",
       updatedAt: Date.now(),
     });
 

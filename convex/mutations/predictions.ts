@@ -4,11 +4,12 @@ import { ensureUser } from "../lib/userHelpers";
 import { isLocked } from "../lib/lockout";
 
 /**
- * Submit a prediction for a room
+ * Submit a prediction for a specific race within a room
  */
 export const submitPrediction = mutation({
   args: {
     roomId: v.id("rooms"),
+    raceId: v.id("races"),
     prediction: v.object({
       predictedPositions: v.array(
         v.object({
@@ -40,19 +41,24 @@ export const submitPrediction = mutation({
       throw new Error("Room not found");
     }
 
-    // Get race to check lockout times
-    const race = await ctx.db.get(room.raceId);
+    if (room.status !== "open") {
+      throw new Error("Room is not accepting predictions");
+    }
 
-    // Check if predictions are locked
+    // Verify race exists and belongs to the room's season
+    const race = await ctx.db.get(args.raceId);
+    if (!race) {
+      throw new Error("Race not found");
+    }
+
+    // Verify race belongs to the room's season
+    if (race.seasonId !== room.seasonId) {
+      throw new Error("Race does not belong to this room's season");
+    }
+
+    // Check if predictions are locked for this race
     if (isLocked(room, race)) {
-      if (
-        room.status === "locked" ||
-        room.status === "scored" ||
-        room.status === "archived"
-      ) {
-        throw new Error("Room is not accepting predictions");
-      }
-      throw new Error("Prediction lockout time has passed");
+      throw new Error("Prediction lockout time has passed for this race");
     }
 
     // Check if user is a participant
@@ -67,11 +73,14 @@ export const submitPrediction = mutation({
       throw new Error("You must join the room before submitting a prediction");
     }
 
-    // Check if prediction already exists
+    // Check if prediction already exists for this race
     const existingPrediction = await ctx.db
       .query("predictions")
-      .withIndex("by_room_user", (q) =>
-        q.eq("roomId", args.roomId).eq("userId", user._id),
+      .withIndex("by_room_race_user", (q) =>
+        q
+          .eq("roomId", args.roomId)
+          .eq("raceId", args.raceId)
+          .eq("userId", user._id),
       )
       .first();
 
@@ -91,6 +100,7 @@ export const submitPrediction = mutation({
       // Create new prediction
       const predictionId = await ctx.db.insert("predictions", {
         roomId: args.roomId,
+        raceId: args.raceId,
         userId: user._id,
         predictedPositions: args.prediction.predictedPositions,
         fastestLapDriverId: args.prediction.fastestLapDriverId,
@@ -158,19 +168,19 @@ export const updatePrediction = mutation({
       throw new Error("Room not found");
     }
 
-    // Get race to check lockout times
-    const race = await ctx.db.get(room.raceId);
+    if (room.status !== "open") {
+      throw new Error("Room is not accepting prediction updates");
+    }
 
-    // Check if predictions are locked
+    // Get race to check lockout times
+    const race = await ctx.db.get(prediction.raceId);
+    if (!race) {
+      throw new Error("Race not found");
+    }
+
+    // Check if predictions are locked for this race
     if (isLocked(room, race)) {
-      if (
-        room.status === "locked" ||
-        room.status === "scored" ||
-        room.status === "archived"
-      ) {
-        throw new Error("Room is not accepting prediction updates");
-      }
-      throw new Error("Prediction lockout time has passed");
+      throw new Error("Prediction lockout time has passed for this race");
     }
 
     // Update prediction

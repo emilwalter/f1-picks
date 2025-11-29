@@ -73,8 +73,10 @@ export default defineSchema({
 
   rooms: defineTable({
     hostId: v.id("users"),
-    raceId: v.id("races"),
-    // Lockout configuration: when predictions should lock
+    seasonId: v.id("seasons"), // Room is for a whole season
+    name: v.optional(v.string()), // Optional room name
+    // Lockout configuration: when predictions should lock for each race
+    // This applies to all races in the season
     lockoutConfig: v.union(
       // Lock before a specific session starts
       v.object({
@@ -97,10 +99,10 @@ export default defineSchema({
           v.literal("qualifying"),
         ),
       }),
-      // Custom timestamp (fallback if session times unavailable)
+      // Custom timestamp offset (e.g., 1 hour before race start)
       v.object({
         type: v.literal("custom"),
-        timestamp: v.number(),
+        hoursBeforeRace: v.number(), // Hours before race start
       }),
     ),
     scoringConfig: v.object({
@@ -110,16 +112,14 @@ export default defineSchema({
       dnfPenalty: v.number(), // Negative points for incorrect DNF predictions
     }),
     status: v.union(
-      v.literal("open"),
-      v.literal("locked"),
-      v.literal("scored"),
-      v.literal("archived"),
+      v.literal("open"), // Room is active, accepting predictions
+      v.literal("archived"), // Season ended, room archived
     ),
     joinCode: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_race", ["raceId"])
+    .index("by_season", ["seasonId"])
     .index("by_host", ["hostId"])
     .index("by_status", ["status"])
     .index("by_join_code", ["joinCode"]),
@@ -136,6 +136,7 @@ export default defineSchema({
 
   predictions: defineTable({
     roomId: v.id("rooms"),
+    raceId: v.id("races"), // Prediction is for a specific race within the room
     userId: v.id("users"),
     predictedPositions: v.array(
       v.object({
@@ -150,13 +151,16 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_room", ["roomId"])
+    .index("by_race", ["raceId"])
     .index("by_user", ["userId"])
-    .index("by_room_user", ["roomId", "userId"]),
+    .index("by_room_user", ["roomId", "userId"])
+    .index("by_room_race_user", ["roomId", "raceId", "userId"]),
 
   scores: defineTable({
     roomId: v.id("rooms"),
+    raceId: v.id("races"), // Score is for a specific race within the room
     userId: v.id("users"),
-    points: v.number(),
+    points: v.number(), // Points earned for this race
     breakdown: v.object({
       positionPoints: v.number(),
       fastestLapPoints: v.number(),
@@ -167,7 +171,9 @@ export default defineSchema({
     calculatedAt: v.number(),
   })
     .index("by_room", ["roomId"])
+    .index("by_race", ["raceId"])
     .index("by_user", ["userId"])
     .index("by_room_user", ["roomId", "userId"])
+    .index("by_room_race_user", ["roomId", "raceId", "userId"])
     .index("by_room_points", ["roomId", "points"]),
 });

@@ -2,6 +2,18 @@ import { query } from "../_generated/server";
 import { v } from "convex/values";
 
 /**
+ * Get season by ID
+ */
+export const getSeasonById = query({
+  args: {
+    seasonId: v.id("seasons"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.seasonId);
+  },
+});
+
+/**
  * Get season by year
  */
 export const getSeasonByYear = query({

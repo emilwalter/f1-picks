@@ -1,73 +1,35 @@
-import { mutation } from "../_generated/server";
+import { internalMutation } from "../_generated/server";
 import { v } from "convex/values";
-import { api } from "../_generated/api";
 import { calculateScore } from "../lib/scoring";
 
 /**
- * Apply official race results and calculate scores for all participants for a specific race
+ * Internal mutation to apply scoring for a room and race
+ * Called automatically by scheduled functions, doesn't require authentication
  */
-export const applyRaceResults = mutation({
+export const applyScoringForRoom = internalMutation({
   args: {
     roomId: v.id("rooms"),
     raceId: v.id("races"),
-    officialResults: v.object({
-      positions: v.array(
-        v.object({
-          position: v.number(),
-          driverNumber: v.number(),
-          points: v.number(),
-        }),
-      ),
-      fastestLapDriverId: v.optional(v.number()),
-      polePositionDriverId: v.optional(v.number()),
-      dnfDriverIds: v.array(v.number()),
-    }),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    // Get room
+    // Get room and race
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       throw new Error("Room not found");
     }
 
-    // Verify race belongs to room's season
     const race = await ctx.db.get(args.raceId);
     if (!race) {
       throw new Error("Race not found");
     }
 
+    if (!race.officialResults) {
+      throw new Error("Race results not available");
+    }
+
     if (race.seasonId !== room.seasonId) {
       throw new Error("Race does not belong to this room's season");
     }
-
-    // Get or create user
-    const authProviderId = identity.subject;
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_auth_provider_id", (q) =>
-        q.eq("authProviderId", authProviderId),
-      )
-      .first();
-
-    if (!user || user._id !== room.hostId) {
-      throw new Error("Only the host can apply race results");
-    }
-
-    // Check if results already applied for this race
-    if (race.officialResults) {
-      throw new Error("Results have already been applied for this race");
-    }
-
-    // Update race with official results
-    await ctx.db.patch(args.raceId, {
-      officialResults: args.officialResults,
-      updatedAt: Date.now(),
-    });
 
     // Get all predictions for this room and race
     const predictions = await ctx.db
@@ -78,10 +40,21 @@ export const applyRaceResults = mutation({
 
     // Calculate scores for each prediction
     const now = Date.now();
+    let scoresCreated = 0;
+    let scoresUpdated = 0;
+
+    // Ensure officialResults has required fields (dnfDriverIds must be an array, not optional)
+    const officialResults = {
+      positions: race.officialResults!.positions,
+      fastestLapDriverId: race.officialResults!.fastestLapDriverId,
+      polePositionDriverId: race.officialResults!.polePositionDriverId,
+      dnfDriverIds: race.officialResults!.dnfDriverIds ?? [],
+    };
+
     for (const prediction of predictions) {
       const score = calculateScore(
         prediction,
-        args.officialResults,
+        officialResults,
         room.scoringConfig,
       );
 
@@ -103,6 +76,7 @@ export const applyRaceResults = mutation({
           breakdown: score.breakdown,
           calculatedAt: now,
         });
+        scoresUpdated++;
       } else {
         // Create new score for this race
         await ctx.db.insert("scores", {
@@ -113,9 +87,16 @@ export const applyRaceResults = mutation({
           breakdown: score.breakdown,
           calculatedAt: now,
         });
+        scoresCreated++;
       }
     }
 
-    return args.raceId;
+    return {
+      roomId: args.roomId,
+      raceId: args.raceId,
+      scoresCreated,
+      scoresUpdated,
+      totalPredictions: predictions.length,
+    };
   },
 });

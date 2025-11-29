@@ -42,7 +42,7 @@ export const getRoomParticipants = query({
 });
 
 /**
- * Get active rooms for a user (rooms where user is a participant and status is 'open' or 'locked')
+ * Get active rooms for a user (rooms where user is a participant and status is 'open')
  */
 export const getUserActiveRooms = query({
   args: {
@@ -59,37 +59,35 @@ export const getUserActiveRooms = query({
       participants.map((p) => ctx.db.get(p.roomId)),
     );
 
-    // Filter to only active rooms (open or locked)
-    const activeRooms = rooms.filter(
-      (room) => room && (room.status === "open" || room.status === "locked"),
-    );
+    // Filter to only active rooms (open)
+    const activeRooms = rooms.filter((room) => room && room.status === "open");
 
-    // Fetch race details for each room
-    const roomsWithRaces = await Promise.all(
+    // Fetch season details for each room
+    const roomsWithSeasons = await Promise.all(
       activeRooms.map(async (room) => {
-        const race = room ? await ctx.db.get(room.raceId) : null;
+        const season = room ? await ctx.db.get(room.seasonId) : null;
         return {
           room,
-          race,
+          season,
         };
       }),
     );
 
-    return roomsWithRaces.filter((r) => r.room !== null);
+    return roomsWithSeasons.filter((r) => r.room !== null);
   },
 });
 
 /**
- * Get rooms for a specific race
+ * Get rooms for a specific season
  */
-export const getRoomsByRace = query({
+export const getRoomsBySeason = query({
   args: {
-    raceId: v.id("races"),
+    seasonId: v.id("seasons"),
   },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("rooms")
-      .withIndex("by_race", (q) => q.eq("raceId", args.raceId))
+      .withIndex("by_season", (q) => q.eq("seasonId", args.seasonId))
       .order("desc")
       .collect();
   },

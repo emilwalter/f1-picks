@@ -71,3 +71,22 @@ export const getCurrentSeason = query({
     return season;
   },
 });
+
+/**
+ * Get completed races that don't have results yet
+ * Used by scheduled functions to sync results
+ */
+export const getCompletedRacesWithoutResults = query({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    // Get races that have passed (date < now) but don't have officialResults
+    const races = await ctx.db
+      .query("races")
+      .withIndex("by_date", (q) => q.lt("date", now))
+      .collect();
+
+    // Filter to only races without results
+    return races.filter((race) => !race.officialResults);
+  },
+});

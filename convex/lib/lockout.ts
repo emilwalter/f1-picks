@@ -18,9 +18,10 @@ export function calculateLockoutTime(
 
   const config = room.lockoutConfig;
 
-  // Custom timestamp - use directly
+  // Custom hours before race - calculate from race start time
   if (config.type === "custom") {
-    return config.timestamp;
+    const raceStart = race.date;
+    return raceStart - config.hoursBeforeRace * 60 * 60 * 1000;
   }
 
   // Session-based lockout - need session times
@@ -56,12 +57,18 @@ export function isLocked(
   room: Doc<"rooms">,
   race: Doc<"races"> | null,
 ): boolean {
-  // If room is manually locked or scored, it's locked
-  if (
-    room.status === "locked" ||
-    room.status === "scored" ||
-    room.status === "archived"
-  ) {
+  // If room is archived, it's locked
+  if (room.status === "archived") {
+    return true;
+  }
+
+  if (!race) {
+    return false;
+  }
+
+  // Lock predictions for races that have already happened (race date has passed)
+  const now = Date.now();
+  if (race.date < now) {
     return true;
   }
 
@@ -73,7 +80,7 @@ export function isLocked(
   }
 
   // Check if lockout time has passed
-  return Date.now() >= lockoutTime;
+  return now >= lockoutTime;
 }
 
 /**
