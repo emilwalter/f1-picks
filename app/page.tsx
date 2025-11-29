@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ActiveRooms } from "@/components/dashboard/active-rooms";
 import { JoinRoomDialog } from "@/components/dashboard/join-room-dialog";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -67,7 +68,7 @@ function DashboardContent() {
         <div className="flex gap-2">
           <JoinRoomDialog />
           <Button asChild>
-            <a href="/rooms/create">Create Room</a>
+            <Link href="/rooms/create">Create Room</Link>
           </Button>
         </div>
       </div>
@@ -86,7 +87,7 @@ function DashboardContent() {
             <div className="flex justify-center gap-3">
               <JoinRoomDialog />
               <Button asChild size="lg">
-                <a href="/rooms/create">Create Room</a>
+                <Link href="/rooms/create">Create Room</Link>
               </Button>
             </div>
           </CardContent>

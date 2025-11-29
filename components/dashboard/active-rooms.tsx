@@ -5,7 +5,6 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format } from "date-fns";
 
 export function ActiveRooms() {
   const currentUser = useQuery(api.queries.auth.getCurrentUser);
@@ -36,7 +35,8 @@ export function ActiveRooms() {
     return (
       <Card>
         <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-          You don't have any active rooms. Create or join a room to get started!
+          You don&apos;t have any active rooms. Create or join a room to get
+          started!
         </CardContent>
       </Card>
     );

@@ -3,14 +3,19 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  // Use a callback ref pattern to avoid setState in effect
   useEffect(() => {
-    setMounted(true);
+    // Use requestAnimationFrame to defer state update
+    const timer = requestAnimationFrame(() => {
+      setMounted(true);
+    });
+    return () => cancelAnimationFrame(timer);
   }, []);
 
   if (!mounted) {

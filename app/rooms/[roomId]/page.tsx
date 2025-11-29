@@ -89,9 +89,6 @@ export default function RoomPage() {
     );
   }
 
-  const isParticipant =
-    currentUser && participants?.some((p) => p.userId === currentUser._id);
-
   const isHost = currentUser && room && currentUser._id === room.hostId;
 
   // Separate races into: next 3 active races, remaining future races, and locked races

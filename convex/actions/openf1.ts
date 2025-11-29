@@ -7,13 +7,82 @@ import type { Doc, Id } from "../_generated/dataModel";
 
 const F1API_BASE_URL = "https://f1api.dev/api";
 
+// Type definitions for F1 API responses
+interface RaceData {
+  raceId?: string;
+  raceName?: string;
+  round?: number;
+  schedule?: {
+    fp1?: { date?: string; time?: string };
+    fp2?: { date?: string; time?: string };
+    fp3?: { date?: string; time?: string };
+    qualy?: { date?: string; time?: string };
+    race?: { date?: string; time?: string };
+  };
+  circuit?: {
+    circuitName?: string;
+    city?: string;
+    country?: string;
+  };
+  circuitName?: string;
+  location?: string;
+  country?: string;
+}
+
+interface DriverData {
+  number?: number;
+  driver_number?: number;
+  driverNumber?: number;
+  name?: string;
+  firstName?: string;
+  surname?: string;
+  lastName?: string;
+  last_name?: string;
+  shortName?: string;
+  nationality?: string;
+  country_code?: string;
+  countryCode?: string;
+}
+
+interface TeamData {
+  teamId?: string;
+  id?: string;
+  slug?: string;
+  teamName?: string;
+  name?: string;
+  team_name?: string;
+  logo?: string;
+}
+
+interface TeamDriverItem {
+  driver?: DriverData;
+}
+
+interface PositionData {
+  driver_number: number;
+  position: number;
+}
+
+interface LapData {
+  lap_duration?: number;
+  driver_number: number;
+}
+
+interface SessionData {
+  session_key?: string;
+  session_name?: string;
+  date_start?: string;
+  date_end?: string;
+  meeting_key?: string;
+}
+
 /**
  * Get the next upcoming race from F1 API
  * Uses /current/next endpoint for efficient fetching
  */
 export const getNextRace = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (_ctx) => {
     const response = await fetch(`${F1API_BASE_URL}/current/next`);
 
     if (!response.ok) {
@@ -100,17 +169,25 @@ export const syncSeasonFromOpenF1 = action({
       );
     }
 
-    const racesData = await racesResponse.json();
+    const racesData = (await racesResponse.json()) as
+      | { races?: RaceData[]; message?: string }
+      | RaceData[];
 
     // f1api.dev /current endpoint returns an object with races array
-    let races: any[] = [];
-    if (racesData.races && Array.isArray(racesData.races)) {
-      races = racesData.races;
-    } else if (Array.isArray(racesData)) {
+    let races: RaceData[] = [];
+    if (Array.isArray(racesData)) {
       races = racesData;
-    } else if (racesData.message) {
-      // API returned an error message
-      throw new Error(`API Error: ${racesData.message}`);
+    } else if (!Array.isArray(racesData) && "races" in racesData) {
+      if (racesData.races && Array.isArray(racesData.races)) {
+        races = racesData.races;
+      } else if (racesData.message) {
+        // API returned an error message
+        throw new Error(`API Error: ${racesData.message}`);
+      } else {
+        throw new Error(
+          `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`,
+        );
+      }
     } else {
       throw new Error(
         `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`,
@@ -146,10 +223,21 @@ export const syncSeasonFromOpenF1 = action({
         raceData.circuit?.country || raceData.country || "Unknown";
 
       // Extract session times from schedule
-      let sessionTimes: any = undefined;
+      let sessionTimes:
+        | {
+            fp1?: { start: number; end: number };
+            fp2?: { start: number; end: number };
+            fp3?: { start: number; end: number };
+            qualifying?: { start: number; end: number };
+            race?: { start: number; end: number };
+          }
+        | undefined = undefined;
       const schedule = raceData.schedule;
       if (schedule) {
-        const parseSessionTime = (session: any) => {
+        const parseSessionTime = (session?: {
+          date?: string;
+          time?: string;
+        }) => {
           if (!session || !session.date || !session.time) return undefined;
           const start = new Date(`${session.date}T${session.time}`).getTime();
           // Estimate end time as 2 hours after start (adjust as needed)
@@ -242,12 +330,15 @@ export const updateRaceResultsFromOpenF1 = action({
       );
     }
 
-    const sessions = await sessionsResponse.json();
+    const sessions = (await sessionsResponse.json()) as SessionData[];
     if (sessions.length === 0) {
       throw new Error("No race session found for this date");
     }
 
-    const sessionKey = sessions[0].session_key;
+    const sessionKey = sessions[0]?.session_key;
+    if (!sessionKey) {
+      throw new Error("No session key found");
+    }
 
     // Fetch position data for the race
     const positionsResponse = await fetch(
@@ -264,7 +355,7 @@ export const updateRaceResultsFromOpenF1 = action({
 
     // Get final positions (last position for each driver)
     const finalPositions = new Map<number, number>();
-    positionsData.forEach((pos: any) => {
+    (positionsData as PositionData[]).forEach((pos) => {
       finalPositions.set(pos.driver_number, pos.position);
     });
 
@@ -283,10 +374,10 @@ export const updateRaceResultsFromOpenF1 = action({
     );
     let fastestLapDriverId: number | undefined;
     if (lapsResponse.ok) {
-      const lapsData = await lapsResponse.json();
+      const lapsData = (await lapsResponse.json()) as LapData[];
       // Find fastest lap
       let fastestTime = Infinity;
-      lapsData.forEach((lap: any) => {
+      lapsData.forEach((lap) => {
         if (lap.lap_duration && lap.lap_duration < fastestTime) {
           fastestTime = lap.lap_duration;
           fastestLapDriverId = lap.driver_number;
@@ -300,17 +391,18 @@ export const updateRaceResultsFromOpenF1 = action({
     );
     let polePositionDriverId: number | undefined;
     if (qualifyingResponse.ok) {
-      const qualifyingData = await qualifyingResponse.json();
+      const qualifyingData = (await qualifyingResponse.json()) as SessionData[];
       if (qualifyingData.length > 0) {
-        const qualifyingSessionKey = qualifyingData[0].session_key;
+        const qualifyingSessionKey = qualifyingData[0]?.session_key;
         const qualifyingPositionsResponse = await fetch(
           `${F1API_BASE_URL}/position?session_key=${qualifyingSessionKey}`,
         );
         if (qualifyingPositionsResponse.ok) {
-          const qualifyingPositions = await qualifyingPositionsResponse.json();
+          const qualifyingPositions =
+            (await qualifyingPositionsResponse.json()) as PositionData[];
           // Get first position (pole)
           const polePosition = qualifyingPositions.find(
-            (p: any) => p.position === 1,
+            (p) => p.position === 1,
           );
           if (polePosition) {
             polePositionDriverId = polePosition.driver_number;
@@ -346,7 +438,7 @@ export const getDriversForRace = action({
   args: {
     date: v.optional(v.string()), // ISO date string (YYYY-MM-DD) - optional, not used but kept for compatibility
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, _args) => {
     // Determine the year to use (default to current year or 2025)
     const currentYear = new Date().getFullYear();
     const year = currentYear >= 2025 ? 2025 : currentYear;
@@ -364,10 +456,12 @@ export const getDriversForRace = action({
       );
     }
 
-    const driversData = await driversResponse.json();
+    const driversData = (await driversResponse.json()) as
+      | DriverData[]
+      | { drivers?: DriverData[]; driver?: DriverData[] };
 
     // Handle response format: {drivers: [...]} or {driver: [...]}
-    let drivers: any[] = [];
+    let drivers: DriverData[] = [];
     if (Array.isArray(driversData)) {
       drivers = driversData;
     } else if (driversData.drivers && Array.isArray(driversData.drivers)) {
@@ -400,9 +494,11 @@ export const getDriversForRace = action({
     ];
 
     if (teamsResponse && teamsResponse.ok) {
-      const teamsData = await teamsResponse.json();
+      const teamsData = (await teamsResponse.json()) as
+        | TeamData[]
+        | { teams?: TeamData[]; team?: TeamData[] };
       // Handle both array and object with teams array
-      let teams: any[] = [];
+      let teams: TeamData[] = [];
       if (Array.isArray(teamsData)) {
         teams = teamsData;
       } else if (teamsData.teams && Array.isArray(teamsData.teams)) {
@@ -420,7 +516,7 @@ export const getDriversForRace = action({
       }
 
       // Fetch drivers for each team using /{year}/teams/{teamId}/drivers endpoint
-      const teamDriverPromises = teams.map(async (team: any) => {
+      const teamDriverPromises = teams.map(async (team) => {
         // Get teamId - this is what the API uses in URLs (e.g., "mercedes")
         const teamId = team.teamId || team.id || team.slug;
         // Get team display name (will be updated from API if available)
@@ -445,22 +541,37 @@ export const getDriversForRace = action({
 
           let teamLogo: string | undefined = team.logo;
           if (teamInfoResponse && teamInfoResponse.ok) {
-            const teamInfo = await teamInfoResponse.json();
+            const teamInfo = (await teamInfoResponse.json()) as
+              | TeamData
+              | { team?: TeamData[] };
             // Handle team info response format: { team: [{ teamName: "...", ... }] }
-            const teamData = teamInfo.team?.[0] || teamInfo.team || teamInfo;
-            teamLogo = teamData.logo || teamInfo.logo || team.logo;
+            const teamData = (
+              Array.isArray(teamInfo)
+                ? teamInfo[0]
+                : "team" in teamInfo && Array.isArray(teamInfo.team)
+                  ? teamInfo.team[0]
+                  : teamInfo
+            ) as TeamData;
+            teamLogo =
+              teamData.logo || (teamInfo as TeamData).logo || team.logo;
             // Update teamName from API if available
-            if (teamData.teamName || teamInfo.teamName) {
-              teamName = teamData.teamName || teamInfo.teamName || teamName;
+            if (teamData.teamName || (teamInfo as TeamData).teamName) {
+              teamName =
+                teamData.teamName ||
+                (teamInfo as TeamData).teamName ||
+                teamName;
             }
           }
 
-          let driversList: any[] = [];
+          let driversList: TeamDriverItem[] = [];
           if (teamDriversResponse && teamDriversResponse.ok) {
-            const teamDriversData = await teamDriversResponse.json();
+            const teamDriversData = (await teamDriversResponse.json()) as
+              | TeamDriverItem[]
+              | { drivers?: TeamDriverItem[] };
             // API returns { drivers: [{ driver: {...} }] }
             if (
-              teamDriversData.drivers &&
+              !Array.isArray(teamDriversData) &&
+              "drivers" in teamDriversData &&
               Array.isArray(teamDriversData.drivers)
             ) {
               driversList = teamDriversData.drivers;
@@ -472,13 +583,15 @@ export const getDriversForRace = action({
           // Extract driver numbers from the drivers array
           // Each item has format: { driver: { number: 44, ... } }
           const driverNumbers = driversList
-            .map((item: any) => {
+            .map((item) => {
               const driver = item.driver || item;
               return (
-                driver.number || driver.driverNumber || driver.driver_number
+                (driver as DriverData).number ||
+                (driver as DriverData).driverNumber ||
+                (driver as DriverData).driver_number
               );
             })
-            .filter((n: any) => n && typeof n === "number");
+            .filter((n): n is number => typeof n === "number");
 
           if (driverNumbers.length > 0) {
             return {
@@ -491,33 +604,43 @@ export const getDriversForRace = action({
               `No drivers found for team ${teamName} (teamId: ${teamId})`,
             );
           }
-        } catch (error) {
+        } catch (err) {
           console.warn(
             `Failed to fetch drivers for team ${teamName} (teamId: ${teamId}):`,
-            error,
+            err,
           );
         }
         return null;
       });
 
       const teamDriverMappings = await Promise.all(teamDriverPromises);
-      const successfulMappings = teamDriverMappings.filter((m) => m !== null);
+      const successfulMappings = teamDriverMappings.filter(
+        (
+          m,
+        ): m is {
+          teamName: string;
+          teamLogo: string | undefined;
+          driverNumbers: number[];
+        } =>
+          m !== null &&
+          m.teamName !== undefined &&
+          typeof m.teamName === "string",
+      );
 
       console.log(
         `Successfully mapped ${successfulMappings.length} teams out of ${teams.length}`,
       );
 
       successfulMappings.forEach((mapping) => {
-        if (mapping) {
-          mapping.driverNumbers.forEach((driverNumber: number) => {
-            if (driverNumber) {
-              teamMap.set(driverNumber, {
-                name: mapping.teamName,
-                logo: mapping.teamLogo,
-              });
-            }
-          });
-        }
+        const teamName: string = mapping.teamName;
+        mapping.driverNumbers.forEach((driverNumber: number) => {
+          if (driverNumber) {
+            teamMap.set(driverNumber, {
+              name: teamName,
+              logo: mapping.teamLogo,
+            });
+          }
+        });
       });
 
       // If we didn't get enough mappings, try fallback with known team names
@@ -525,73 +648,90 @@ export const getDriversForRace = action({
         successfulMappings.length === 0 ||
         teamMap.size < drivers.length * 0.5
       ) {
-        console.log(`Using fallback: fetching drivers for known team names`);
-        const fallbackPromises = knownTeamNames.map(async (teamSlug) => {
-          try {
-            const [teamInfoResponse, teamDriversResponse] = await Promise.all([
-              fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-                () => null,
-              ),
-              fetch(
-                `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`,
-              ).catch(() => null),
-            ]);
+        console.log("Using fallback: fetching drivers for known team names");
+        const fallbackPromises = knownTeamNames.map(
+          async (teamSlug: string) => {
+            try {
+              const [teamInfoResponse, teamDriversResponse] = await Promise.all(
+                [
+                  fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
+                    () => null,
+                  ),
+                  fetch(
+                    `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`,
+                  ).catch(() => null),
+                ],
+              );
 
-            let teamLogo: string | undefined;
-            let teamDisplayName = teamSlug
-              .replace(/-/g, " ")
-              .replace(/\b\w/g, (l) => l.toUpperCase());
+              let teamLogo: string | undefined;
+              let teamDisplayName = teamSlug
+                .replace(/-/g, " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase());
 
-            if (teamInfoResponse && teamInfoResponse.ok) {
-              const teamInfo = await teamInfoResponse.json();
-              // Handle team info response format: { team: [{ teamName: "...", ... }] }
-              const teamData = teamInfo.team?.[0] || teamInfo.team || teamInfo;
-              teamLogo = teamData.logo || teamInfo.logo;
-              teamDisplayName =
-                teamData.teamName ||
-                teamInfo.teamName ||
-                teamData.name ||
-                teamInfo.name ||
-                teamDisplayName;
-            }
-
-            if (teamDriversResponse && teamDriversResponse.ok) {
-              const teamDriversData = await teamDriversResponse.json();
-              // API returns { drivers: [{ driver: {...} }] }
-              let driversList: any[] = [];
-              if (
-                teamDriversData.drivers &&
-                Array.isArray(teamDriversData.drivers)
-              ) {
-                driversList = teamDriversData.drivers;
-              } else if (Array.isArray(teamDriversData)) {
-                driversList = teamDriversData;
+              if (teamInfoResponse && teamInfoResponse.ok) {
+                const teamInfo = (await teamInfoResponse.json()) as
+                  | TeamData
+                  | { team?: TeamData[] };
+                // Handle team info response format: { team: [{ teamName: "...", ... }] }
+                const teamData = (
+                  Array.isArray(teamInfo)
+                    ? teamInfo[0]
+                    : "team" in teamInfo && Array.isArray(teamInfo.team)
+                      ? teamInfo.team[0]
+                      : teamInfo
+                ) as TeamData;
+                teamLogo = teamData.logo || (teamInfo as TeamData).logo;
+                teamDisplayName =
+                  teamData.teamName ||
+                  (teamInfo as TeamData).teamName ||
+                  teamData.name ||
+                  (teamInfo as TeamData).name ||
+                  teamDisplayName;
               }
 
-              // Extract driver numbers from the drivers array
-              // Each item has format: { driver: { number: 44, ... } }
-              const driverNumbers = driversList
-                .map((item: any) => {
-                  const driver = item.driver || item;
-                  return (
-                    driver.number || driver.driverNumber || driver.driver_number
-                  );
-                })
-                .filter((n: any) => n && typeof n === "number");
+              if (teamDriversResponse && teamDriversResponse.ok) {
+                const teamDriversData = (await teamDriversResponse.json()) as
+                  | TeamDriverItem[]
+                  | { drivers?: TeamDriverItem[] };
+                // API returns { drivers: [{ driver: {...} }] }
+                let driversList: TeamDriverItem[] = [];
+                if (
+                  !Array.isArray(teamDriversData) &&
+                  "drivers" in teamDriversData &&
+                  Array.isArray(teamDriversData.drivers)
+                ) {
+                  driversList = teamDriversData.drivers;
+                } else if (Array.isArray(teamDriversData)) {
+                  driversList = teamDriversData;
+                }
 
-              if (driverNumbers.length > 0) {
-                return {
-                  teamName: teamDisplayName,
-                  teamLogo,
-                  driverNumbers,
-                };
+                // Extract driver numbers from the drivers array
+                // Each item has format: { driver: { number: 44, ... } }
+                const driverNumbers = driversList
+                  .map((item) => {
+                    const driver = item.driver || item;
+                    return (
+                      (driver as DriverData).number ||
+                      (driver as DriverData).driverNumber ||
+                      (driver as DriverData).driver_number
+                    );
+                  })
+                  .filter((n): n is number => typeof n === "number");
+
+                if (driverNumbers.length > 0) {
+                  return {
+                    teamName: teamDisplayName,
+                    teamLogo,
+                    driverNumbers,
+                  };
+                }
               }
+            } catch {
+              // Silently continue
             }
-          } catch (error) {
-            // Silently continue
-          }
-          return null;
-        });
+            return null;
+          },
+        );
 
         const fallbackMappings = await Promise.all(fallbackPromises);
         fallbackMappings.forEach((mapping) => {
@@ -632,24 +772,35 @@ export const getDriversForRace = action({
             .replace(/\b\w/g, (l) => l.toUpperCase());
 
           if (teamInfoResponse && teamInfoResponse.ok) {
-            const teamInfo = await teamInfoResponse.json();
+            const teamInfo = (await teamInfoResponse.json()) as
+              | TeamData
+              | { team?: TeamData[] };
             // Handle team info response format: { team: [{ teamName: "...", ... }] }
-            const teamData = teamInfo.team?.[0] || teamInfo.team || teamInfo;
-            teamLogo = teamData.logo || teamInfo.logo;
+            const teamData = (
+              Array.isArray(teamInfo)
+                ? teamInfo[0]
+                : "team" in teamInfo && Array.isArray(teamInfo.team)
+                  ? teamInfo.team[0]
+                  : teamInfo
+            ) as TeamData;
+            teamLogo = teamData.logo || (teamInfo as TeamData).logo;
             teamDisplayName =
               teamData.teamName ||
-              teamInfo.teamName ||
+              (teamInfo as TeamData).teamName ||
               teamData.name ||
-              teamInfo.name ||
+              (teamInfo as TeamData).name ||
               teamDisplayName;
           }
 
           if (teamDriversResponse && teamDriversResponse.ok) {
-            const teamDriversData = await teamDriversResponse.json();
+            const teamDriversData = (await teamDriversResponse.json()) as
+              | TeamDriverItem[]
+              | { drivers?: TeamDriverItem[] };
             // API returns { drivers: [{ driver: {...} }] }
-            let driversList: any[] = [];
+            let driversList: TeamDriverItem[] = [];
             if (
-              teamDriversData.drivers &&
+              !Array.isArray(teamDriversData) &&
+              "drivers" in teamDriversData &&
               Array.isArray(teamDriversData.drivers)
             ) {
               driversList = teamDriversData.drivers;
@@ -660,13 +811,15 @@ export const getDriversForRace = action({
             // Extract driver numbers from the drivers array
             // Each item has format: { driver: { number: 44, ... } }
             const driverNumbers = driversList
-              .map((item: any) => {
+              .map((item) => {
                 const driver = item.driver || item;
                 return (
-                  driver.number || driver.driverNumber || driver.driver_number
+                  (driver as DriverData).number ||
+                  (driver as DriverData).driverNumber ||
+                  (driver as DriverData).driver_number
                 );
               })
-              .filter((n: any) => n && typeof n === "number");
+              .filter((n): n is number => typeof n === "number");
 
             if (driverNumbers.length > 0) {
               return {
@@ -676,7 +829,7 @@ export const getDriversForRace = action({
               };
             }
           }
-        } catch (error) {
+        } catch {
           // Silently continue
         }
         return null;
@@ -708,34 +861,41 @@ export const getDriversForRace = action({
       return [];
     }
 
-    return drivers.map((driver: any) => {
-      // Handle different API response formats
-      const driverNumber =
-        driver.number || driver.driver_number || driver.driverNumber;
-      const firstName = driver.name || driver.firstName || "";
-      const lastName =
-        driver.surname || driver.lastName || driver.last_name || "";
-      const fullName =
-        `${firstName} ${lastName}`.trim() ||
-        driver.shortName ||
-        `Driver ${driverNumber}`;
+    return drivers
+      .map((driver) => {
+        // Handle different API response formats
+        const driverNumber =
+          driver.number || driver.driver_number || driver.driverNumber;
+        if (!driverNumber) {
+          return null;
+        }
+        const firstName = driver.name || driver.firstName || "";
+        const lastName =
+          driver.surname || driver.lastName || driver.last_name || "";
+        const fullName =
+          `${firstName} ${lastName}`.trim() ||
+          driver.shortName ||
+          `Driver ${driverNumber}`;
 
-      // Get team from API mapping
-      const teamInfo = teamMap.get(driverNumber);
-      const teamName = teamInfo?.name || "Unknown Team";
-      const teamLogo = teamInfo?.logo;
+        // Get team from API mapping
+        const teamInfo = teamMap.get(driverNumber);
+        const teamName = teamInfo?.name || "Unknown Team";
+        const teamLogo = teamInfo?.logo;
 
-      const countryCode =
-        driver.nationality || driver.country_code || driver.countryCode || "";
+        const countryCode =
+          driver.nationality || driver.country_code || driver.countryCode || "";
 
-      return {
-        driverNumber,
-        name: fullName,
-        teamName,
-        teamLogo,
-        countryCode,
-      };
-    });
+        return {
+          driverNumber,
+          name: fullName,
+          teamName,
+          teamLogo,
+          countryCode,
+        };
+      })
+      .filter(
+        (driver): driver is NonNullable<typeof driver> => driver !== null,
+      );
   },
 });
 
@@ -755,8 +915,8 @@ export const getSessionData = action({
       throw new Error(`Failed to fetch session data: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data[0] || null;
+    const data = (await response.json()) as unknown[];
+    return (data[0] as unknown) || null;
   },
 });
 
@@ -796,7 +956,7 @@ export const getDriverData = action({
  * Extract session start/end times from OpenF1 session data
  */
 function extractSessionTime(
-  sessions: any[],
+  sessions: SessionData[],
   sessionType: string,
 ): { start: number; end: number } | undefined {
   const session = sessions.find((s) => s.session_name === sessionType);
@@ -820,7 +980,7 @@ export const syncRaceSessionTimes = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ raceId: string; sessionTimesUpdated: boolean }> => {
+  ): Promise<{ raceId: Id<"races">; sessionTimesUpdated: boolean }> => {
     const race = await ctx.runQuery(api.queries.races.getRaceById, {
       raceId: args.raceId,
     });
@@ -841,13 +1001,16 @@ export const syncRaceSessionTimes = action({
       );
     }
 
-    const sessions = await sessionsResponse.json();
+    const sessions = (await sessionsResponse.json()) as SessionData[];
     if (sessions.length === 0) {
       throw new Error("No sessions found for this race date");
     }
 
     // Group by meeting_key to get all sessions for this race
-    const meetingKey = sessions[0].meeting_key;
+    const meetingKey = sessions[0]?.meeting_key;
+    if (!meetingKey) {
+      throw new Error("No meeting key found");
+    }
     const allSessionsResponse = await fetch(
       `${F1API_BASE_URL}/sessions?meeting_key=${meetingKey}`,
     );
@@ -858,7 +1021,7 @@ export const syncRaceSessionTimes = action({
       );
     }
 
-    const allSessions = await allSessionsResponse.json();
+    const allSessions = (await allSessionsResponse.json()) as SessionData[];
     const sessionTimes = {
       fp1: extractSessionTime(allSessions, "FP1"),
       fp2: extractSessionTime(allSessions, "FP2"),

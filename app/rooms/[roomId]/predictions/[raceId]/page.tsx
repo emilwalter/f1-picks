@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Authenticated } from "convex/react";
 import { useQuery } from "convex/react";
@@ -62,7 +63,9 @@ export default function PredictionPage() {
   const isParticipant =
     currentUser && participants?.some((p) => p.userId === currentUser._id);
 
-  const isPast = selectedRace.date < Date.now();
+  // Use useMemo to avoid calling Date.now() during render
+  const now = useMemo(() => Date.now(), []);
+  const isPast = selectedRace.date < now;
   const isLocked = lockoutInfo?.locked || false;
   const hasPrediction = !!userPrediction;
 

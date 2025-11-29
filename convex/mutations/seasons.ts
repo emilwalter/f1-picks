@@ -32,7 +32,11 @@ export const updateSeason = mutation({
     currentRound: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const updates: any = {
+    const updates: {
+      updatedAt: number;
+      totalRaces?: number;
+      currentRound?: number;
+    } = {
       updatedAt: Date.now(),
     };
 

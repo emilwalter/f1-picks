@@ -1,5 +1,4 @@
 import { query } from "../_generated/server";
-import { v } from "convex/values";
 
 /**
  * Get the current authenticated user from Convex database.

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Image from "next/image";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { getDriverImageUrl, getTeamLogoUrl } from "@/lib/f1-images";
 
 interface PredictionFormProps {
@@ -296,7 +296,6 @@ export function PredictionForm({
               const selectedDriver = drivers.find(
                 (d) => d.driverNumber === pos.driverNumber,
               );
-              const isPodium = pos.position <= 3;
 
               // Get podium-specific styling
               let borderClass = "border-zinc-200 dark:border-zinc-800";
@@ -483,7 +482,7 @@ export function PredictionForm({
           <CardTitle className="text-base">
             DNF (Did Not Finish) 🚩
             <span className="ml-2 text-xs font-normal text-zinc-500">
-              (Optional - select drivers who won't finish)
+              (Optional - select drivers who won&apos;t finish)
             </span>
           </CardTitle>
         </CardHeader>

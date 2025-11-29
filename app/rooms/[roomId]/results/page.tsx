@@ -25,15 +25,10 @@ export default function RoomResultsPage() {
   const roomId = params.roomId as Id<"rooms">;
   const raceId = searchParams.get("raceId") as Id<"races"> | null;
 
-  const {
-    room,
-    season,
-    races,
-    leaderboard,
-    participants,
-    currentUser,
-    isLoading,
-  } = useRoom(roomId, raceId || undefined);
+  const { room, season, leaderboard, currentUser, isLoading } = useRoom(
+    roomId,
+    raceId || undefined,
+  );
 
   // Get the specific race if raceId is provided
   const race = useQuery(
@@ -109,8 +104,6 @@ export default function RoomResultsPage() {
       </div>
     );
   }
-
-  const displayLeaderboard = raceLeaderboard || leaderboard || [];
 
   return (
     <div className="container mx-auto px-4 py-8">

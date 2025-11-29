@@ -1,5 +1,6 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 
 /**
  * Get the cumulative leaderboard for a room across all races, ordered by total points descending
@@ -41,7 +42,7 @@ export const getRoomLeaderboard = query({
       Array.from(userTotals.values())
         .sort((a, b) => b.totalPoints - a.totalPoints)
         .map(async (entry) => {
-          const user = await ctx.db.get(entry.userId as any);
+          const user = await ctx.db.get(entry.userId as Id<"users">);
           return {
             _id: entry.userId,
             roomId: args.roomId,
@@ -55,7 +56,7 @@ export const getRoomLeaderboard = query({
               total: entry.totalPoints,
             },
             calculatedAt: Date.now(),
-            user: user as any,
+            user,
           };
         }),
     );

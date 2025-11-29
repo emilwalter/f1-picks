@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel";
 
 interface SyncRaceResultsProps {
   room: Doc<"rooms">;
@@ -88,9 +88,9 @@ export function SyncRaceResults({
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              This race has completed but results haven't been synced yet. Click
-              the button below to sync results from the F1 API and automatically
-              score all predictions.
+              This race has completed but results haven&apos;t been synced yet.
+              Click the button below to sync results from the F1 API and
+              automatically score all predictions.
             </p>
             <Button
               onClick={handleSync}

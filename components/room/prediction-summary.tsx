@@ -86,10 +86,6 @@ export function PredictionSummary({
     return driverMap.get(driverNumber)?.name || `#${driverNumber}`;
   };
 
-  const getDriverTeam = (driverNumber: number): string => {
-    return driverMap.get(driverNumber)?.teamName || "Unknown";
-  };
-
   const getMaxVotes = (votes: Map<number, number>): number => {
     if (votes.size === 0) return 1;
     return Math.max(...Array.from(votes.values()));
