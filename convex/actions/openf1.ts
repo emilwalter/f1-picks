@@ -82,7 +82,7 @@ interface SessionData {
  */
 export const getNextRace = action({
   args: {},
-  handler: async (_ctx) => {
+  handler: async () => {
     const response = await fetch(`${F1API_BASE_URL}/current/next`);
 
     if (!response.ok) {
@@ -134,14 +134,11 @@ export const syncSeasonFromOpenF1 = action({
 
     if (!season) {
       // Create season via mutation
-      const seasonId = await ctx.runMutation(
-        api.mutations.seasons.createSeason,
-        {
-          year: args.year,
-          totalRaces: 0, // Will be updated after fetching races
-          currentRound: 0,
-        },
-      );
+      await ctx.runMutation(api.mutations.seasons.createSeason, {
+        year: args.year,
+        totalRaces: 0, // Will be updated after fetching races
+        currentRound: 0,
+      });
       // Fetch the created season
       season = await ctx.runQuery(api.queries.seasons.getSeasonByYear, {
         year: args.year,
@@ -362,7 +359,7 @@ export const updateRaceResultsFromOpenF1 = action({
     // Convert to sorted array
     const sortedPositions = Array.from(finalPositions.entries())
       .sort((a, b) => a[1] - b[1])
-      .map(([driverNumber, position], index) => ({
+      .map(([driverNumber, position]) => ({
         position: position,
         driverNumber,
         points: calculatePoints(position), // Standard F1 points system
@@ -438,7 +435,7 @@ export const getDriversForRace = action({
   args: {
     date: v.optional(v.string()), // ISO date string (YYYY-MM-DD) - optional, not used but kept for compatibility
   },
-  handler: async (_ctx, _args) => {
+  handler: async () => {
     // Determine the year to use (default to current year or 2025)
     const currentYear = new Date().getFullYear();
     const year = currentYear >= 2025 ? 2025 : currentYear;

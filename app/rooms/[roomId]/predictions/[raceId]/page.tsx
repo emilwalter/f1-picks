@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Authenticated } from "convex/react";
 import { useQuery } from "convex/react";
@@ -21,6 +21,9 @@ export default function PredictionPage() {
   const router = useRouter();
   const roomId = params.roomId as Id<"rooms">;
   const raceId = params.raceId as Id<"races">;
+
+  // Initialize current time using useState with lazy initializer to avoid calling Date.now() during render
+  const [now] = useState(() => Date.now());
 
   const {
     room,
@@ -63,8 +66,6 @@ export default function PredictionPage() {
   const isParticipant =
     currentUser && participants?.some((p) => p.userId === currentUser._id);
 
-  // Use useMemo to avoid calling Date.now() during render
-  const now = useMemo(() => Date.now(), []);
   const isPast = selectedRace.date < now;
   const isLocked = lockoutInfo?.locked || false;
   const hasPrediction = !!userPrediction;
