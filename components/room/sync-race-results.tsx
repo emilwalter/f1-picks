@@ -39,7 +39,7 @@ export function SyncRaceResults({
     setIsSyncing(true);
     try {
       const result = await syncRaceResults({ raceId: race._id });
-      if (result.success) {
+      if (result.success && "roomsScored" in result) {
         toast.success(
           `Successfully synced results and scored ${result.roomsScored} rooms!`,
         );
