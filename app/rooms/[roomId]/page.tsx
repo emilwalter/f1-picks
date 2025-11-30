@@ -12,6 +12,7 @@ import { RoomSettingsDialog } from "@/components/room/room-settings-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Countdown } from "@/components/ui/countdown";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Users, ChevronDown, ChevronUp, Settings } from "lucide-react";
@@ -42,6 +43,20 @@ export default function RoomPage() {
   const predictionsByRace = useQuery(
     api.queries.predictions.getRoomPredictionsByRace,
     room ? { roomId } : "skip",
+  );
+
+  // Get the next race for countdown
+  const now = Date.now();
+  const allUnlockedRaces = races?.filter((race) => race.date >= now) || [];
+  const sortedUnlockedRaces = [...allUnlockedRaces].sort(
+    (a, b) => a.date - b.date,
+  );
+  const nextRace = sortedUnlockedRaces[0] || null;
+
+  // Get lockout info for the next race
+  const lockoutInfo = useQuery(
+    api.queries.lockout.getRoomLockoutInfo,
+    room && nextRace ? { roomId, raceId: nextRace._id } : "skip",
   );
 
   // Fetch drivers for visualization
@@ -92,11 +107,6 @@ export default function RoomPage() {
   const isHost = currentUser && room && currentUser._id === room.hostId;
 
   // Separate races into: next 3 active races, remaining future races, and locked races
-  const now = Date.now();
-  const allUnlockedRaces = races?.filter((race) => race.date >= now) || [];
-  const sortedUnlockedRaces = [...allUnlockedRaces].sort(
-    (a, b) => a.date - b.date,
-  );
   const next3Races = sortedUnlockedRaces.slice(0, 3);
   const remainingFutureRaces = sortedUnlockedRaces.slice(3);
   const lockedRaces = races?.filter((race) => race.date < now) || [];
@@ -155,7 +165,7 @@ export default function RoomPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">
                 Join Code
@@ -172,6 +182,21 @@ export default function RoomPage() {
                 {season.totalRaces}
               </div>
             </div>
+            {nextRace && (
+              <Countdown
+                targetTime={nextRace.date}
+                label="Next Race"
+                expiredLabel="Race Started"
+              />
+            )}
+            {lockoutInfo?.lockoutTime !== null &&
+              lockoutInfo?.lockoutTime !== undefined && (
+                <Countdown
+                  targetTime={lockoutInfo.lockoutTime}
+                  label="Prediction Lockout"
+                  expiredLabel="Locked"
+                />
+              )}
           </div>
         </CardContent>
       </Card>
