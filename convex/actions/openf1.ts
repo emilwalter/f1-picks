@@ -58,16 +58,6 @@ interface TeamDriverItem {
   driver?: DriverData;
 }
 
-interface PositionData {
-  driver_number: number;
-  position: number;
-}
-
-interface LapData {
-  lap_duration?: number;
-  driver_number: number;
-}
-
 interface SessionData {
   session_key?: string;
   session_name?: string;
@@ -1117,22 +1107,3 @@ export const syncRaceSessionTimes = action({
     return { raceId: args.raceId, sessionTimesUpdated: true };
   },
 });
-
-/**
- * Calculate F1 points based on position (standard F1 scoring)
- */
-function calculatePoints(position: number): number {
-  const pointsMap: Record<number, number> = {
-    1: 25,
-    2: 18,
-    3: 15,
-    4: 12,
-    5: 10,
-    6: 8,
-    7: 6,
-    8: 4,
-    9: 2,
-    10: 1,
-  };
-  return pointsMap[position] || 0;
-}

@@ -55,7 +55,15 @@ export default function PredictionPage() {
 
   // Fetch drivers for visualization
   const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
-  const [drivers, setDrivers] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<
+    Array<{
+      driverNumber: number;
+      name: string;
+      teamName: string;
+      teamLogo?: string;
+      countryCode: string;
+    }>
+  >([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
 
   // Fetch drivers when race is locked

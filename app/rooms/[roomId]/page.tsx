@@ -612,11 +612,7 @@ export default function RoomPage() {
             <div className="flex items-center justify-between">
               <CardTitle>Leaderboard</CardTitle>
               {isHost && lockedRaces.length > 0 && (
-                <SyncAllRacesButton
-                  roomId={roomId}
-                  races={lockedRaces}
-                  currentUser={currentUser}
-                />
+                <SyncAllRacesButton races={lockedRaces} />
               )}
             </div>
           </CardHeader>

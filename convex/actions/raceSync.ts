@@ -41,7 +41,6 @@ export const syncRaceResultsAndScore = action({
     }
 
     // Check if race has actually completed
-    const raceEndTime = race.date + 2 * 60 * 60 * 1000; // Assume race ends 2 hours after start
     const now = Date.now();
 
     // If results don't exist, sync them from OpenF1 API

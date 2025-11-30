@@ -9,19 +9,13 @@ import { RefreshCw } from "lucide-react";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 
 interface SyncAllRacesButtonProps {
-  roomId: Id<"rooms">;
   races: Doc<"races">[];
-  currentUser: Doc<"users"> | null;
 }
 
-export function SyncAllRacesButton({
-  roomId,
-  races,
-  currentUser,
-}: SyncAllRacesButtonProps) {
+export function SyncAllRacesButton({ races }: SyncAllRacesButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const syncRaceResults = useAction(
-    api.actions.raceSync.syncRaceResultsAndScore as any,
+    api.actions.raceSync.syncRaceResultsAndScore,
   );
 
   // Only show races that have completed (past races)
