@@ -297,8 +297,42 @@ export const syncSeasonFromOpenF1 = action({
   },
 });
 
+// Type definitions for race results API response
+interface RaceResultData {
+  position: number | "NC";
+  points: number;
+  grid: number | "not available";
+  time: string;
+  fastLap: string | null;
+  retired: string | null;
+  driver: {
+    driverId: string;
+    number: number;
+    shortName: string;
+    name: string;
+    surname: string;
+  };
+  team: {
+    teamId: string;
+    teamName: string;
+  };
+}
+
+interface RaceResultsResponse {
+  season: number;
+  races: {
+    round: string;
+    date: string;
+    raceId: string;
+    raceName: string;
+    results: RaceResultData[];
+  };
+}
+
 /**
  * Update race results from Open F1 API
+ * Uses the direct race endpoint: /api/{year}/{round}/race
+ * This is much more reliable than trying to find sessions by date
  */
 export const updateRaceResultsFromOpenF1 = action({
   args: {
@@ -314,103 +348,151 @@ export const updateRaceResultsFromOpenF1 = action({
       throw new Error("Race not found");
     }
 
-    // Get session key for the race (we'd need to store this or derive it)
-    // For now, we'll use the date to find sessions
-    const raceDate = new Date(race.date).toISOString().split("T")[0];
-    const sessionsResponse = await fetch(
-      `${F1API_BASE_URL}/sessions?date=${raceDate}&session_type=Race`,
-    );
-
-    if (!sessionsResponse.ok) {
-      throw new Error(
-        `Failed to fetch race sessions: ${sessionsResponse.statusText}`,
-      );
-    }
-
-    const sessions = (await sessionsResponse.json()) as SessionData[];
-    if (sessions.length === 0) {
-      throw new Error("No race session found for this date");
-    }
-
-    const sessionKey = sessions[0]?.session_key;
-    if (!sessionKey) {
-      throw new Error("No session key found");
-    }
-
-    // Fetch position data for the race
-    const positionsResponse = await fetch(
-      `${F1API_BASE_URL}/position?session_key=${sessionKey}`,
-    );
-
-    if (!positionsResponse.ok) {
-      throw new Error(
-        `Failed to fetch positions: ${positionsResponse.statusText}`,
-      );
-    }
-
-    const positionsData = await positionsResponse.json();
-
-    // Get final positions (last position for each driver)
-    const finalPositions = new Map<number, number>();
-    (positionsData as PositionData[]).forEach((pos) => {
-      finalPositions.set(pos.driver_number, pos.position);
+    // Get season to get year
+    const season = await ctx.runQuery(api.queries.seasons.getSeasonById, {
+      seasonId: race.seasonId,
     });
 
-    // Convert to sorted array
-    const sortedPositions = Array.from(finalPositions.entries())
-      .sort((a, b) => a[1] - b[1])
-      .map(([driverNumber, position]) => ({
-        position: position,
-        driverNumber,
-        points: calculatePoints(position), // Standard F1 points system
-      }));
-
-    // Fetch fastest lap (from lap times)
-    const lapsResponse = await fetch(
-      `${F1API_BASE_URL}/laps?session_key=${sessionKey}`,
-    );
-    let fastestLapDriverId: number | undefined;
-    if (lapsResponse.ok) {
-      const lapsData = (await lapsResponse.json()) as LapData[];
-      // Find fastest lap
-      let fastestTime = Infinity;
-      lapsData.forEach((lap) => {
-        if (lap.lap_duration && lap.lap_duration < fastestTime) {
-          fastestTime = lap.lap_duration;
-          fastestLapDriverId = lap.driver_number;
-        }
-      });
+    if (!season) {
+      throw new Error("Season not found for race");
     }
 
-    // Fetch pole position (from qualifying session)
-    const qualifyingResponse = await fetch(
-      `${F1API_BASE_URL}/sessions?date=${raceDate}&session_type=Qualifying`,
+    // Check if round number exists
+    if (!race.round || race.round <= 0) {
+      throw new Error(
+        `Race does not have a valid round number. Race: ${race.name}, Round: ${race.round}. ` +
+          `Please ensure races are synced from the season schedule first.`,
+      );
+    }
+
+    // Use the direct race endpoint: /api/{year}/{round}/race
+    // Only use the stored round number - no fallbacks to avoid syncing wrong race data
+    const raceResultsUrl = `${F1API_BASE_URL}/${season.year}/${race.round}/race`;
+
+    console.log(`Fetching race results from: ${raceResultsUrl}`);
+    console.log(
+      `Race details: ${race.name}, Round: ${race.round}, Year: ${season.year}`,
     );
-    let polePositionDriverId: number | undefined;
-    if (qualifyingResponse.ok) {
-      const qualifyingData = (await qualifyingResponse.json()) as SessionData[];
-      if (qualifyingData.length > 0) {
-        const qualifyingSessionKey = qualifyingData[0]?.session_key;
-        const qualifyingPositionsResponse = await fetch(
-          `${F1API_BASE_URL}/position?session_key=${qualifyingSessionKey}`,
+
+    const raceResultsResponse = await fetch(raceResultsUrl);
+
+    if (!raceResultsResponse.ok) {
+      // Try to get response body for better error message
+      let errorDetails = "";
+      try {
+        const errorBody = await raceResultsResponse.text();
+        errorDetails = errorBody
+          ? ` Response: ${errorBody.substring(0, 200)}`
+          : "";
+      } catch {
+        // Ignore errors reading response
+      }
+
+      if (raceResultsResponse.status === 404) {
+        throw new Error(
+          `Race results not found at ${raceResultsUrl}.${errorDetails} ` +
+            `The race may not have happened yet or results are not available in the API yet. ` +
+            `Race: ${race.name}, Round: ${race.round}, Year: ${season.year}. ` +
+            `Please wait for the race to complete and results to become available.`,
         );
-        if (qualifyingPositionsResponse.ok) {
-          const qualifyingPositions =
-            (await qualifyingPositionsResponse.json()) as PositionData[];
-          // Get first position (pole)
-          const polePosition = qualifyingPositions.find(
-            (p) => p.position === 1,
-          );
-          if (polePosition) {
-            polePositionDriverId = polePosition.driver_number;
+      }
+      throw new Error(
+        `Failed to fetch race results: ${raceResultsResponse.statusText} (${raceResultsResponse.status}).${errorDetails}`,
+      );
+    }
+
+    const raceResultsData =
+      (await raceResultsResponse.json()) as RaceResultsResponse;
+
+    if (
+      !raceResultsData.races ||
+      !raceResultsData.races.results ||
+      raceResultsData.races.results.length === 0
+    ) {
+      throw new Error("No race results found in API response");
+    }
+
+    const results = raceResultsData.races.results;
+
+    // Extract positions (filter out DNF/NC positions for sorted list)
+    const sortedPositions = results
+      .filter((r) => typeof r.position === "number")
+      .sort((a, b) => (a.position as number) - (b.position as number))
+      .map((r) => ({
+        position: r.position as number,
+        driverNumber: r.driver.number,
+        points: r.points,
+      }));
+
+    // Find fastest lap driver (from fastLap field - driver with fastest lap time)
+    let fastestLapDriverId: number | undefined;
+    let fastestLapTime: number | null = null;
+    results.forEach((r) => {
+      if (r.fastLap) {
+        // Parse lap time (format: "1:33.365" -> seconds)
+        const timeParts = r.fastLap.split(":");
+        if (timeParts.length === 2) {
+          const minutes = parseFloat(timeParts[0]);
+          const seconds = parseFloat(timeParts[1]);
+          const totalSeconds = minutes * 60 + seconds;
+          if (fastestLapTime === null || totalSeconds < fastestLapTime) {
+            fastestLapTime = totalSeconds;
+            fastestLapDriverId = r.driver.number;
           }
         }
       }
+    });
+
+    // Find pole position (driver with grid position 1)
+    let polePositionDriverId: number | undefined;
+    const poleDriver = results.find((r) => r.grid === 1);
+    if (poleDriver) {
+      polePositionDriverId = poleDriver.driver.number;
     }
 
-    // Fetch DNF drivers (drivers who didn't finish - would need to check stints or final positions)
-    // This is simplified - in reality, you'd check if a driver's final position is null or if they have no stints
-    const dnfDriverIds: number[] = [];
+    // Find DNF drivers (position is "NC" or retired is not null)
+    const dnfDriverIds: number[] = results
+      .filter(
+        (r) =>
+          r.position === "NC" ||
+          (typeof r.position === "string" &&
+            r.position !== "NC" &&
+            r.retired !== null),
+      )
+      .map((r) => r.driver.number);
+
+    // Verify we're updating the correct race by checking the race name in the API response
+    if (raceResultsData.races?.raceName) {
+      const apiRaceName = raceResultsData.races.raceName.toLowerCase().trim();
+      const storedRaceName = race.name.toLowerCase().trim();
+
+      // Simple verification - race names should be very similar (allowing for sponsor name differences)
+      // Remove common sponsor prefixes and compare
+      const normalizeRaceName = (name: string) => {
+        return name
+          .replace(
+            /^(qatar airways|heineken|lenovo|stc|crypto\.com|aws|msc cruises|pirelli|aramco|msc)\s+/gi,
+            "",
+          )
+          .trim();
+      };
+
+      const normalizedApi = normalizeRaceName(apiRaceName);
+      const normalizedStored = normalizeRaceName(storedRaceName);
+
+      // They should match after normalization (e.g., "Qatar Airways Qatar Grand Prix" vs "Qatar Grand Prix")
+      if (
+        normalizedApi !== normalizedStored &&
+        !normalizedApi.includes(normalizedStored) &&
+        !normalizedStored.includes(normalizedApi)
+      ) {
+        throw new Error(
+          `Race name mismatch! API returned results for "${raceResultsData.races.raceName}" ` +
+            `but we're trying to update "${race.name}". This prevents updating the wrong race. ` +
+            `Please verify the race round number is correct.`,
+        );
+      }
+    }
 
     // Update race with results
     await ctx.runMutation(api.mutations.races.updateRaceResults, {

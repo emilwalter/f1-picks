@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRoom } from "@/hooks/use-room";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -18,6 +19,12 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 import { format } from "date-fns";
+
+interface Driver {
+  driverNumber: number;
+  name: string;
+  teamName: string;
+}
 
 export default function RoomResultsPage() {
   const params = useParams();
@@ -41,6 +48,35 @@ export default function RoomResultsPage() {
     api.queries.leaderboard.getRoomRaceLeaderboard,
     room && raceId ? { roomId, raceId } : "skip",
   );
+
+  // Fetch drivers for displaying names
+  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
+
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      if (!race) return;
+      setIsLoadingDrivers(true);
+      try {
+        const raceDate = new Date(race.date).toISOString().split("T")[0];
+        const driversData = await getDriversForRace({ date: raceDate });
+        setDrivers(driversData);
+      } catch (error) {
+        console.error("Failed to fetch drivers:", error);
+        setDrivers([]);
+      } finally {
+        setIsLoadingDrivers(false);
+      }
+    };
+    fetchDrivers();
+  }, [race, getDriversForRace]);
+
+  // Helper function to get driver name by number
+  const getDriverName = (driverNumber: number): string => {
+    const driver = drivers.find((d) => d.driverNumber === driverNumber);
+    return driver?.name || `Driver #${driverNumber}`;
+  };
 
   if (isLoading || (raceId && race === undefined)) {
     return (
@@ -145,18 +181,31 @@ export default function RoomResultsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {race.officialResults.positions.map(
-                      (result: {
-                        position: number;
-                        driverNumber: number;
-                        points: number;
-                      }) => (
-                        <TableRow key={result.position}>
-                          <TableCell>{result.position}</TableCell>
-                          <TableCell>Driver #{result.driverNumber}</TableCell>
-                          <TableCell>{result.points}</TableCell>
-                        </TableRow>
-                      ),
+                    {isLoadingDrivers ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={3}
+                          className="text-center text-zinc-600 dark:text-zinc-400"
+                        >
+                          Loading driver names...
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      race.officialResults.positions.map(
+                        (result: {
+                          position: number;
+                          driverNumber: number;
+                          points: number;
+                        }) => (
+                          <TableRow key={result.position}>
+                            <TableCell>{result.position}</TableCell>
+                            <TableCell>
+                              {getDriverName(result.driverNumber)}
+                            </TableCell>
+                            <TableCell>{result.points}</TableCell>
+                          </TableRow>
+                        ),
+                      )
                     )}
                   </TableBody>
                 </Table>
@@ -205,22 +254,30 @@ export default function RoomResultsPage() {
                 <div>
                   <span className="font-medium">Fastest Lap:</span>{" "}
                   {race.officialResults.fastestLapDriverId
-                    ? `Driver #${race.officialResults.fastestLapDriverId}`
+                    ? isLoadingDrivers
+                      ? `Driver #${race.officialResults.fastestLapDriverId}`
+                      : getDriverName(race.officialResults.fastestLapDriverId)
                     : "N/A"}
                 </div>
                 <div>
                   <span className="font-medium">Pole Position:</span>{" "}
                   {race.officialResults.polePositionDriverId
-                    ? `Driver #${race.officialResults.polePositionDriverId}`
+                    ? isLoadingDrivers
+                      ? `Driver #${race.officialResults.polePositionDriverId}`
+                      : getDriverName(race.officialResults.polePositionDriverId)
                     : "N/A"}
                 </div>
                 {race.officialResults.dnfDriverIds &&
                   race.officialResults.dnfDriverIds.length > 0 && (
                     <div>
                       <span className="font-medium">DNF:</span>{" "}
-                      {race.officialResults.dnfDriverIds
-                        .map((id: number) => `#${id}`)
-                        .join(", ")}
+                      {isLoadingDrivers
+                        ? race.officialResults.dnfDriverIds
+                            .map((id: number) => `#${id}`)
+                            .join(", ")
+                        : race.officialResults.dnfDriverIds
+                            .map((id: number) => getDriverName(id))
+                            .join(", ")}
                     </div>
                   )}
               </CardContent>

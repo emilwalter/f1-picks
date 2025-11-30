@@ -30,8 +30,8 @@ export function SyncRaceResults({
   const hasResults = !!race.officialResults;
   const isPast = race.date < Date.now();
 
-  // Only show to hosts for past races
-  if (!isHost || !isPast) {
+  // Only show to hosts
+  if (!isHost) {
     return null;
   }
 
@@ -75,42 +75,60 @@ export function SyncRaceResults({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {hasResults ? (
-          <div className="text-sm text-zinc-600 dark:text-zinc-400">
-            <p>Race results have been synced and scoring has been applied.</p>
-            {race.officialResults && (
-              <p className="mt-2">
-                {race.officialResults.positions.length} drivers finished the
-                race.
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              This race has completed but results haven&apos;t been synced yet.
-              Click the button below to sync results from the F1 API and
-              automatically score all predictions.
-            </p>
-            <Button
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="w-full"
-            >
-              {isSyncing ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Syncing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Sync Results & Score Predictions
-                </>
+        <div className="space-y-3">
+          {hasResults ? (
+            <div className="text-sm text-zinc-600 dark:text-zinc-400">
+              <p>Race results have been synced and scoring has been applied.</p>
+              {race.officialResults && (
+                <p className="mt-2">
+                  {race.officialResults.positions.length} drivers finished the
+                  race.
+                  {race.officialResults.dnfDriverIds &&
+                    race.officialResults.dnfDriverIds.length > 0 && (
+                      <span className="ml-1">
+                        {race.officialResults.dnfDriverIds.length} driver
+                        {race.officialResults.dnfDriverIds.length !== 1
+                          ? "s"
+                          : ""}{" "}
+                        did not finish (DNF).
+                      </span>
+                    )}
+                </p>
               )}
-            </Button>
-          </div>
-        )}
+              {isPast && (
+                <p className="mt-2 text-xs">
+                  You can manually sync again to recalculate scores if needed.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {isPast
+                ? "This race has completed but results haven't been synced yet. Click the button below to sync results from the F1 API and automatically score all predictions."
+                : "Sync race results and calculate scores. This will update results from the F1 API and recalculate all prediction scores."}
+            </p>
+          )}
+          <Button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="w-full"
+            variant={hasResults ? "outline" : "default"}
+          >
+            {isSyncing ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {hasResults
+                  ? "Re-sync Results & Recalculate Scores"
+                  : "Sync Results & Score Predictions"}
+              </>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

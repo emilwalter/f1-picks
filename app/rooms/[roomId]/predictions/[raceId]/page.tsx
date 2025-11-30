@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Authenticated } from "convex/react";
 import { useQuery } from "convex/react";
@@ -8,13 +8,16 @@ import { api } from "@/convex/_generated/api";
 import { useRoom } from "@/hooks/use-room";
 import type { Id } from "@/convex/_generated/dataModel";
 import { PredictionForm } from "@/components/room/prediction-form";
+import { PredictionSummary } from "@/components/room/prediction-summary";
+import { SyncRaceResults } from "@/components/room/sync-race-results";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Lock, Calendar } from "lucide-react";
+import { Lock, Calendar, Trophy } from "lucide-react";
+import { useAction } from "convex/react";
 
 export default function PredictionPage() {
   const params = useParams();
@@ -41,6 +44,41 @@ export default function PredictionPage() {
     raceId,
   });
 
+  // Get all predictions for this race when locked
+  const allPredictions = useQuery(
+    api.queries.predictions.getRoomRacePredictions,
+    room && raceId ? { roomId, raceId } : "skip",
+  );
+
+  const isPast = selectedRace ? selectedRace.date < now : false;
+  const isLocked = lockoutInfo?.locked || false;
+
+  // Fetch drivers for visualization
+  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
+
+  // Fetch drivers when race is locked
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      if (!selectedRace || !isLocked) return;
+      setIsLoadingDrivers(true);
+      try {
+        const raceDate = new Date(selectedRace.date)
+          .toISOString()
+          .split("T")[0];
+        const driversData = await getDriversForRace({ date: raceDate });
+        setDrivers(driversData);
+      } catch (error) {
+        console.error("Failed to fetch drivers:", error);
+        setDrivers([]);
+      } finally {
+        setIsLoadingDrivers(false);
+      }
+    };
+    fetchDrivers();
+  }, [selectedRace, isLocked, getDriversForRace]);
+
   if (isLoading || lockoutInfo === undefined) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -66,8 +104,6 @@ export default function PredictionPage() {
   const isParticipant =
     currentUser && participants?.some((p) => p.userId === currentUser._id);
 
-  const isPast = selectedRace.date < now;
-  const isLocked = lockoutInfo?.locked || false;
   const hasPrediction = !!userPrediction;
 
   return (
@@ -140,6 +176,53 @@ export default function PredictionPage() {
                 : "The prediction deadline for this race has passed."}
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Sync Race Results - Host Only */}
+      {isParticipant && currentUser && currentUser._id === room.hostId && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <SyncRaceResults
+              room={room}
+              race={selectedRace}
+              currentUser={currentUser}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Show all predictions when locked */}
+      {(isLocked || isPast) && allPredictions && allPredictions.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>All Predictions</CardTitle>
+              {selectedRace.officialResults && (
+                <Link href={`/rooms/${roomId}/results?raceId=${raceId}`}>
+                  <Button variant="outline" size="sm">
+                    <Trophy className="mr-2 h-4 w-4" />
+                    View Results
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingDrivers ? (
+              <div className="py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                Loading predictions...
+              </div>
+            ) : (
+              <PredictionSummary
+                race={selectedRace}
+                predictions={allPredictions}
+                drivers={drivers}
+                participantCount={participants?.length || 0}
+                isPast={isPast}
+              />
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Prediction Form */}

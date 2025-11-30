@@ -3,6 +3,7 @@
 import { action, internalAction } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
+import type { Doc, Id } from "../_generated/dataModel";
 
 /**
  * Sync race results and apply scoring for all rooms
@@ -12,11 +13,24 @@ export const syncRaceResultsAndScore = action({
   args: {
     raceId: v.id("races"),
   },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    raceId: Id<"races">;
+    roomsProcessed?: number;
+    roomsScored?: number;
+    errors?: string[];
+  }> => {
     // Get the race first to check if results already exist
-    let race = await ctx.runQuery(api.queries.races.getRaceById, {
-      raceId: args.raceId,
-    });
+    let race: Doc<"races"> | null = await ctx.runQuery(
+      api.queries.races.getRaceById,
+      {
+        raceId: args.raceId,
+      },
+    );
 
     if (!race) {
       return {
@@ -26,8 +40,22 @@ export const syncRaceResultsAndScore = action({
       };
     }
 
+    // Check if race has actually completed
+    const raceEndTime = race.date + 2 * 60 * 60 * 1000; // Assume race ends 2 hours after start
+    const now = Date.now();
+
     // If results don't exist, sync them from OpenF1 API
     if (!race.officialResults) {
+      // Only try to sync if race has completed (race date has passed)
+      // The direct race endpoint should have results available immediately after race finishes
+      if (now < race.date) {
+        return {
+          success: false,
+          message: `Race has not started yet. Race date: ${new Date(race.date).toISOString()}`,
+          raceId: args.raceId,
+        };
+      }
+
       try {
         const syncResult = await ctx.runAction(
           api.actions.openf1.updateRaceResultsFromOpenF1,
@@ -152,6 +180,7 @@ export const syncRaceResultsAndScore = action({
 /**
  * Internal action called by scheduled function
  * Checks for completed races without results and syncs them
+ * Also recalculates scores for races with existing results to ensure they're up to date
  */
 export const syncCompletedRaces = internalAction({
   args: {},
@@ -162,21 +191,20 @@ export const syncCompletedRaces = internalAction({
       {},
     );
 
-    if (completedRaces.length === 0) {
-      return {
-        success: true,
-        message: "No completed races to sync",
-        racesProcessed: 0,
-      };
-    }
+    // Get all completed races with results (to recalculate scores)
+    const racesWithResults = await ctx.runQuery(
+      api.queries.races.getCompletedRacesWithResults,
+      {},
+    );
 
     const results = {
       racesProcessed: 0,
       racesSynced: 0,
+      scoresRecalculated: 0,
       errors: [] as string[],
     };
 
-    // Process each race (with a small delay between races to avoid rate limiting)
+    // Process races without results first
     for (const race of completedRaces) {
       try {
         // Only sync races that completed at least 1 hour ago (give API time to update)
@@ -214,9 +242,64 @@ export const syncCompletedRaces = internalAction({
       }
     }
 
+    // Recalculate scores for races with existing results
+    // This ensures scores are up to date even if scoring config changed or there were errors
+    for (const race of racesWithResults) {
+      try {
+        // Get the season for this race
+        const season = await ctx.runQuery(api.queries.seasons.getSeasonById, {
+          seasonId: race.seasonId,
+        });
+
+        if (!season) {
+          continue;
+        }
+
+        // Get all rooms for this season
+        const rooms = await ctx.runQuery(api.queries.rooms.getRoomsBySeason, {
+          seasonId: race.seasonId,
+        });
+
+        // Recalculate scores for each room
+        for (const room of rooms) {
+          try {
+            await ctx.runMutation(
+              internal.mutations.raceScoring.applyScoringForRoom,
+              {
+                roomId: room._id,
+                raceId: race._id,
+              },
+            );
+            results.scoresRecalculated++;
+          } catch (error) {
+            // If scoring fails, it might be because there are no predictions
+            // or results aren't complete yet - that's okay, just log and continue
+            const errorMessage =
+              error instanceof Error ? error.message : "Unknown error";
+            // Only log if it's not a "no predictions" type error
+            if (
+              !errorMessage.includes("not found") &&
+              !errorMessage.includes("not available")
+            ) {
+              results.errors.push(
+                `Score recalculation failed for Room ${room._id}, Race ${race._id}: ${errorMessage}`,
+              );
+            }
+          }
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        results.errors.push(`Race ${race._id}: ${errorMessage}`);
+      }
+    }
+
     return {
       success: true,
-      message: `Processed ${results.racesProcessed} races, synced ${results.racesSynced}`,
+      message: `Processed ${results.racesProcessed} races, synced ${results.racesSynced}, recalculated scores for ${results.scoresRecalculated} room-race combinations`,
       ...results,
     };
   },

@@ -90,3 +90,22 @@ export const getCompletedRacesWithoutResults = query({
     return races.filter((race) => !race.officialResults);
   },
 });
+
+/**
+ * Get completed races that have results but may need score recalculation
+ * Used by scheduled functions to ensure scores are up to date
+ */
+export const getCompletedRacesWithResults = query({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    // Get races that have passed (date < now) and have officialResults
+    const races = await ctx.db
+      .query("races")
+      .withIndex("by_date", (q) => q.lt("date", now))
+      .collect();
+
+    // Filter to only races with results
+    return races.filter((race) => !!race.officialResults);
+  },
+});
