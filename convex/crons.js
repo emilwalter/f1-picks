@@ -13,7 +13,7 @@ crons.interval(
   {
     minutes: 60, // Run every 60 minutes (hourly)
   },
-  internal.actions.raceSync.syncCompletedRaces,
+  internal.actions.raceSync.syncCompletedRaces
 );
 
 export default crons;
