@@ -55,7 +55,7 @@ export const applyScoringForRoom = internalMutation({
       const score = calculateScore(
         prediction,
         officialResults,
-        room.scoringConfig,
+        room.scoringConfig
       );
 
       // Check if score already exists for this race
@@ -65,7 +65,7 @@ export const applyScoringForRoom = internalMutation({
           q
             .eq("roomId", args.roomId)
             .eq("raceId", args.raceId)
-            .eq("userId", prediction.userId),
+            .eq("userId", prediction.userId)
         )
         .first();
 

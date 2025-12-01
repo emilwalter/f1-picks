@@ -15,7 +15,7 @@ export const submitPrediction = mutation({
         v.object({
           position: v.number(),
           driverNumber: v.number(),
-        }),
+        })
       ),
       fastestLapDriverId: v.optional(v.number()),
       polePositionDriverId: v.optional(v.number()),
@@ -65,7 +65,7 @@ export const submitPrediction = mutation({
     const participant = await ctx.db
       .query("roomParticipants")
       .withIndex("by_room_user", (q) =>
-        q.eq("roomId", args.roomId).eq("userId", user._id),
+        q.eq("roomId", args.roomId).eq("userId", user._id)
       )
       .first();
 
@@ -80,7 +80,7 @@ export const submitPrediction = mutation({
         q
           .eq("roomId", args.roomId)
           .eq("raceId", args.raceId)
-          .eq("userId", user._id),
+          .eq("userId", user._id)
       )
       .first();
 
@@ -125,7 +125,7 @@ export const updatePrediction = mutation({
         v.object({
           position: v.number(),
           driverNumber: v.number(),
-        }),
+        })
       ),
       fastestLapDriverId: v.optional(v.number()),
       polePositionDriverId: v.optional(v.number()),
@@ -143,7 +143,7 @@ export const updatePrediction = mutation({
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_provider_id", (q) =>
-        q.eq("authProviderId", authProviderId),
+        q.eq("authProviderId", authProviderId)
       )
       .first();
 

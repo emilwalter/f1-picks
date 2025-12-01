@@ -28,11 +28,11 @@ export const getUserSeasonStats = query({
         const participant = await ctx.db
           .query("roomParticipants")
           .withIndex("by_room_user", (q) =>
-            q.eq("roomId", room._id).eq("userId", args.userId),
+            q.eq("roomId", room._id).eq("userId", args.userId)
           )
           .first();
         return participant ? room : null;
-      }),
+      })
     );
 
     const validUserRooms = userRooms.filter((r) => r !== null);
@@ -47,11 +47,11 @@ export const getUserSeasonStats = query({
               q
                 .eq("roomId", room!._id)
                 .eq("raceId", race._id)
-                .eq("userId", args.userId),
+                .eq("userId", args.userId)
             )
             .first();
-        }),
-      ),
+        })
+      )
     );
 
     const validScores = allScores.filter((s) => s !== null);
@@ -59,7 +59,7 @@ export const getUserSeasonStats = query({
     // Calculate statistics
     const totalPoints = validScores.reduce(
       (sum, score) => sum + score!.points,
-      0,
+      0
     );
     const averagePoints =
       validScores.length > 0 ? totalPoints / validScores.length : 0;

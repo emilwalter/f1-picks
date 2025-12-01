@@ -24,7 +24,7 @@ export const getCurrentUser = query({
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_provider_id", (q) =>
-        q.eq("authProviderId", authProviderId),
+        q.eq("authProviderId", authProviderId)
       )
       .first();
 

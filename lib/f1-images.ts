@@ -112,7 +112,7 @@ export function getTeamColor(teamName: string): string {
 export function getDriverImageUrl(
   driverNumber: number,
   driverName?: string,
-  teamName?: string,
+  teamName?: string
 ): string {
   // Use team color for background, driver number for initials
   const initials = driverName
@@ -128,7 +128,7 @@ export function getDriverImageUrl(
   const textColor = bgColor === "FFFFFF" ? "000000" : "FFFFFF";
 
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    initials,
+    initials
   )}&background=${bgColor}&color=${textColor}&size=128&bold=true&font-size=0.5`;
 }
 
@@ -144,7 +144,7 @@ export function getTeamLogoUrl(teamName: string, teamLogo?: string): string {
   // Fallback: Use a service or static team logos
   // In production, you could also use a CDN with team logos
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    teamName,
+    teamName
   )}&background=random&size=64&bold=true`;
 }
 
@@ -156,7 +156,7 @@ export function getCircuitImageUrl(circuitName: string): string {
   // Placeholder: Use a service or static circuit images
   // In production, replace with actual circuit images from F1 API or Wikipedia
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    circuitName,
+    circuitName
   )}&background=random&size=256`;
 }
 

@@ -15,7 +15,7 @@ export const syncRaceResultsAndScore = action({
   },
   handler: async (
     ctx,
-    args,
+    args
   ): Promise<{
     success: boolean;
     message: string;
@@ -29,7 +29,7 @@ export const syncRaceResultsAndScore = action({
       api.queries.races.getRaceById,
       {
         raceId: args.raceId,
-      },
+      }
     );
 
     if (!race) {
@@ -60,7 +60,7 @@ export const syncRaceResultsAndScore = action({
           api.actions.openf1.updateRaceResultsFromOpenF1,
           {
             raceId: args.raceId,
-          },
+          }
         );
 
         if (!syncResult.resultsUpdated) {
@@ -128,7 +128,7 @@ export const syncRaceResultsAndScore = action({
           {
             roomId: room._id,
             raceId: args.raceId,
-          },
+          }
         );
 
         // If scores already exist for all participants, skip
@@ -137,7 +137,7 @@ export const syncRaceResultsAndScore = action({
           {
             roomId: room._id,
             raceId: args.raceId,
-          },
+          }
         );
 
         if (
@@ -155,7 +155,7 @@ export const syncRaceResultsAndScore = action({
           {
             roomId: room._id,
             raceId: args.raceId,
-          },
+          }
         );
 
         results.roomsScored++;
@@ -187,13 +187,13 @@ export const syncCompletedRaces = internalAction({
     // Get all completed races without results
     const completedRaces = await ctx.runQuery(
       api.queries.races.getCompletedRacesWithoutResults,
-      {},
+      {}
     );
 
     // Get all completed races with results (to recalculate scores)
     const racesWithResults = await ctx.runQuery(
       api.queries.races.getCompletedRacesWithResults,
-      {},
+      {}
     );
 
     const results = {
@@ -218,14 +218,14 @@ export const syncCompletedRaces = internalAction({
           api.actions.raceSync.syncRaceResultsAndScore,
           {
             raceId: race._id,
-          },
+          }
         );
 
         if (syncResult.success) {
           results.racesSynced++;
         } else {
           results.errors.push(
-            `Race ${race.name} (${race._id}): ${syncResult.message}`,
+            `Race ${race.name} (${race._id}): ${syncResult.message}`
           );
         }
 
@@ -267,7 +267,7 @@ export const syncCompletedRaces = internalAction({
               {
                 roomId: room._id,
                 raceId: race._id,
-              },
+              }
             );
             results.scoresRecalculated++;
           } catch (error) {
@@ -281,7 +281,7 @@ export const syncCompletedRaces = internalAction({
               !errorMessage.includes("not available")
             ) {
               results.errors.push(
-                `Score recalculation failed for Room ${room._id}, Race ${race._id}: ${errorMessage}`,
+                `Score recalculation failed for Room ${room._id}, Race ${race._id}: ${errorMessage}`
               );
             }
           }

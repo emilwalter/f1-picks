@@ -47,7 +47,7 @@ export default function PredictionPage() {
   // Get all predictions for this race when locked
   const allPredictions = useQuery(
     api.queries.predictions.getRoomRacePredictions,
-    room && raceId ? { roomId, raceId } : "skip",
+    room && raceId ? { roomId, raceId } : "skip"
   );
 
   const isPast = selectedRace ? selectedRace.date < now : false;
@@ -179,7 +179,7 @@ export default function PredictionPage() {
               : lockoutInfo?.lockoutTime
                 ? `Predictions locked at ${format(
                     lockoutInfo.lockoutTime,
-                    "PPp",
+                    "PPp"
                   )}`
                 : "The prediction deadline for this race has passed."}
           </AlertDescription>

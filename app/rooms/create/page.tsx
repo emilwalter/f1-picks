@@ -37,10 +37,10 @@ export default function CreateRoomPage() {
 
   const [roomName, setRoomName] = useState("");
   const [lockoutType, setLockoutType] = useState<"before_session" | "custom">(
-    "before_session",
+    "before_session"
   );
   const [lockoutSession, setLockoutSession] = useState<"qualifying" | "race">(
-    "qualifying",
+    "qualifying"
   );
   const [customHours, setCustomHours] = useState("1");
   const [isCreating, setIsCreating] = useState(false);
@@ -89,7 +89,7 @@ export default function CreateRoomPage() {
     } catch (error) {
       console.error("Error creating room:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to create room",
+        error instanceof Error ? error.message : "Failed to create room"
       );
     } finally {
       setIsCreating(false);

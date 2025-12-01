@@ -54,7 +54,7 @@ export function RoomSettingsDialog({
       ? "before_session"
       : room.lockoutConfig.type === "before_session_end"
         ? "before_session_end"
-        : "custom",
+        : "custom"
   );
   const [lockoutSession, setLockoutSession] = useState<
     "fp1" | "fp2" | "fp3" | "qualifying" | "race"
@@ -62,7 +62,7 @@ export function RoomSettingsDialog({
     room.lockoutConfig.type === "before_session" ||
       room.lockoutConfig.type === "before_session_end"
       ? room.lockoutConfig.session
-      : "qualifying",
+      : "qualifying"
   );
 
   // Reset session if it's invalid for the current lockout type
@@ -74,21 +74,21 @@ export function RoomSettingsDialog({
   const [customHours, setCustomHours] = useState(
     room.lockoutConfig.type === "custom"
       ? room.lockoutConfig.hoursBeforeRace.toString()
-      : "1",
+      : "1"
   );
 
   // Scoring config state
   const [positionPoints, setPositionPoints] = useState<string>(
-    room.scoringConfig.positionPoints.join(", "),
+    room.scoringConfig.positionPoints.join(", ")
   );
   const [fastestLapPoints, setFastestLapPoints] = useState(
-    room.scoringConfig.fastestLapPoints.toString(),
+    room.scoringConfig.fastestLapPoints.toString()
   );
   const [polePositionPoints, setPolePositionPoints] = useState(
-    room.scoringConfig.polePositionPoints.toString(),
+    room.scoringConfig.polePositionPoints.toString()
   );
   const [dnfPenalty, setDnfPenalty] = useState(
-    room.scoringConfig.dnfPenalty.toString(),
+    room.scoringConfig.dnfPenalty.toString()
   );
 
   // Reset form when room changes
@@ -99,7 +99,7 @@ export function RoomSettingsDialog({
         ? "before_session"
         : room.lockoutConfig.type === "before_session_end"
           ? "before_session_end"
-          : "custom",
+          : "custom"
     );
     if (
       room.lockoutConfig.type === "before_session" ||
@@ -177,7 +177,7 @@ export function RoomSettingsDialog({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to update room settings",
+          : "Failed to update room settings"
       );
     } finally {
       setIsSaving(false);
@@ -231,7 +231,7 @@ export function RoomSettingsDialog({
                       value as
                         | "before_session"
                         | "before_session_end"
-                        | "custom",
+                        | "custom"
                     )
                   }
                 >
@@ -260,7 +260,7 @@ export function RoomSettingsDialog({
                     value={lockoutSession}
                     onValueChange={(value) =>
                       setLockoutSession(
-                        value as "fp1" | "fp2" | "fp3" | "qualifying" | "race",
+                        value as "fp1" | "fp2" | "fp3" | "qualifying" | "race"
                       )
                     }
                   >

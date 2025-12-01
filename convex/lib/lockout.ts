@@ -10,7 +10,7 @@ import type { Doc } from "../_generated/dataModel";
  */
 export function calculateLockoutTime(
   room: Doc<"rooms">,
-  race: Doc<"races"> | null,
+  race: Doc<"races"> | null
 ): number | null {
   if (!race) {
     return null;
@@ -55,7 +55,7 @@ export function calculateLockoutTime(
  */
 export function isLocked(
   room: Doc<"rooms">,
-  race: Doc<"races"> | null,
+  race: Doc<"races"> | null
 ): boolean {
   // If room is archived, it's locked
   if (room.status === "archived") {
@@ -89,7 +89,7 @@ export function isLocked(
  */
 export function getTimeUntilLockout(
   room: Doc<"rooms">,
-  race: Doc<"races"> | null,
+  race: Doc<"races"> | null
 ): number | null {
   const lockoutTime = calculateLockoutTime(room, race);
   if (lockoutTime === null) {

@@ -39,7 +39,7 @@ export function PredictionSummary({
 }: PredictionSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(!isPast);
   const [viewMode, setViewMode] = useState<"aggregate" | "by-user">(
-    "aggregate",
+    "aggregate"
   );
   const predictionCount = predictions.length;
 
@@ -355,7 +355,7 @@ function ByUserView({
 
         // Sort predicted positions by position number
         const sortedPositions = [...prediction.predictedPositions].sort(
-          (a, b) => a.position - b.position,
+          (a, b) => a.position - b.position
         );
 
         return (
@@ -375,7 +375,7 @@ function ByUserView({
               <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((position) => {
                   const pred = sortedPositions.find(
-                    (p) => p.position === position,
+                    (p) => p.position === position
                   );
                   if (!pred) {
                     return (

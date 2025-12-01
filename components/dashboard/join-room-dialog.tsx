@@ -47,7 +47,7 @@ export function JoinRoomDialog() {
       router.push(`/rooms/${roomId}`);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to join room",
+        error instanceof Error ? error.message : "Failed to join room"
       );
     } finally {
       setIsJoining(false);

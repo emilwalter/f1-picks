@@ -50,7 +50,7 @@ export default function RoomPage() {
   // Get all predictions grouped by race for the summary
   const predictionsByRace = useQuery(
     api.queries.predictions.getRoomPredictionsByRace,
-    room ? { roomId } : "skip",
+    room ? { roomId } : "skip"
   );
 
   // Get the next race for countdown
@@ -60,7 +60,7 @@ export default function RoomPage() {
   const allUnlockedRaces =
     races?.filter((race) => race.date >= oneDayAgo) || [];
   const sortedUnlockedRaces = [...allUnlockedRaces].sort(
-    (a, b) => a.date - b.date,
+    (a, b) => a.date - b.date
   );
   const nextRace =
     sortedUnlockedRaces.find((race) => race.date >= now) ||
@@ -70,7 +70,7 @@ export default function RoomPage() {
   // Get lockout info for the next race
   const lockoutInfo = useQuery(
     api.queries.lockout.getRoomLockoutInfo,
-    room && nextRace ? { roomId, raceId: nextRace._id } : "skip",
+    room && nextRace ? { roomId, raceId: nextRace._id } : "skip"
   );
 
   // Fetch drivers for visualization
@@ -136,7 +136,7 @@ export default function RoomPage() {
   // Separate races into: next 3 active races, remaining future races, and locked races
   const next3Races = sortedUnlockedRaces.slice(
     upcomingRacesIndex,
-    upcomingRacesIndex + RACES_PER_PAGE,
+    upcomingRacesIndex + RACES_PER_PAGE
   );
   const remainingFutureRaces = sortedUnlockedRaces.slice(3);
   // Only show races older than 24 hours in locked races section
@@ -255,7 +255,7 @@ export default function RoomPage() {
                             size="icon-sm"
                             onClick={() =>
                               setUpcomingRacesIndex(
-                                Math.max(0, upcomingRacesIndex - 1),
+                                Math.max(0, upcomingRacesIndex - 1)
                               )
                             }
                             disabled={upcomingRacesIndex === 0}
@@ -267,7 +267,7 @@ export default function RoomPage() {
                             {upcomingRacesIndex + 1}-
                             {Math.min(
                               upcomingRacesIndex + RACES_PER_PAGE,
-                              totalUpcomingRaces,
+                              totalUpcomingRaces
                             )}{" "}
                             of {totalUpcomingRaces}
                           </span>
@@ -278,8 +278,8 @@ export default function RoomPage() {
                               setUpcomingRacesIndex(
                                 Math.min(
                                   maxUpcomingIndex,
-                                  upcomingRacesIndex + 1,
-                                ),
+                                  upcomingRacesIndex + 1
+                                )
                               )
                             }
                             disabled={upcomingRacesIndex >= maxUpcomingIndex}
@@ -293,7 +293,7 @@ export default function RoomPage() {
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {next3Races.map((race) => {
                         const hasPrediction = userPredictions?.some(
-                          (p) => p.raceId === race._id,
+                          (p) => p.raceId === race._id
                         );
 
                         return (
@@ -367,7 +367,7 @@ export default function RoomPage() {
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         {remainingFutureRaces.map((race) => {
                           const hasPrediction = userPredictions?.some(
-                            (p) => p.raceId === race._id,
+                            (p) => p.raceId === race._id
                           );
 
                           return (
@@ -434,7 +434,7 @@ export default function RoomPage() {
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         {lockedRaces.map((race) => {
                           const hasPrediction = userPredictions?.some(
-                            (p) => p.raceId === race._id,
+                            (p) => p.raceId === race._id
                           );
 
                           return (

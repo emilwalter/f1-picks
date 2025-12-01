@@ -33,7 +33,7 @@ export function PredictionForm({
   isLocked: isLockedProp,
 }: PredictionFormProps) {
   const submitPrediction = useMutation(
-    api.mutations.predictions.submitPrediction,
+    api.mutations.predictions.submitPrediction
   );
   const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +68,7 @@ export function PredictionForm({
       Array.from({ length: 10 }, (_, i) => ({
         position: i + 1,
         driverNumber: 0,
-      })),
+      }))
   );
   const [polePositionDriverId, setPolePositionDriverId] = useState<
     number | undefined
@@ -77,7 +77,7 @@ export function PredictionForm({
     number | undefined
   >(currentPrediction?.fastestLapDriverId);
   const [dnfDriverIds, setDnfDriverIds] = useState<number[]>(
-    currentPrediction?.dnfDriverIds || [],
+    currentPrediction?.dnfDriverIds || []
   );
 
   // Update form when current prediction changes
@@ -89,7 +89,7 @@ export function PredictionForm({
           : Array.from({ length: 10 }, (_, i) => ({
               position: i + 1,
               driverNumber: 0,
-            })),
+            }))
       );
       setPolePositionDriverId(currentPrediction.polePositionDriverId);
       setFastestLapDriverId(currentPrediction.fastestLapDriverId);
@@ -112,7 +112,7 @@ export function PredictionForm({
     setDnfDriverIds((prev) =>
       prev.includes(driverNumber)
         ? prev.filter((id) => id !== driverNumber)
-        : [...prev, driverNumber],
+        : [...prev, driverNumber]
     );
   };
 
@@ -128,7 +128,7 @@ export function PredictionForm({
     if (isLocked) {
       if (isPast) {
         toast.error(
-          "Cannot submit predictions for races that have already happened",
+          "Cannot submit predictions for races that have already happened"
         );
       } else {
         toast.error("This room is not accepting predictions");
@@ -138,11 +138,11 @@ export function PredictionForm({
 
     // Validate that all positions are filled
     const missingPositions = predictedPositions.filter(
-      (p) => p.driverNumber === 0,
+      (p) => p.driverNumber === 0
     );
     if (missingPositions.length > 0) {
       toast.error(
-        `Please select drivers for positions ${missingPositions.map((p) => p.position).join(", ")}`,
+        `Please select drivers for positions ${missingPositions.map((p) => p.position).join(", ")}`
       );
       return;
     }
@@ -150,7 +150,7 @@ export function PredictionForm({
     // Check for duplicate drivers
     const driverNumbers = predictedPositions.map((p) => p.driverNumber);
     const duplicates = driverNumbers.filter(
-      (num, index) => driverNumbers.indexOf(num) !== index,
+      (num, index) => driverNumbers.indexOf(num) !== index
     );
     if (duplicates.length > 0) {
       toast.error("Each driver can only be selected once for positions");
@@ -176,11 +176,11 @@ export function PredictionForm({
       toast.success(
         currentPrediction
           ? "Prediction updated successfully!"
-          : "Prediction submitted successfully!",
+          : "Prediction submitted successfully!"
       );
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to submit prediction",
+        error instanceof Error ? error.message : "Failed to submit prediction"
       );
     } finally {
       setIsSubmitting(false);
@@ -239,7 +239,7 @@ export function PredictionForm({
                   setPolePositionDriverId(
                     polePositionDriverId === driver.driverNumber
                       ? undefined
-                      : driver.driverNumber,
+                      : driver.driverNumber
                   )
                 }
                 className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all ${
@@ -253,7 +253,7 @@ export function PredictionForm({
                     src={getDriverImageUrl(
                       driver.driverNumber,
                       driver.name,
-                      driver.teamName,
+                      driver.teamName
                     )}
                     alt={driver.name}
                     fill
@@ -294,7 +294,7 @@ export function PredictionForm({
           <div className="space-y-3">
             {predictedPositions.map((pos) => {
               const selectedDriver = drivers.find(
-                (d) => d.driverNumber === pos.driverNumber,
+                (d) => d.driverNumber === pos.driverNumber
               );
 
               // Get podium-specific styling
@@ -334,7 +334,7 @@ export function PredictionForm({
                           src={getDriverImageUrl(
                             selectedDriver.driverNumber,
                             selectedDriver.name,
-                            selectedDriver.teamName,
+                            selectedDriver.teamName
                           )}
                           alt={selectedDriver.name}
                           fill
@@ -351,7 +351,7 @@ export function PredictionForm({
                             <Image
                               src={getTeamLogoUrl(
                                 selectedDriver.teamName,
-                                selectedDriver.teamLogo,
+                                selectedDriver.teamLogo
                               )}
                               alt={selectedDriver.teamName}
                               fill
@@ -381,7 +381,7 @@ export function PredictionForm({
                         onChange={(e) =>
                           handlePositionChange(
                             pos.position,
-                            parseInt(e.target.value) || 0,
+                            parseInt(e.target.value) || 0
                           )
                         }
                         className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -393,8 +393,8 @@ export function PredictionForm({
                               !predictedPositions.some(
                                 (p) =>
                                   p.driverNumber === d.driverNumber &&
-                                  p.position !== pos.position,
-                              ),
+                                  p.position !== pos.position
+                              )
                           )
                           .map((driver) => (
                             <option
@@ -435,7 +435,7 @@ export function PredictionForm({
                   setFastestLapDriverId(
                     fastestLapDriverId === driver.driverNumber
                       ? undefined
-                      : driver.driverNumber,
+                      : driver.driverNumber
                   )
                 }
                 className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all ${
@@ -449,7 +449,7 @@ export function PredictionForm({
                     src={getDriverImageUrl(
                       driver.driverNumber,
                       driver.name,
-                      driver.teamName,
+                      driver.teamName
                     )}
                     alt={driver.name}
                     fill
@@ -504,7 +504,7 @@ export function PredictionForm({
                     src={getDriverImageUrl(
                       driver.driverNumber,
                       driver.name,
-                      driver.teamName,
+                      driver.teamName
                     )}
                     alt={driver.name}
                     fill

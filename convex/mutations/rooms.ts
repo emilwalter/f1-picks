@@ -17,7 +17,7 @@ export const createRoom = mutation({
           v.literal("fp2"),
           v.literal("fp3"),
           v.literal("qualifying"),
-          v.literal("race"),
+          v.literal("race")
         ),
       }),
       v.object({
@@ -26,13 +26,13 @@ export const createRoom = mutation({
           v.literal("fp1"),
           v.literal("fp2"),
           v.literal("fp3"),
-          v.literal("qualifying"),
+          v.literal("qualifying")
         ),
       }),
       v.object({
         type: v.literal("custom"),
         hoursBeforeRace: v.number(),
-      }),
+      })
     ),
     scoringConfig: v.object({
       positionPoints: v.array(v.number()),
@@ -126,7 +126,7 @@ export const joinRoom = mutation({
     const existingParticipant = await ctx.db
       .query("roomParticipants")
       .withIndex("by_room_user", (q) =>
-        q.eq("roomId", room._id).eq("userId", user._id),
+        q.eq("roomId", room._id).eq("userId", user._id)
       )
       .first();
 
@@ -163,7 +163,7 @@ export const updateRoom = mutation({
             v.literal("fp2"),
             v.literal("fp3"),
             v.literal("qualifying"),
-            v.literal("race"),
+            v.literal("race")
           ),
         }),
         v.object({
@@ -172,14 +172,14 @@ export const updateRoom = mutation({
             v.literal("fp1"),
             v.literal("fp2"),
             v.literal("fp3"),
-            v.literal("qualifying"),
+            v.literal("qualifying")
           ),
         }),
         v.object({
           type: v.literal("custom"),
           hoursBeforeRace: v.number(),
-        }),
-      ),
+        })
+      )
     ),
     scoringConfig: v.optional(
       v.object({
@@ -187,7 +187,7 @@ export const updateRoom = mutation({
         fastestLapPoints: v.number(),
         polePositionPoints: v.number(),
         dnfPenalty: v.number(),
-      }),
+      })
     ),
     status: v.optional(v.union(v.literal("open"), v.literal("archived"))),
   },
@@ -207,7 +207,7 @@ export const updateRoom = mutation({
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_provider_id", (q) =>
-        q.eq("authProviderId", authProviderId),
+        q.eq("authProviderId", authProviderId)
       )
       .first();
 
@@ -269,7 +269,7 @@ export const archiveRoom = mutation({
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_provider_id", (q) =>
-        q.eq("authProviderId", authProviderId),
+        q.eq("authProviderId", authProviderId)
       )
       .first();
 

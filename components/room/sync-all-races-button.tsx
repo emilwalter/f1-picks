@@ -15,7 +15,7 @@ interface SyncAllRacesButtonProps {
 export function SyncAllRacesButton({ races }: SyncAllRacesButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const syncRaceResults = useAction(
-    api.actions.raceSync.syncRaceResultsAndScore,
+    api.actions.raceSync.syncRaceResultsAndScore
   );
 
   // Only show races that have completed (past races)
@@ -60,7 +60,7 @@ export function SyncAllRacesButton({ races }: SyncAllRacesButtonProps) {
             ) {
               // This is expected for races that haven't happened yet or don't have data
               console.log(
-                `Race ${race.name} not found in API - may not have happened yet`,
+                `Race ${race.name} not found in API - may not have happened yet`
               );
             }
           }
@@ -77,19 +77,19 @@ export function SyncAllRacesButton({ races }: SyncAllRacesButtonProps) {
 
       if (successCount === 0 && errorCount === 0) {
         toast.info(
-          "No races ready to sync yet. All races have already been synced or haven't started yet.",
+          "No races ready to sync yet. All races have already been synced or haven't started yet."
         );
       } else if (errorCount === 0) {
         toast.success(
-          `Successfully synced ${successCount} race${successCount !== 1 ? "s" : ""}!`,
+          `Successfully synced ${successCount} race${successCount !== 1 ? "s" : ""}!`
         );
       } else {
         // Show summary, but don't show all errors (could be too many)
         const notFoundErrors = errors.filter(
-          (e) => e.includes("Not Found") || e.includes("No race session"),
+          (e) => e.includes("Not Found") || e.includes("No race session")
         );
         const otherErrors = errors.filter(
-          (e) => !e.includes("Not Found") && !e.includes("No race session"),
+          (e) => !e.includes("Not Found") && !e.includes("No race session")
         );
 
         let message = `Synced ${successCount} race${successCount !== 1 ? "s" : ""}`;
@@ -105,7 +105,7 @@ export function SyncAllRacesButton({ races }: SyncAllRacesButtonProps) {
     } catch (error) {
       console.error("Error syncing races:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to sync races",
+        error instanceof Error ? error.message : "Failed to sync races"
       );
     } finally {
       setIsSyncing(false);

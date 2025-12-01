@@ -34,7 +34,7 @@ export const getRoomParticipants = query({
           ...participant,
           user,
         };
-      }),
+      })
     );
 
     return participantsWithUsers;
@@ -56,7 +56,7 @@ export const getUserActiveRooms = query({
 
     // Get rooms for these participants
     const rooms = await Promise.all(
-      participants.map((p) => ctx.db.get(p.roomId)),
+      participants.map((p) => ctx.db.get(p.roomId))
     );
 
     // Filter to only active rooms (open)
@@ -70,7 +70,7 @@ export const getUserActiveRooms = query({
           room,
           season,
         };
-      }),
+      })
     );
 
     return roomsWithSeasons.filter((r) => r.room !== null);

@@ -47,7 +47,7 @@ function DashboardContent() {
   const currentUser = useQuery(api.queries.auth.getCurrentUser);
   const activeRooms = useQuery(
     api.queries.rooms.getUserActiveRooms,
-    currentUser ? { userId: currentUser._id } : "skip",
+    currentUser ? { userId: currentUser._id } : "skip"
   );
 
   const hasActiveRooms = activeRooms && activeRooms.length > 0;

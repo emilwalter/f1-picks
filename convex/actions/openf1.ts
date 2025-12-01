@@ -112,14 +112,14 @@ export const syncSeasonFromOpenF1 = action({
   },
   handler: async (
     ctx,
-    args,
+    args
   ): Promise<{ seasonId: Id<"seasons">; racesSynced: number }> => {
     // Get or create season
     let season: Doc<"seasons"> | null = await ctx.runQuery(
       api.queries.seasons.getSeasonByYear,
       {
         year: args.year,
-      },
+      }
     );
 
     if (!season) {
@@ -143,7 +143,7 @@ export const syncSeasonFromOpenF1 = action({
     const currentYear = new Date().getFullYear();
     if (args.year !== currentYear && args.year !== 2025) {
       throw new Error(
-        `f1api.dev only supports the current season (${currentYear} or 2025). Please use ${currentYear} or 2025.`,
+        `f1api.dev only supports the current season (${currentYear} or 2025). Please use ${currentYear} or 2025.`
       );
     }
 
@@ -152,7 +152,7 @@ export const syncSeasonFromOpenF1 = action({
     if (!racesResponse.ok) {
       const errorText = await racesResponse.text();
       throw new Error(
-        `Failed to fetch races: ${racesResponse.statusText}. Response: ${errorText.substring(0, 200)}`,
+        `Failed to fetch races: ${racesResponse.statusText}. Response: ${errorText.substring(0, 200)}`
       );
     }
 
@@ -172,12 +172,12 @@ export const syncSeasonFromOpenF1 = action({
         throw new Error(`API Error: ${racesData.message}`);
       } else {
         throw new Error(
-          `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`,
+          `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`
         );
       }
     } else {
       throw new Error(
-        `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`,
+        `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`
       );
     }
 
@@ -191,7 +191,7 @@ export const syncSeasonFromOpenF1 = action({
       const raceSchedule = raceData.schedule?.race;
       if (!raceSchedule || !raceSchedule.date) {
         console.warn(
-          `Skipping race ${raceData.raceName || raceData.raceId}: no race date`,
+          `Skipping race ${raceData.raceName || raceData.raceId}: no race date`
         );
         continue;
       }
@@ -250,7 +250,7 @@ export const syncSeasonFromOpenF1 = action({
         {
           seasonId: season._id,
           round,
-        },
+        }
       );
 
       if (!existingRace) {
@@ -351,7 +351,7 @@ export const updateRaceResultsFromOpenF1 = action({
     if (!race.round || race.round <= 0) {
       throw new Error(
         `Race does not have a valid round number. Race: ${race.name}, Round: ${race.round}. ` +
-          `Please ensure races are synced from the season schedule first.`,
+          `Please ensure races are synced from the season schedule first.`
       );
     }
 
@@ -361,7 +361,7 @@ export const updateRaceResultsFromOpenF1 = action({
 
     console.log(`Fetching race results from: ${raceResultsUrl}`);
     console.log(
-      `Race details: ${race.name}, Round: ${race.round}, Year: ${season.year}`,
+      `Race details: ${race.name}, Round: ${race.round}, Year: ${season.year}`
     );
 
     const raceResultsResponse = await fetch(raceResultsUrl);
@@ -383,11 +383,11 @@ export const updateRaceResultsFromOpenF1 = action({
           `Race results not found at ${raceResultsUrl}.${errorDetails} ` +
             `The race may not have happened yet or results are not available in the API yet. ` +
             `Race: ${race.name}, Round: ${race.round}, Year: ${season.year}. ` +
-            `Please wait for the race to complete and results to become available.`,
+            `Please wait for the race to complete and results to become available.`
         );
       }
       throw new Error(
-        `Failed to fetch race results: ${raceResultsResponse.statusText} (${raceResultsResponse.status}).${errorDetails}`,
+        `Failed to fetch race results: ${raceResultsResponse.statusText} (${raceResultsResponse.status}).${errorDetails}`
       );
     }
 
@@ -447,7 +447,7 @@ export const updateRaceResultsFromOpenF1 = action({
           r.position === "NC" ||
           (typeof r.position === "string" &&
             r.position !== "NC" &&
-            r.retired !== null),
+            r.retired !== null)
       )
       .map((r) => r.driver.number);
 
@@ -462,7 +462,7 @@ export const updateRaceResultsFromOpenF1 = action({
         return name
           .replace(
             /^(qatar airways|heineken|lenovo|stc|crypto\.com|aws|msc cruises|pirelli|aramco|msc)\s+/gi,
-            "",
+            ""
           )
           .trim();
       };
@@ -479,7 +479,7 @@ export const updateRaceResultsFromOpenF1 = action({
         throw new Error(
           `Race name mismatch! API returned results for "${raceResultsData.races.raceName}" ` +
             `but we're trying to update "${race.name}". This prevents updating the wrong race. ` +
-            `Please verify the race round number is correct.`,
+            `Please verify the race round number is correct.`
         );
       }
     }
@@ -521,7 +521,7 @@ export const getDriversForRace = action({
     if (!driversResponse.ok) {
       const errorText = await driversResponse.text().catch(() => "");
       throw new Error(
-        `Failed to fetch drivers: ${driversResponse.status} ${driversResponse.statusText}. ${errorText.substring(0, 200)}`,
+        `Failed to fetch drivers: ${driversResponse.status} ${driversResponse.statusText}. ${errorText.substring(0, 200)}`
       );
     }
 
@@ -540,7 +540,7 @@ export const getDriversForRace = action({
     } else {
       console.warn(
         "Unexpected drivers response format:",
-        JSON.stringify(driversData).substring(0, 500),
+        JSON.stringify(driversData).substring(0, 500)
       );
       drivers = [];
     }
@@ -580,7 +580,7 @@ export const getDriversForRace = action({
       if (teams.length > 0) {
         console.log(
           `Sample team data:`,
-          JSON.stringify(teams[0]).substring(0, 200),
+          JSON.stringify(teams[0]).substring(0, 200)
         );
       }
 
@@ -601,10 +601,10 @@ export const getDriversForRace = action({
 
           const [teamInfoResponse, teamDriversResponse] = await Promise.all([
             fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-              () => null,
+              () => null
             ),
             fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`).catch(
-              () => null,
+              () => null
             ),
           ]);
 
@@ -670,13 +670,13 @@ export const getDriversForRace = action({
             };
           } else {
             console.warn(
-              `No drivers found for team ${teamName} (teamId: ${teamId})`,
+              `No drivers found for team ${teamName} (teamId: ${teamId})`
             );
           }
         } catch (err) {
           console.warn(
             `Failed to fetch drivers for team ${teamName} (teamId: ${teamId}):`,
-            err,
+            err
           );
         }
         return null;
@@ -685,7 +685,7 @@ export const getDriversForRace = action({
       const teamDriverMappings = await Promise.all(teamDriverPromises);
       const successfulMappings = teamDriverMappings.filter(
         (
-          m,
+          m
         ): m is {
           teamName: string;
           teamLogo: string | undefined;
@@ -693,11 +693,11 @@ export const getDriversForRace = action({
         } =>
           m !== null &&
           m.teamName !== undefined &&
-          typeof m.teamName === "string",
+          typeof m.teamName === "string"
       );
 
       console.log(
-        `Successfully mapped ${successfulMappings.length} teams out of ${teams.length}`,
+        `Successfully mapped ${successfulMappings.length} teams out of ${teams.length}`
       );
 
       successfulMappings.forEach((mapping) => {
@@ -724,12 +724,12 @@ export const getDriversForRace = action({
               const [teamInfoResponse, teamDriversResponse] = await Promise.all(
                 [
                   fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-                    () => null,
+                    () => null
                   ),
                   fetch(
-                    `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`,
+                    `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
                   ).catch(() => null),
-                ],
+                ]
               );
 
               let teamLogo: string | undefined;
@@ -799,7 +799,7 @@ export const getDriversForRace = action({
               // Silently continue
             }
             return null;
-          },
+          }
         );
 
         const fallbackMappings = await Promise.all(fallbackPromises);
@@ -820,7 +820,7 @@ export const getDriversForRace = action({
       }
     } else {
       console.warn(
-        `Teams endpoint failed: ${teamsResponse?.status || "no response"}, using fallback`,
+        `Teams endpoint failed: ${teamsResponse?.status || "no response"}, using fallback`
       );
 
       // Use fallback immediately if teams endpoint failed
@@ -828,10 +828,10 @@ export const getDriversForRace = action({
         try {
           const [teamInfoResponse, teamDriversResponse] = await Promise.all([
             fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-              () => null,
+              () => null
             ),
             fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`).catch(
-              () => null,
+              () => null
             ),
           ]);
 
@@ -925,7 +925,7 @@ export const getDriversForRace = action({
     if (!Array.isArray(drivers) || drivers.length === 0) {
       console.warn(
         `No drivers found. Response data:`,
-        JSON.stringify(driversData).substring(0, 500),
+        JSON.stringify(driversData).substring(0, 500)
       );
       return [];
     }
@@ -963,7 +963,7 @@ export const getDriversForRace = action({
         };
       })
       .filter(
-        (driver): driver is NonNullable<typeof driver> => driver !== null,
+        (driver): driver is NonNullable<typeof driver> => driver !== null
       );
   },
 });
@@ -977,7 +977,7 @@ export const getSessionData = action({
   },
   handler: async (ctx, args) => {
     const response = await fetch(
-      `${F1API_BASE_URL}/sessions?session_key=${args.sessionKey}`,
+      `${F1API_BASE_URL}/sessions?session_key=${args.sessionKey}`
     );
 
     if (!response.ok) {
@@ -1001,13 +1001,13 @@ export const getDriverData = action({
     // Fetch multiple endpoints for comprehensive driver data
     const [laps, positions, carData] = await Promise.all([
       fetch(
-        `${F1API_BASE_URL}/laps?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`,
+        `${F1API_BASE_URL}/laps?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`
       ).then((r) => (r.ok ? r.json() : [])),
       fetch(
-        `${F1API_BASE_URL}/position?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`,
+        `${F1API_BASE_URL}/position?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`
       ).then((r) => (r.ok ? r.json() : [])),
       fetch(
-        `${F1API_BASE_URL}/car_data?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`,
+        `${F1API_BASE_URL}/car_data?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`
       ).then((r) => (r.ok ? r.json() : [])),
     ]);
 
@@ -1026,7 +1026,7 @@ export const getDriverData = action({
  */
 function extractSessionTime(
   sessions: SessionData[],
-  sessionType: string,
+  sessionType: string
 ): { start: number; end: number } | undefined {
   const session = sessions.find((s) => s.session_name === sessionType);
   if (!session || !session.date_start || !session.date_end) {
@@ -1048,7 +1048,7 @@ export const syncRaceSessionTimes = action({
   },
   handler: async (
     ctx,
-    args,
+    args
   ): Promise<{ raceId: Id<"races">; sessionTimesUpdated: boolean }> => {
     const race = await ctx.runQuery(api.queries.races.getRaceById, {
       raceId: args.raceId,
@@ -1061,12 +1061,12 @@ export const syncRaceSessionTimes = action({
     // Get meeting key from race date
     const raceDate = new Date(race.date).toISOString().split("T")[0];
     const sessionsResponse = await fetch(
-      `${F1API_BASE_URL}/sessions?date=${raceDate}`,
+      `${F1API_BASE_URL}/sessions?date=${raceDate}`
     );
 
     if (!sessionsResponse.ok) {
       throw new Error(
-        `Failed to fetch sessions: ${sessionsResponse.statusText}`,
+        `Failed to fetch sessions: ${sessionsResponse.statusText}`
       );
     }
 
@@ -1081,12 +1081,12 @@ export const syncRaceSessionTimes = action({
       throw new Error("No meeting key found");
     }
     const allSessionsResponse = await fetch(
-      `${F1API_BASE_URL}/sessions?meeting_key=${meetingKey}`,
+      `${F1API_BASE_URL}/sessions?meeting_key=${meetingKey}`
     );
 
     if (!allSessionsResponse.ok) {
       throw new Error(
-        `Failed to fetch all sessions: ${allSessionsResponse.statusText}`,
+        `Failed to fetch all sessions: ${allSessionsResponse.statusText}`
       );
     }
 

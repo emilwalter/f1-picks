@@ -40,7 +40,7 @@ export const getRaceBySeasonRound = query({
     const races = await ctx.db
       .query("races")
       .withIndex("by_season_round", (q) =>
-        q.eq("seasonId", args.seasonId).eq("round", args.round),
+        q.eq("seasonId", args.seasonId).eq("round", args.round)
       )
       .collect();
 

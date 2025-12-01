@@ -34,19 +34,19 @@ export default function RoomResultsPage() {
 
   const { room, season, leaderboard, currentUser, isLoading } = useRoom(
     roomId,
-    raceId || undefined,
+    raceId || undefined
   );
 
   // Get the specific race if raceId is provided
   const race = useQuery(
     api.queries.races.getRaceById,
-    raceId ? { raceId } : "skip",
+    raceId ? { raceId } : "skip"
   );
 
   // Get race-specific leaderboard if raceId provided
   const raceLeaderboard = useQuery(
     api.queries.leaderboard.getRoomRaceLeaderboard,
-    room && raceId ? { roomId, raceId } : "skip",
+    room && raceId ? { roomId, raceId } : "skip"
   );
 
   // Fetch drivers for displaying names
@@ -204,7 +204,7 @@ export default function RoomResultsPage() {
                             </TableCell>
                             <TableCell>{result.points}</TableCell>
                           </TableRow>
-                        ),
+                        )
                       )
                     )}
                   </TableBody>

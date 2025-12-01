@@ -58,7 +58,7 @@ export const getRoomLeaderboard = query({
             calculatedAt: Date.now(),
             user,
           };
-        }),
+        })
     );
 
     return leaderboard;
@@ -78,7 +78,7 @@ export const getRoomRaceLeaderboard = query({
     const scores = await ctx.db
       .query("scores")
       .withIndex("by_room_race_user", (q) =>
-        q.eq("roomId", args.roomId).eq("raceId", args.raceId),
+        q.eq("roomId", args.roomId).eq("raceId", args.raceId)
       )
       .collect();
 
@@ -97,7 +97,7 @@ export const getRoomRaceLeaderboard = query({
             calculatedAt: score.calculatedAt,
             user,
           };
-        }),
+        })
     );
 
     return leaderboard;

@@ -10,7 +10,7 @@ export function ActiveRooms() {
   const currentUser = useQuery(api.queries.auth.getCurrentUser);
   const activeRooms = useQuery(
     api.queries.rooms.getUserActiveRooms,
-    currentUser ? { userId: currentUser._id } : "skip",
+    currentUser ? { userId: currentUser._id } : "skip"
   );
 
   if (currentUser === undefined || activeRooms === undefined) {

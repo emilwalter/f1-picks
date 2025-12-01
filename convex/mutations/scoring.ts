@@ -15,7 +15,7 @@ export const applyRaceResults = mutation({
           position: v.number(),
           driverNumber: v.number(),
           points: v.number(),
-        }),
+        })
       ),
       fastestLapDriverId: v.optional(v.number()),
       polePositionDriverId: v.optional(v.number()),
@@ -49,7 +49,7 @@ export const applyRaceResults = mutation({
     const user = await ctx.db
       .query("users")
       .withIndex("by_auth_provider_id", (q) =>
-        q.eq("authProviderId", authProviderId),
+        q.eq("authProviderId", authProviderId)
       )
       .first();
 
@@ -81,7 +81,7 @@ export const applyRaceResults = mutation({
       const score = calculateScore(
         prediction,
         args.officialResults,
-        room.scoringConfig,
+        room.scoringConfig
       );
 
       // Check if score already exists for this race
@@ -91,7 +91,7 @@ export const applyRaceResults = mutation({
           q
             .eq("roomId", args.roomId)
             .eq("raceId", args.raceId)
-            .eq("userId", prediction.userId),
+            .eq("userId", prediction.userId)
         )
         .first();
 

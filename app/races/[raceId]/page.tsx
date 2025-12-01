@@ -18,7 +18,7 @@ export default function RacePage() {
   // Get rooms for the season this race belongs to
   const rooms = useQuery(
     api.queries.rooms.getRoomsBySeason,
-    race ? { seasonId: race.seasonId } : "skip",
+    race ? { seasonId: race.seasonId } : "skip"
   );
 
   if (race === undefined || rooms === undefined) {

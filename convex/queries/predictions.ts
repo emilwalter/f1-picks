@@ -17,7 +17,7 @@ export const getUserPrediction = query({
         q
           .eq("roomId", args.roomId)
           .eq("raceId", args.raceId)
-          .eq("userId", args.userId),
+          .eq("userId", args.userId)
       )
       .first();
   },
@@ -35,7 +35,7 @@ export const getUserRoomPredictions = query({
     return await ctx.db
       .query("predictions")
       .withIndex("by_room_user", (q) =>
-        q.eq("roomId", args.roomId).eq("userId", args.userId),
+        q.eq("roomId", args.roomId).eq("userId", args.userId)
       )
       .collect();
   },
@@ -64,7 +64,7 @@ export const getRoomRacePredictions = query({
           ...prediction,
           user,
         };
-      }),
+      })
     );
 
     return predictionsWithUsers;
@@ -93,7 +93,7 @@ export const getRoomPredictionsByRace = query({
           ...prediction,
           user,
         };
-      }),
+      })
     );
 
     // Group by raceId

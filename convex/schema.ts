@@ -36,17 +36,17 @@ export default defineSchema({
         fp2: v.optional(v.object({ start: v.number(), end: v.number() })),
         fp3: v.optional(v.object({ start: v.number(), end: v.number() })),
         qualifying: v.optional(
-          v.object({ start: v.number(), end: v.number() }),
+          v.object({ start: v.number(), end: v.number() })
         ),
         race: v.optional(v.object({ start: v.number(), end: v.number() })),
-      }),
+      })
     ),
     weatherForecast: v.optional(
       v.object({
         condition: v.string(),
         temperature: v.number(),
         humidity: v.number(),
-      }),
+      })
     ),
     // Note: Driver/team info fetched from OpenF1 API on-demand
     // We only store official results for scoring and updates
@@ -57,12 +57,12 @@ export default defineSchema({
             position: v.number(),
             driverNumber: v.number(),
             points: v.number(),
-          }),
+          })
         ),
         fastestLapDriverId: v.optional(v.number()),
         polePositionDriverId: v.optional(v.number()),
         dnfDriverIds: v.optional(v.array(v.number())),
-      }),
+      })
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -86,7 +86,7 @@ export default defineSchema({
           v.literal("fp2"),
           v.literal("fp3"),
           v.literal("qualifying"),
-          v.literal("race"),
+          v.literal("race")
         ),
       }),
       // Lock before a specific session ends
@@ -96,14 +96,14 @@ export default defineSchema({
           v.literal("fp1"),
           v.literal("fp2"),
           v.literal("fp3"),
-          v.literal("qualifying"),
+          v.literal("qualifying")
         ),
       }),
       // Custom timestamp offset (e.g., 1 hour before race start)
       v.object({
         type: v.literal("custom"),
         hoursBeforeRace: v.number(), // Hours before race start
-      }),
+      })
     ),
     scoringConfig: v.object({
       positionPoints: v.array(v.number()), // Points for each position (index = position - 1)
@@ -113,7 +113,7 @@ export default defineSchema({
     }),
     status: v.union(
       v.literal("open"), // Room is active, accepting predictions
-      v.literal("archived"), // Season ended, room archived
+      v.literal("archived") // Season ended, room archived
     ),
     joinCode: v.string(),
     createdAt: v.number(),
@@ -142,7 +142,7 @@ export default defineSchema({
       v.object({
         position: v.number(),
         driverNumber: v.number(),
-      }),
+      })
     ),
     fastestLapDriverId: v.optional(v.number()),
     polePositionDriverId: v.optional(v.number()),

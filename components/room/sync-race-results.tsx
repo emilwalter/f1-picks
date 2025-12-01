@@ -23,7 +23,7 @@ export function SyncRaceResults({
 }: SyncRaceResultsProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const syncRaceResults = useAction(
-    api.actions.raceSync.syncRaceResultsAndScore,
+    api.actions.raceSync.syncRaceResultsAndScore
   );
 
   const isHost = currentUser && currentUser._id === room.hostId;
@@ -41,7 +41,7 @@ export function SyncRaceResults({
       const result = await syncRaceResults({ raceId: race._id });
       if (result.success && "roomsScored" in result) {
         toast.success(
-          `Successfully synced results and scored ${result.roomsScored} rooms!`,
+          `Successfully synced results and scored ${result.roomsScored} rooms!`
         );
       } else {
         toast.error(result.message || "Failed to sync race results");
@@ -49,7 +49,7 @@ export function SyncRaceResults({
     } catch (error) {
       console.error("Error syncing race results:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to sync race results",
+        error instanceof Error ? error.message : "Failed to sync race results"
       );
     } finally {
       setIsSyncing(false);

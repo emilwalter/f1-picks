@@ -57,7 +57,7 @@ function formatCountdownReadable(targetTime: number): string {
   }
   if (duration.minutes && duration.minutes > 0 && !duration.days) {
     parts.push(
-      `${duration.minutes} ${duration.minutes === 1 ? "minute" : "minutes"}`,
+      `${duration.minutes} ${duration.minutes === 1 ? "minute" : "minutes"}`
     );
   }
   if (
@@ -67,7 +67,7 @@ function formatCountdownReadable(targetTime: number): string {
     !duration.hours
   ) {
     parts.push(
-      `${duration.seconds} ${duration.seconds === 1 ? "second" : "seconds"}`,
+      `${duration.seconds} ${duration.seconds === 1 ? "second" : "seconds"}`
     );
   }
 

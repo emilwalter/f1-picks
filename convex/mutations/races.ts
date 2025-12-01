@@ -19,10 +19,10 @@ export const createRace = mutation({
         fp2: v.optional(v.object({ start: v.number(), end: v.number() })),
         fp3: v.optional(v.object({ start: v.number(), end: v.number() })),
         qualifying: v.optional(
-          v.object({ start: v.number(), end: v.number() }),
+          v.object({ start: v.number(), end: v.number() })
         ),
         race: v.optional(v.object({ start: v.number(), end: v.number() })),
-      }),
+      })
     ),
   },
   handler: async (ctx, args) => {
@@ -77,7 +77,7 @@ export const updateRaceResults = mutation({
           position: v.number(),
           driverNumber: v.number(),
           points: v.number(),
-        }),
+        })
       ),
       fastestLapDriverId: v.optional(v.number()),
       polePositionDriverId: v.optional(v.number()),

@@ -17,14 +17,14 @@ export function SyncRacesButton() {
     try {
       const result = await syncSeason({ year: currentYear });
       toast.success(
-        `Successfully synced ${result.racesSynced} races for ${currentYear}!`,
+        `Successfully synced ${result.racesSynced} races for ${currentYear}!`
       );
     } catch (error) {
       console.error("Error syncing races:", error);
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to sync races from F1 API",
+          : "Failed to sync races from F1 API"
       );
     } finally {
       setIsSyncing(false);

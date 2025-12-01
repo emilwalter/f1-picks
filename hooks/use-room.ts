@@ -21,19 +21,19 @@ export function useRoom(roomId: Id<"rooms">, raceId?: Id<"races">) {
   // Get season details if room exists
   const season = useQuery(
     api.queries.seasons.getSeasonById,
-    room ? { seasonId: room.seasonId } : "skip",
+    room ? { seasonId: room.seasonId } : "skip"
   );
 
   // Get all races for the season
   const races = useQuery(
     api.queries.races.getRacesBySeason,
-    room ? { seasonId: room.seasonId } : "skip",
+    room ? { seasonId: room.seasonId } : "skip"
   );
 
   // Get specific race if raceId provided
   const selectedRace = useQuery(
     api.queries.races.getRaceById,
-    raceId ? { raceId } : "skip",
+    raceId ? { raceId } : "skip"
   );
 
   // Get current user's prediction for a specific race if raceId provided
@@ -45,7 +45,7 @@ export function useRoom(roomId: Id<"rooms">, raceId?: Id<"races">) {
           raceId,
           userId: currentUser._id,
         }
-      : "skip",
+      : "skip"
   );
 
   // Get all user predictions for the room (across all races)
@@ -56,7 +56,7 @@ export function useRoom(roomId: Id<"rooms">, raceId?: Id<"races">) {
           roomId,
           userId: currentUser._id,
         }
-      : "skip",
+      : "skip"
   );
 
   return {

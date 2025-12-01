@@ -43,7 +43,7 @@ export interface ScoreResult {
 export function calculateScore(
   prediction: Prediction,
   officialResults: OfficialResults,
-  scoringConfig: ScoringConfig,
+  scoringConfig: ScoringConfig
 ): ScoreResult {
   let positionPoints = 0;
   let fastestLapPoints = 0;
@@ -76,14 +76,14 @@ export function calculateScore(
         // Exact match - award points for the position
         const pointsIndex = Math.min(
           pred.position - 1,
-          scoringConfig.positionPoints.length - 1,
+          scoringConfig.positionPoints.length - 1
         );
         positionPoints += scoringConfig.positionPoints[pointsIndex] || 0;
       } else if (positionDiff === 1) {
         // Off by 1 - award half points
         const pointsIndex = Math.min(
           pred.position - 1,
-          scoringConfig.positionPoints.length - 1,
+          scoringConfig.positionPoints.length - 1
         );
         positionPoints +=
           (scoringConfig.positionPoints[pointsIndex] || 0) * 0.5;
