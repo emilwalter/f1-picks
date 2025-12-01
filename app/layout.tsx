@@ -6,6 +6,7 @@ import { ConvexClientProvider } from "@/lib/convex";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/layout/app-header";
+import { Attribution } from "@/components/layout/attribution";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,6 +46,7 @@ export default function RootLayout({
               <div className="flex min-h-screen flex-col bg-zinc-50 font-sans dark:bg-black">
                 <AppHeader />
                 <main className="flex-1">{children}</main>
+                <Attribution />
               </div>
               <Toaster />
             </ConvexClientProvider>
