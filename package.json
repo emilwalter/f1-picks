@@ -49,11 +49,11 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.555.0",
-    "next": "16.0.5",
+    "next": "16.0.7",
     "next-themes": "^0.4.6",
-    "react": "19.2.0",
+    "react": "19.2.1",
     "react-day-picker": "^9.11.3",
-    "react-dom": "19.2.0",
+    "react-dom": "19.2.1",
     "react-hook-form": "^7.67.0",
     "react-resizable-panels": "^3.0.6",
     "recharts": "2.15.4",
@@ -67,10 +67,10 @@
     "@commitlint/config-conventional": "^20.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
     "eslint": "^9",
-    "eslint-config-next": "16.0.5",
+    "eslint-config-next": "16.0.7",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.2",
@@ -82,5 +82,11 @@
     "*.{js,jsx,ts,tsx,json,css,scss,md,mdx}": [
       "npx prettier --write --ignore-unknown"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.2.7",
+      "@types/react-dom": "19.2.3"
+    }
   }
 }
