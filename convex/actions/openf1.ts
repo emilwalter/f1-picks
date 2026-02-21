@@ -138,16 +138,14 @@ export const syncSeasonFromOpenF1 = action({
       }
     }
 
-    // Fetch races from f1api.dev - use /current for current season
-    // Note: f1api.dev only supports current season via /current endpoint
-    const currentYear = new Date().getFullYear();
-    if (args.year !== currentYear && args.year !== 2025) {
-      throw new Error(
-        `f1api.dev only supports the current season (${currentYear} or 2025). Please use ${currentYear} or 2025.`
-      );
+    // Validate year range (F1 started 1950, allow future seasons)
+    const minYear = 1950;
+    const maxYear = 2030;
+    if (args.year < minYear || args.year > maxYear) {
+      throw new Error(`Year must be between ${minYear} and ${maxYear}.`);
     }
 
-    const racesResponse = await fetch(`${F1API_BASE_URL}/current`);
+    const racesResponse = await fetch(`${F1API_BASE_URL}/${args.year}`);
 
     if (!racesResponse.ok) {
       const errorText = await racesResponse.text();

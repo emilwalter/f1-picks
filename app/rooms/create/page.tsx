@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { Authenticated } from "convex/react";
@@ -30,10 +30,18 @@ export default function CreateRoomPage() {
   const router = useRouter();
   const createRoom = useMutation(api.mutations.rooms.createRoom);
 
-  // Get 2025 season (current F1 season)
-  const currentSeason = useQuery(api.queries.seasons.getSeasonByYear, {
-    year: 2025,
-  });
+  const seasons = useQuery(api.queries.seasons.listSeasons);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+
+  // Default to most recent season when seasons load
+  useEffect(() => {
+    if (seasons && seasons.length > 0 && selectedYear === null) {
+      setSelectedYear(seasons[0].year);
+    }
+  }, [seasons, selectedYear]);
+
+  const effectiveYear = selectedYear ?? seasons?.[0]?.year;
+  const selectedSeason = seasons?.find((s) => s.year === effectiveYear);
 
   const [roomName, setRoomName] = useState("");
   const [lockoutType, setLockoutType] = useState<"before_session" | "custom">(
@@ -56,8 +64,8 @@ export default function CreateRoomPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!currentSeason) {
-      toast.error("Season not found. Please sync races first.");
+    if (!selectedSeason || !effectiveYear) {
+      toast.error("Please select a season.");
       return;
     }
 
@@ -78,7 +86,7 @@ export default function CreateRoomPage() {
       }
 
       const roomId = await createRoom({
-        seasonId: currentSeason._id,
+        seasonId: selectedSeason._id,
         name: roomName.trim() || undefined,
         lockoutConfig,
         scoringConfig: defaultScoringConfig,
@@ -96,7 +104,7 @@ export default function CreateRoomPage() {
     }
   };
 
-  if (currentSeason === undefined) {
+  if (seasons === undefined) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center text-zinc-600 dark:text-zinc-400">
@@ -106,17 +114,17 @@ export default function CreateRoomPage() {
     );
   }
 
-  if (!currentSeason) {
+  if (!seasons || seasons.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
           <CardContent className="py-8 text-center">
             <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
-              No Season Found
+              No Seasons Found
             </h2>
             <p className="mb-4 text-zinc-600 dark:text-zinc-400">
-              Please sync races first to create a room for the{" "}
-              {new Date().getFullYear()} season.
+              Sync races from the dashboard first to create a room. You can sync
+              any season from 1950 to 2030.
             </p>
             <Link href="/">
               <Button>Go to Dashboard</Button>
@@ -149,11 +157,34 @@ export default function CreateRoomPage() {
                 <FieldSet>
                   <FieldLegend>Room Information</FieldLegend>
                   <FieldDescription>
-                    Create a room for the {currentSeason.year} Formula 1 season.
-                    Participants will make predictions for each race throughout
-                    the season.
+                    Create a room for an F1 season. Participants will make
+                    predictions for each race throughout the season.
                   </FieldDescription>
                   <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="season">Season</FieldLabel>
+                      <Select
+                        value={effectiveYear?.toString() ?? ""}
+                        onValueChange={(v) => setSelectedYear(parseInt(v, 10))}
+                      >
+                        <SelectTrigger id="season">
+                          <SelectValue placeholder="Select season" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {seasons.map((season) => (
+                            <SelectItem
+                              key={season._id}
+                              value={season.year.toString()}
+                            >
+                              {season.year} ({season.totalRaces} races)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FieldDescription>
+                        Choose which F1 season this room is for.
+                      </FieldDescription>
+                    </Field>
                     <Field>
                       <FieldLabel htmlFor="room-name">
                         Room Name (Optional)

@@ -14,6 +14,17 @@ export const getSeasonById = query({
 });
 
 /**
+ * List all seasons, ordered by year descending (most recent first)
+ */
+export const listSeasons = query({
+  args: {},
+  handler: async (ctx) => {
+    const seasons = await ctx.db.query("seasons").collect();
+    return seasons.sort((a, b) => b.year - a.year);
+  },
+});
+
+/**
  * Get season by year
  */
 export const getSeasonByYear = query({
