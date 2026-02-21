@@ -23,19 +23,47 @@ export const metadata: Metadata = {
   description: "Make predictions and compete with friends on Formula 1 races",
 };
 
+// Prevent static prerendering of auth-dependent pages (fixes CI when secrets
+// aren't available for fork PRs; production deployment has env vars set)
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const publishableKey =
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() || "";
+
+  // When key is missing (e.g. CI from fork PR where secrets aren't passed),
+  // render minimal layout so build succeeds. Production always has the key.
+  if (!publishableKey) {
+    return (
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+              <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
+            </div>
+          </ThemeProvider>
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClerkProvider
-          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || ""}
-        >
+        <ClerkProvider publishableKey={publishableKey}>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
