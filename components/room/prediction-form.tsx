@@ -14,6 +14,7 @@ import { getDriverImageUrl, getTeamLogoUrl } from "@/lib/f1-images";
 interface PredictionFormProps {
   room: Doc<"rooms">;
   race: Doc<"races">;
+  seasonYear: number; // Season year for fetching drivers/teams (e.g. 2026)
   currentPrediction: Doc<"predictions"> | null | undefined;
   isLocked?: boolean; // Whether predictions are locked based on room settings
 }
@@ -29,6 +30,7 @@ interface Driver {
 export function PredictionForm({
   room,
   race,
+  seasonYear,
   currentPrediction,
   isLocked: isLockedProp,
 }: PredictionFormProps) {
@@ -40,13 +42,12 @@ export function PredictionForm({
   const [drivers, setDrivers] = useState<Driver[] | null>(null);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
 
-  // Fetch drivers for this race
+  // Fetch drivers for this race (season-specific)
   useEffect(() => {
     const fetchDrivers = async () => {
       setIsLoadingDrivers(true);
       try {
-        const raceDate = new Date(race.date).toISOString().split("T")[0];
-        const driversData = await getDriversForRace({ date: raceDate });
+        const driversData = await getDriversForRace({ year: seasonYear });
         setDrivers(driversData);
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
@@ -58,7 +59,7 @@ export function PredictionForm({
     };
 
     fetchDrivers();
-  }, [race.date, getDriversForRace]);
+  }, [seasonYear, getDriversForRace]);
 
   // Form state
   const [predictedPositions, setPredictedPositions] = useState<

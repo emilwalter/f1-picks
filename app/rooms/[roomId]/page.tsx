@@ -84,10 +84,10 @@ export default function RoomPage() {
 
   useEffect(() => {
     const fetchDrivers = async () => {
-      if (!room) return;
+      if (!room || !season) return;
       setIsLoadingDrivers(true);
       try {
-        const driversData = await getDriversForRace({});
+        const driversData = await getDriversForRace({ year: season.year });
         setDrivers(driversData);
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
@@ -97,7 +97,7 @@ export default function RoomPage() {
       }
     };
     fetchDrivers();
-  }, [room, getDriversForRace]);
+  }, [room, season, getDriversForRace]);
 
   // Calculate maxUpcomingIndex for the useEffect hook (must be before early returns)
   const RACES_PER_PAGE = 3;

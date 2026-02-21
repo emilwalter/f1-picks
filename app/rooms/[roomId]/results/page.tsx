@@ -56,11 +56,10 @@ export default function RoomResultsPage() {
 
   useEffect(() => {
     const fetchDrivers = async () => {
-      if (!race) return;
+      if (!race || !season) return;
       setIsLoadingDrivers(true);
       try {
-        const raceDate = new Date(race.date).toISOString().split("T")[0];
-        const driversData = await getDriversForRace({ date: raceDate });
+        const driversData = await getDriversForRace({ year: season.year });
         setDrivers(driversData);
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
@@ -70,7 +69,7 @@ export default function RoomResultsPage() {
       }
     };
     fetchDrivers();
-  }, [race, getDriversForRace]);
+  }, [race, season, getDriversForRace]);
 
   // Helper function to get driver name by number
   const getDriverName = (driverNumber: number): string => {

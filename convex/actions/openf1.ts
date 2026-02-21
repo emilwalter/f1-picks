@@ -498,21 +498,19 @@ export const updateRaceResultsFromOpenF1 = action({
 });
 
 /**
- * Get drivers for current season
- * Uses /current/drivers endpoint to get all drivers for the current season
+ * Get drivers and teams for a specific season
+ * Uses /{year}/drivers and /{year}/teams endpoints for season-specific data
  */
 export const getDriversForRace = action({
   args: {
-    date: v.optional(v.string()), // ISO date string (YYYY-MM-DD) - optional, not used but kept for compatibility
+    year: v.number(), // Season year (e.g. 2025, 2026) - determines which drivers/teams to fetch
   },
-  handler: async () => {
-    // Determine the year to use (default to current year or 2025)
-    const currentYear = new Date().getFullYear();
-    const year = currentYear >= 2025 ? 2025 : currentYear;
+  handler: async (ctx, args) => {
+    const year = args.year;
 
-    // Fetch current season drivers and teams in parallel
+    // Fetch season-specific drivers and teams
     const [driversResponse, teamsResponse] = await Promise.all([
-      fetch(`${F1API_BASE_URL}/current/drivers`),
+      fetch(`${F1API_BASE_URL}/${year}/drivers`),
       fetch(`${F1API_BASE_URL}/${year}/teams`).catch(() => null),
     ]);
 

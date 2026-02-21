@@ -69,13 +69,10 @@ export default function PredictionPage() {
   // Fetch drivers when race is locked
   useEffect(() => {
     const fetchDrivers = async () => {
-      if (!selectedRace || !isLocked) return;
+      if (!selectedRace || !season || !isLocked) return;
       setIsLoadingDrivers(true);
       try {
-        const raceDate = new Date(selectedRace.date)
-          .toISOString()
-          .split("T")[0];
-        const driversData = await getDriversForRace({ date: raceDate });
+        const driversData = await getDriversForRace({ year: season.year });
         setDrivers(driversData);
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
@@ -85,7 +82,7 @@ export default function PredictionPage() {
       }
     };
     fetchDrivers();
-  }, [selectedRace, isLocked, getDriversForRace]);
+  }, [selectedRace, season, isLocked, getDriversForRace]);
 
   if (isLoading || lockoutInfo === undefined) {
     return (
@@ -239,6 +236,7 @@ export default function PredictionPage() {
           <PredictionForm
             room={room}
             race={selectedRace}
+            seasonYear={season.year}
             currentPrediction={userPrediction}
             isLocked={isLocked}
           />
