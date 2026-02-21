@@ -43,7 +43,9 @@ export function RoomSettingsDialog({
   onOpenChange,
 }: RoomSettingsDialogProps) {
   const updateRoom = useMutation(api.mutations.rooms.updateRoom);
+  const archiveRoom = useMutation(api.mutations.rooms.archiveRoom);
   const [isSaving, setIsSaving] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   // Form state
   const [roomName, setRoomName] = useState(room.name || "");
@@ -390,6 +392,37 @@ export function RoomSettingsDialog({
                 </FieldDescription>
               </Field>
             </FieldGroup>
+          </FieldSet>
+
+          <FieldSet>
+            <FieldLegend className="text-destructive">Remove Room</FieldLegend>
+            <FieldDescription>
+              Archiving removes this room from your dashboard. It will no longer
+              appear in your active rooms. This cannot be undone.
+            </FieldDescription>
+            <Button
+              type="button"
+              variant="destructive"
+              className="mt-2"
+              onClick={async () => {
+                setIsArchiving(true);
+                try {
+                  await archiveRoom({ roomId: room._id });
+                  toast.success("Room archived");
+                  onOpenChange(false);
+                  window.location.href = "/";
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : "Failed to archive"
+                  );
+                } finally {
+                  setIsArchiving(false);
+                }
+              }}
+              disabled={isArchiving || isSaving}
+            >
+              {isArchiving ? "Archiving..." : "Archive Room"}
+            </Button>
           </FieldSet>
         </div>
 

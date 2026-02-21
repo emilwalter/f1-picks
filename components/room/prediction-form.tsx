@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import Image from "next/image";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { getDriverImageUrl, getTeamLogoUrl } from "@/lib/f1-images";
+import { DriverCombobox } from "@/components/room/driver-combobox";
 
 interface PredictionFormProps {
   room: Doc<"rooms">;
@@ -377,36 +378,18 @@ export function PredictionForm({
                     </div>
                   ) : (
                     <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <select
-                        value={pos.driverNumber || ""}
-                        onChange={(e) =>
-                          handlePositionChange(
-                            pos.position,
-                            parseInt(e.target.value) || 0
-                          )
+                      <DriverCombobox
+                        drivers={drivers}
+                        value={pos.driverNumber || undefined}
+                        onChange={(driverNumber) =>
+                          handlePositionChange(pos.position, driverNumber)
                         }
-                        className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                      >
-                        <option value="">Select driver...</option>
-                        {drivers
-                          .filter(
-                            (d) =>
-                              !predictedPositions.some(
-                                (p) =>
-                                  p.driverNumber === d.driverNumber &&
-                                  p.position !== pos.position
-                              )
-                          )
-                          .map((driver) => (
-                            <option
-                              key={driver.driverNumber}
-                              value={driver.driverNumber}
-                            >
-                              #{driver.driverNumber} {driver.name} -{" "}
-                              {driver.teamName}
-                            </option>
-                          ))}
-                      </select>
+                        excludeDriverNumbers={predictedPositions
+                          .filter((p) => p.position !== pos.position)
+                          .map((p) => p.driverNumber)
+                          .filter((n) => n !== 0)}
+                        placeholder="Search driver (e.g. lewis, ferrari, hamilton)..."
+                      />
                     </div>
                   )}
                 </div>

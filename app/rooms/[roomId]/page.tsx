@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { useRoom } from "@/hooks/use-room";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -23,7 +23,10 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface Driver {
   driverNumber: number;
@@ -35,7 +38,9 @@ interface Driver {
 
 export default function RoomPage() {
   const params = useParams();
+  const router = useRouter();
   const roomId = params.roomId as Id<"rooms">;
+  const leaveRoom = useMutation(api.mutations.rooms.leaveRoom);
   const {
     room,
     season,
@@ -175,6 +180,29 @@ export default function RoomPage() {
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
+                </Button>
+              )}
+              {!isHost && currentUser && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await leaveRoom({ roomId });
+                      toast.success("Left room");
+                      router.push("/");
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : "Failed to leave room"
+                      );
+                    }
+                  }}
+                  className="shrink-0 text-destructive hover:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Leave Room
                 </Button>
               )}
               <Badge

@@ -291,6 +291,58 @@ export const archiveRoom = mutation({
 });
 
 /**
+ * Leave a room (participants only; hosts must archive instead)
+ */
+export const leaveRoom = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    const authProviderId = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_provider_id", (q) =>
+        q.eq("authProviderId", authProviderId)
+      )
+      .first();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (user._id === room.hostId) {
+      throw new Error(
+        "Host cannot leave. Archive the room from Settings to remove it."
+      );
+    }
+
+    const participant = await ctx.db
+      .query("roomParticipants")
+      .withIndex("by_room_user", (q) =>
+        q.eq("roomId", args.roomId).eq("userId", user._id)
+      )
+      .first();
+
+    if (!participant) {
+      throw new Error("You are not a participant in this room");
+    }
+
+    await ctx.db.delete(participant._id);
+    return args.roomId;
+  },
+});
+
+/**
  * Generate a random 6-character alphanumeric join code
  */
 function generateJoinCode(): string {
