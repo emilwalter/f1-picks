@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { Authenticated } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,22 +26,65 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 
+const MIN_YEAR = 2020;
+
+function getAvailableYears() {
+  const maxYear = new Date().getFullYear();
+  return Array.from(
+    { length: maxYear - MIN_YEAR + 1 },
+    (_, i) => MIN_YEAR + i
+  ).reverse();
+}
+
 export default function CreateRoomPage() {
   const router = useRouter();
   const createRoom = useMutation(api.mutations.rooms.createRoom);
+  const syncSeason = useAction(api.actions.openf1.syncSeasonFromOpenF1);
 
   const seasons = useQuery(api.queries.seasons.listSeasons);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(() =>
+    new Date().getFullYear()
+  );
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Default to most recent season when seasons load
+  const selectedSeason = seasons?.find((s) => s.year === selectedYear);
+  const needsSync = Boolean(selectedYear && !selectedSeason);
+
+  // Auto-sync when user selects a season that isn't in the DB yet
   useEffect(() => {
-    if (seasons && seasons.length > 0 && selectedYear === null) {
-      setSelectedYear(seasons[0].year);
-    }
-  }, [seasons, selectedYear]);
+    if (
+      !needsSync ||
+      !selectedYear ||
+      isSyncing ||
+      seasons === undefined // Wait for seasons to load before syncing
+    )
+      return;
 
-  const effectiveYear = selectedYear ?? seasons?.[0]?.year;
-  const selectedSeason = seasons?.find((s) => s.year === effectiveYear);
+    let cancelled = false;
+    setIsSyncing(true);
+
+    syncSeason({ year: selectedYear })
+      .then(() => {
+        if (!cancelled) {
+          toast.success(`${selectedYear} season ready.`);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Error syncing season:", error);
+          toast.error(
+            error instanceof Error ? error.message : "Failed to load season"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsSyncing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedYear, needsSync, seasons]); // eslint-disable-line react-hooks/exhaustive-deps -- syncSeason is stable
 
   const [roomName, setRoomName] = useState("");
   const [lockoutType, setLockoutType] = useState<"before_session" | "custom">(
@@ -64,8 +107,8 @@ export default function CreateRoomPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedSeason || !effectiveYear) {
-      toast.error("Please select a season.");
+    if (!selectedSeason) {
+      toast.error("Season is still loading. Please wait a moment.");
       return;
     }
 
@@ -114,27 +157,6 @@ export default function CreateRoomPage() {
     );
   }
 
-  if (!seasons || seasons.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="py-8 text-center">
-            <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
-              No Seasons Found
-            </h2>
-            <p className="mb-4 text-zinc-600 dark:text-zinc-400">
-              Sync races from the dashboard first to create a room. You can sync
-              any season from 1950 to 2030.
-            </p>
-            <Link href="/">
-              <Button>Go to Dashboard</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -164,25 +186,31 @@ export default function CreateRoomPage() {
                     <Field>
                       <FieldLabel htmlFor="season">Season</FieldLabel>
                       <Select
-                        value={effectiveYear?.toString() ?? ""}
+                        value={selectedYear.toString()}
                         onValueChange={(v) => setSelectedYear(parseInt(v, 10))}
+                        disabled={isSyncing}
                       >
                         <SelectTrigger id="season">
                           <SelectValue placeholder="Select season" />
                         </SelectTrigger>
                         <SelectContent>
-                          {seasons.map((season) => (
-                            <SelectItem
-                              key={season._id}
-                              value={season.year.toString()}
-                            >
-                              {season.year} ({season.totalRaces} races)
-                            </SelectItem>
-                          ))}
+                          {getAvailableYears().map((year) => {
+                            const season = seasons?.find(
+                              (s) => s.year === year
+                            );
+                            return (
+                              <SelectItem key={year} value={year.toString()}>
+                                {year}
+                                {season ? ` (${season.totalRaces} races)` : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                       <FieldDescription>
-                        Choose which F1 season this room is for.
+                        {needsSync && isSyncing
+                          ? `Fetching ${selectedYear} season from F1 API…`
+                          : "Choose which F1 season this room is for."}
                       </FieldDescription>
                     </Field>
                     <Field>
@@ -312,8 +340,15 @@ export default function CreateRoomPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isCreating}>
-                    {isCreating ? "Creating..." : "Create Room"}
+                  <Button
+                    type="submit"
+                    disabled={isCreating || (needsSync && isSyncing)}
+                  >
+                    {isCreating
+                      ? "Creating..."
+                      : needsSync && isSyncing
+                        ? "Loading season…"
+                        : "Create Room"}
                   </Button>
                 </div>
               </FieldGroup>
