@@ -3,21 +3,22 @@
 import { useState, useEffect } from "react";
 import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Image from "next/image";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { getDriverImageUrl, getTeamLogoUrl } from "@/lib/f1-images";
 import { DriverCombobox } from "@/components/room/driver-combobox";
+import { SyncRaceResults } from "@/components/room/sync-race-results";
+import { X } from "lucide-react";
 
 interface PredictionFormProps {
   room: Doc<"rooms">;
   race: Doc<"races">;
-  seasonYear: number; // Season year for fetching drivers/teams (e.g. 2026)
+  seasonYear: number;
   currentPrediction: Doc<"predictions"> | null | undefined;
-  isLocked?: boolean; // Whether predictions are locked based on room settings
+  isLocked?: boolean;
+  currentUser?: Doc<"users"> | null;
 }
 
 interface Driver {
@@ -34,6 +35,7 @@ export function PredictionForm({
   seasonYear,
   currentPrediction,
   isLocked: isLockedProp,
+  currentUser,
 }: PredictionFormProps) {
   const submitPrediction = useMutation(
     api.mutations.predictions.submitPrediction
@@ -43,7 +45,6 @@ export function PredictionForm({
   const [drivers, setDrivers] = useState<Driver[] | null>(null);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
 
-  // Fetch drivers for this race (season-specific)
   useEffect(() => {
     const fetchDrivers = async () => {
       setIsLoadingDrivers(true);
@@ -58,11 +59,9 @@ export function PredictionForm({
         setIsLoadingDrivers(false);
       }
     };
-
     fetchDrivers();
   }, [seasonYear, getDriversForRace]);
 
-  // Form state
   const [predictedPositions, setPredictedPositions] = useState<
     Array<{ position: number; driverNumber: number }>
   >(
@@ -82,7 +81,6 @@ export function PredictionForm({
     currentPrediction?.dnfDriverIds || []
   );
 
-  // Update form when current prediction changes
   useEffect(() => {
     if (currentPrediction) {
       setPredictedPositions(
@@ -118,9 +116,7 @@ export function PredictionForm({
     );
   };
 
-  // Check if race is locked or in the past
   const isPast = race.date < Date.now();
-  // Use prop if provided (from room lockout settings), otherwise fall back to basic checks
   const isLocked =
     isLockedProp !== undefined
       ? isLockedProp
@@ -128,17 +124,14 @@ export function PredictionForm({
 
   const handleSubmit = async () => {
     if (isLocked) {
-      if (isPast) {
-        toast.error(
-          "Cannot submit predictions for races that have already happened"
-        );
-      } else {
-        toast.error("This room is not accepting predictions");
-      }
+      toast.error(
+        isPast
+          ? "Cannot submit predictions for past races"
+          : "This room is not accepting predictions"
+      );
       return;
     }
 
-    // Validate that all positions are filled
     const missingPositions = predictedPositions.filter(
       (p) => p.driverNumber === 0
     );
@@ -149,13 +142,12 @@ export function PredictionForm({
       return;
     }
 
-    // Check for duplicate drivers
     const driverNumbers = predictedPositions.map((p) => p.driverNumber);
     const duplicates = driverNumbers.filter(
       (num, index) => driverNumbers.indexOf(num) !== index
     );
     if (duplicates.length > 0) {
-      toast.error("Each driver can only be selected once for positions");
+      toast.error("Each driver can only be selected once");
       return;
     }
 
@@ -163,7 +155,7 @@ export function PredictionForm({
     try {
       await submitPrediction({
         roomId: room._id,
-        raceId: race._id, // Add raceId!
+        raceId: race._id,
         prediction: {
           predictedPositions: predictedPositions.map((p) => ({
             position: p.position,
@@ -174,7 +166,6 @@ export function PredictionForm({
           dnfDriverIds,
         },
       });
-
       toast.success(
         currentPrediction
           ? "Prediction updated successfully!"
@@ -191,196 +182,237 @@ export function PredictionForm({
 
   if (isLoadingDrivers) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-          Loading drivers...
-        </CardContent>
-      </Card>
+      <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+        Loading drivers...
+      </div>
     );
   }
 
   if (!drivers || drivers.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-          No drivers available for this race yet. Check back later!
-        </CardContent>
-      </Card>
+      <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+        No drivers available for this race yet. Check back later!
+      </div>
     );
   }
 
+  const filledCount = predictedPositions.filter(
+    (p) => p.driverNumber !== 0
+  ).length;
+  const totalPotential =
+    10 + (polePositionDriverId ? 1 : 0) + (fastestLapDriverId ? 1 : 0);
+
+  const getDriverLastName = (driverNumber: number) => {
+    const d = drivers.find((d) => d.driverNumber === driverNumber);
+    if (!d) return "";
+    const parts = d.name.split(" ");
+    return parts.length > 1
+      ? parts.slice(1).join(" ").toUpperCase()
+      : d.name.toUpperCase();
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          {currentPrediction ? "Update Prediction" : "Submit Prediction"}
-        </h3>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Select drivers for positions 1-10, pole position, fastest lap, and
-          DNFs
-        </p>
-      </div>
-
-      {/* Pole Position */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Pole Position 🏁
-            <span className="ml-2 text-xs font-normal text-zinc-500">
-              (Who will start on pole?)
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      {/* Left — Prediction slots */}
+      <div className="space-y-6">
+        {/* Race Winner (P1) — Hero slot */}
+        <div className="rounded-sm bg-paddock-surface-low p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-sm bg-paddock-accent px-2 py-0.5 font-display text-[10px] font-bold text-white">
+                01
+              </span>
+              <h3 className="font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+                Race Winner
+              </h3>
+            </div>
+            <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
+              250 PTS
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {drivers.map((driver) => (
-              <button
-                key={driver.driverNumber}
-                type="button"
-                onClick={() =>
-                  setPolePositionDriverId(
-                    polePositionDriverId === driver.driverNumber
-                      ? undefined
-                      : driver.driverNumber
-                  )
-                }
-                className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all ${
-                  polePositionDriverId === driver.driverNumber
-                    ? "border-red-600 bg-red-50 dark:bg-red-950"
-                    : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
-                }`}
-              >
-                <div className="relative h-12 w-12 overflow-hidden rounded-full">
-                  <Image
-                    src={getDriverImageUrl(
-                      driver.driverNumber,
-                      driver.name,
-                      driver.teamName
-                    )}
-                    alt={driver.name}
-                    fill
-                    className="object-cover"
-                    sizes="48px"
-                  />
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium text-zinc-900 dark:text-zinc-50">
-                    {driver.name.split(" ")[0]}
-                  </div>
-                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    #{driver.driverNumber}
-                  </div>
-                </div>
-                {polePositionDriverId === driver.driverNumber && (
-                  <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs">
-                    ✓
-                  </Badge>
-                )}
-              </button>
-            ))}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Top 10 Positions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Race Positions 1-10 🏆
-            <span className="ml-2 text-xs font-normal text-zinc-500">
-              (Predict the finishing order)
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {predictedPositions.map((pos) => {
-              const selectedDriver = drivers.find(
-                (d) => d.driverNumber === pos.driverNumber
-              );
+          {(() => {
+            const pos1 = predictedPositions.find((p) => p.position === 1);
+            const selectedDriver = pos1?.driverNumber
+              ? drivers.find((d) => d.driverNumber === pos1.driverNumber)
+              : null;
 
-              // Get podium-specific styling
-              let borderClass = "border-zinc-200 dark:border-zinc-800";
-              let bgClass = "";
-              let badgeClass =
-                "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
-
-              if (pos.position === 1) {
-                borderClass = "border-yellow-500 dark:border-yellow-500";
-                bgClass = "bg-yellow-50 dark:bg-yellow-950";
-                badgeClass = "bg-yellow-500 text-white";
-              } else if (pos.position === 2) {
-                borderClass = "border-slate-400 dark:border-slate-400";
-                bgClass = "bg-slate-50 dark:bg-slate-950";
-                badgeClass = "bg-slate-400 text-white";
-              } else if (pos.position === 3) {
-                borderClass = "border-orange-600 dark:border-orange-600";
-                bgClass = "bg-orange-50 dark:bg-orange-950";
-                badgeClass = "bg-orange-600 text-white";
-              }
-
+            if (selectedDriver) {
               return (
-                <div
-                  key={pos.position}
-                  className={`flex items-center gap-3 rounded-lg border-2 p-3 ${borderClass} ${bgClass}`}
-                >
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold ${badgeClass}`}
-                  >
-                    {pos.position}
+                <div className="flex items-center gap-4 rounded-sm bg-paddock-surface px-4 py-3">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-sm">
+                    <Image
+                      src={getDriverImageUrl(
+                        selectedDriver.driverNumber,
+                        selectedDriver.name,
+                        selectedDriver.teamName
+                      )}
+                      alt={selectedDriver.name}
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                    />
                   </div>
-                  {selectedDriver ? (
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                        <Image
-                          src={getDriverImageUrl(
-                            selectedDriver.driverNumber,
-                            selectedDriver.name,
-                            selectedDriver.teamName
-                          )}
-                          alt={selectedDriver.name}
-                          fill
-                          className="object-cover"
-                          sizes="40px"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium text-zinc-900 dark:text-zinc-50">
-                          {selectedDriver.name}
+                  <div className="min-w-0 flex-1">
+                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                      {selectedDriver.teamName}
+                    </span>
+                    <p className="font-display text-lg font-black uppercase tracking-tight text-paddock-on">
+                      {getDriverLastName(selectedDriver.driverNumber)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handlePositionChange(1, 0)}
+                    className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:bg-paddock-surface-high hover:text-paddock-on"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <DriverCombobox
+                drivers={drivers}
+                value={undefined}
+                onChange={(driverNumber) =>
+                  handlePositionChange(1, driverNumber)
+                }
+                excludeDriverNumbers={predictedPositions
+                  .filter((p) => p.position !== 1)
+                  .map((p) => p.driverNumber)
+                  .filter((n) => n !== 0)}
+                placeholder="Select race winner..."
+              />
+            );
+          })()}
+        </div>
+
+        {/* Podium P2 & P3 */}
+        <div className="grid grid-cols-2 gap-3">
+          {[2, 3].map((pos) => {
+            const posEntry = predictedPositions.find((p) => p.position === pos);
+            const selectedDriver = posEntry?.driverNumber
+              ? drivers.find((d) => d.driverNumber === posEntry.driverNumber)
+              : null;
+            const pts = pos === 2 ? "180" : "150";
+
+            return (
+              <div key={pos} className="rounded-sm bg-paddock-surface-low p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+                    Podium P{pos}
+                  </h3>
+                  <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
+                    {pts} PTS
+                  </span>
+                </div>
+
+                {selectedDriver ? (
+                  <div className="flex items-center gap-3 rounded-sm bg-paddock-surface px-3 py-2.5">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm">
+                      <Image
+                        src={getDriverImageUrl(
+                          selectedDriver.driverNumber,
+                          selectedDriver.name,
+                          selectedDriver.teamName
+                        )}
+                        alt={selectedDriver.name}
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                        {selectedDriver.teamName}
+                      </span>
+                      <p className="font-display text-sm font-bold uppercase tracking-tight text-paddock-on">
+                        {getDriverLastName(selectedDriver.driverNumber)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handlePositionChange(pos, 0)}
+                      className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:bg-paddock-surface-high hover:text-paddock-on"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <DriverCombobox
+                    drivers={drivers}
+                    value={undefined}
+                    onChange={(driverNumber) =>
+                      handlePositionChange(pos, driverNumber)
+                    }
+                    excludeDriverNumbers={predictedPositions
+                      .filter((p) => p.position !== pos)
+                      .map((p) => p.driverNumber)
+                      .filter((n) => n !== 0)}
+                    placeholder="Select driver..."
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Positions 4–10 */}
+        <div className="rounded-sm bg-paddock-surface-low p-5">
+          <h3 className="mb-4 font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+            Positions 4–10
+          </h3>
+          <div className="space-y-2">
+            {predictedPositions
+              .filter((p) => p.position >= 4)
+              .map((pos) => {
+                const selectedDriver = pos.driverNumber
+                  ? drivers.find((d) => d.driverNumber === pos.driverNumber)
+                  : null;
+
+                return (
+                  <div key={pos.position} className="flex items-center gap-3">
+                    <span className="w-8 shrink-0 font-display text-lg font-black italic tabular-nums text-paddock-on-muted/30">
+                      {String(pos.position).padStart(2, "0")}
+                    </span>
+
+                    {selectedDriver ? (
+                      <div className="flex min-w-0 flex-1 items-center gap-3 rounded-sm bg-paddock-surface px-3 py-2">
+                        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-sm">
+                          <Image
+                            src={getDriverImageUrl(
+                              selectedDriver.driverNumber,
+                              selectedDriver.name,
+                              selectedDriver.teamName
+                            )}
+                            alt={selectedDriver.name}
+                            fill
+                            className="object-cover"
+                            sizes="32px"
+                          />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded">
-                            <Image
-                              src={getTeamLogoUrl(
-                                selectedDriver.teamName,
-                                selectedDriver.teamLogo
-                              )}
-                              alt={selectedDriver.teamName}
-                              fill
-                              className="object-cover"
-                              sizes="16px"
-                            />
-                          </div>
-                          <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+                            {getDriverLastName(selectedDriver.driverNumber)}
+                          </span>
+                          <span className="ml-2 font-display text-[9px] uppercase tracking-widest text-paddock-on-muted">
                             {selectedDriver.teamName}
                           </span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePositionChange(pos.position, 0)}
+                          className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:text-paddock-on"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlePositionChange(pos.position, 0)}
-                        className="shrink-0"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                    ) : (
                       <DriverCombobox
                         drivers={drivers}
-                        value={pos.driverNumber || undefined}
+                        value={undefined}
                         onChange={(driverNumber) =>
                           handlePositionChange(pos.position, driverNumber)
                         }
@@ -388,149 +420,270 @@ export function PredictionForm({
                           .filter((p) => p.position !== pos.position)
                           .map((p) => p.driverNumber)
                           .filter((n) => n !== 0)}
-                        placeholder="Search driver (e.g. lewis, ferrari, hamilton)..."
+                        placeholder="Select driver..."
+                        className="min-w-0 flex-1"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+
+        {/* Pole Position & Fastest Lap — side by side */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Pole Position */}
+          <div className="rounded-sm bg-paddock-surface-low p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+                Pole Position
+              </h3>
+              <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
+                100 PTS
+              </span>
+            </div>
+            {(() => {
+              const selectedDriver = polePositionDriverId
+                ? drivers.find((d) => d.driverNumber === polePositionDriverId)
+                : null;
+              if (selectedDriver) {
+                return (
+                  <div className="flex items-center gap-3 rounded-sm bg-paddock-surface px-3 py-2.5">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm">
+                      <Image
+                        src={getDriverImageUrl(
+                          selectedDriver.driverNumber,
+                          selectedDriver.name,
+                          selectedDriver.teamName
+                        )}
+                        alt={selectedDriver.name}
+                        fill
+                        className="object-cover"
+                        sizes="40px"
                       />
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display text-sm font-bold uppercase tracking-tight text-paddock-on">
+                        {getDriverLastName(selectedDriver.driverNumber)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPolePositionDriverId(undefined)}
+                      className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:text-paddock-on"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <DriverCombobox
+                  drivers={drivers}
+                  value={undefined}
+                  onChange={(num) => setPolePositionDriverId(num)}
+                  excludeDriverNumbers={[]}
+                  placeholder="Select driver..."
+                />
+              );
+            })()}
+          </div>
+
+          {/* Fastest Lap */}
+          <div className="rounded-sm bg-paddock-surface-low p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+                Fastest Lap
+              </h3>
+              <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
+                100 PTS
+              </span>
+            </div>
+            {(() => {
+              const selectedDriver = fastestLapDriverId
+                ? drivers.find((d) => d.driverNumber === fastestLapDriverId)
+                : null;
+              if (selectedDriver) {
+                return (
+                  <div className="flex items-center gap-3 rounded-sm bg-paddock-surface px-3 py-2.5">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm">
+                      <Image
+                        src={getDriverImageUrl(
+                          selectedDriver.driverNumber,
+                          selectedDriver.name,
+                          selectedDriver.teamName
+                        )}
+                        alt={selectedDriver.name}
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display text-sm font-bold uppercase tracking-tight text-paddock-on">
+                        {getDriverLastName(selectedDriver.driverNumber)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFastestLapDriverId(undefined)}
+                      className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:text-paddock-on"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <DriverCombobox
+                  drivers={drivers}
+                  value={undefined}
+                  onChange={(num) => setFastestLapDriverId(num)}
+                  excludeDriverNumbers={[]}
+                  placeholder="Select driver..."
+                />
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* DNFs */}
+        <div className="rounded-sm bg-paddock-surface-low p-5">
+          <h3 className="mb-1 font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+            DNF (Did Not Finish)
+          </h3>
+          <p className="mb-4 text-xs text-paddock-on-muted">
+            Select drivers who won&apos;t finish the race (optional)
+          </p>
+          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
+            {drivers.map((driver) => {
+              const isDnf = dnfDriverIds.includes(driver.driverNumber);
+              const lastName = driver.name.split(" ").pop() || driver.name;
+              return (
+                <button
+                  key={driver.driverNumber}
+                  type="button"
+                  onClick={() => toggleDnf(driver.driverNumber)}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-sm px-1.5 py-2 transition-colors",
+                    isDnf
+                      ? "bg-paddock-accent/20 ring-1 ring-paddock-accent"
+                      : "bg-paddock-surface hover:bg-paddock-surface-high"
                   )}
-                </div>
+                >
+                  <div
+                    className={cn(
+                      "relative h-8 w-8 overflow-hidden rounded-full",
+                      isDnf && "opacity-60"
+                    )}
+                  >
+                    <Image
+                      src={getDriverImageUrl(
+                        driver.driverNumber,
+                        driver.name,
+                        driver.teamName
+                      )}
+                      alt={driver.name}
+                      fill
+                      className="object-cover"
+                      sizes="32px"
+                    />
+                  </div>
+                  <span
+                    className={cn(
+                      "text-center font-display text-[9px] font-semibold uppercase tracking-wider",
+                      isDnf ? "text-paddock-accent" : "text-paddock-on-muted"
+                    )}
+                  >
+                    {lastName.slice(0, 4)}
+                  </span>
+                </button>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Fastest Lap */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Fastest Lap ⚡
-            <span className="ml-2 text-xs font-normal text-zinc-500">
-              (Optional)
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {drivers.map((driver) => (
-              <button
-                key={driver.driverNumber}
-                type="button"
-                onClick={() =>
-                  setFastestLapDriverId(
-                    fastestLapDriverId === driver.driverNumber
-                      ? undefined
-                      : driver.driverNumber
-                  )
-                }
-                className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all ${
-                  fastestLapDriverId === driver.driverNumber
-                    ? "border-purple-600 bg-purple-50 dark:bg-purple-950"
-                    : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
-                }`}
-              >
-                <div className="relative h-12 w-12 overflow-hidden rounded-full">
-                  <Image
-                    src={getDriverImageUrl(
-                      driver.driverNumber,
-                      driver.name,
-                      driver.teamName
-                    )}
-                    alt={driver.name}
-                    fill
-                    className="object-cover"
-                    sizes="48px"
-                  />
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium text-zinc-900 dark:text-zinc-50">
-                    {driver.name.split(" ")[0]}
-                  </div>
-                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    #{driver.driverNumber}
-                  </div>
-                </div>
-                {fastestLapDriverId === driver.driverNumber && (
-                  <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs">
-                    ✓
-                  </Badge>
-                )}
-              </button>
-            ))}
+      {/* Right sidebar — Submit strategy + host tools */}
+      <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+        <div className="rounded-sm bg-paddock-accent p-5">
+          <h3 className="font-display text-lg font-black italic uppercase tracking-tight text-white">
+            Submit Strategy
+          </h3>
+          <p className="mt-1 font-display text-[10px] font-semibold uppercase tracking-widest text-white/70">
+            {isLocked
+              ? "Locked picks cannot be edited"
+              : "Lock in your predictions before the deadline"}
+          </p>
+
+          <div className="mt-5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                Positions Filled
+              </span>
+              <span className="font-display text-sm font-bold text-white">
+                {filledCount} / 10
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                Pole Position
+              </span>
+              <span className="font-display text-sm font-bold text-white">
+                {polePositionDriverId ? "Set" : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                Fastest Lap
+              </span>
+              <span className="font-display text-sm font-bold text-white">
+                {fastestLapDriverId ? "Set" : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                DNFs Selected
+              </span>
+              <span className="font-display text-sm font-bold text-white">
+                {dnfDriverIds.length}
+              </span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* DNFs */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            DNF (Did Not Finish) 🚩
-            <span className="ml-2 text-xs font-normal text-zinc-500">
-              (Optional - select drivers who won&apos;t finish)
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {drivers.map((driver) => (
-              <button
-                key={driver.driverNumber}
-                type="button"
-                onClick={() => toggleDnf(driver.driverNumber)}
-                className={`group relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all ${
-                  dnfDriverIds.includes(driver.driverNumber)
-                    ? "border-red-600 bg-red-50 dark:bg-red-950"
-                    : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
-                }`}
-              >
-                <div className="relative h-12 w-12 overflow-hidden rounded-full opacity-75">
-                  <Image
-                    src={getDriverImageUrl(
-                      driver.driverNumber,
-                      driver.name,
-                      driver.teamName
-                    )}
-                    alt={driver.name}
-                    fill
-                    className="object-cover"
-                    sizes="48px"
-                  />
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-medium text-zinc-900 dark:text-zinc-50">
-                    {driver.name.split(" ")[0]}
-                  </div>
-                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    #{driver.driverNumber}
-                  </div>
-                </div>
-                {dnfDriverIds.includes(driver.driverNumber) && (
-                  <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-red-600 p-0 text-xs">
-                    ✕
-                  </Badge>
-                )}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting || isLocked}
+            className={cn(
+              "mt-5 w-full rounded-sm py-3 font-display text-[11px] font-bold uppercase tracking-widest transition-colors",
+              isLocked
+                ? "cursor-not-allowed bg-white/20 text-white/50"
+                : "bg-white text-paddock-accent hover:bg-white/90"
+            )}
+          >
+            {isSubmitting
+              ? "Submitting..."
+              : isLocked
+                ? isPast
+                  ? "Race Complete"
+                  : "Predictions Locked"
+                : currentPrediction
+                  ? "Update Picks"
+                  : "Lock Choices"}
+          </button>
+        </div>
 
-      <Button
-        onClick={handleSubmit}
-        disabled={isSubmitting || isLocked}
-        className="w-full"
-        size="lg"
-      >
-        {isSubmitting
-          ? "Submitting..."
-          : isLocked
-            ? isPast
-              ? "Race Already Happened"
-              : "Predictions Locked"
-            : currentPrediction
-              ? "Update Prediction"
-              : "Submit Prediction"}
-      </Button>
+        {/* Host sync tool — compact */}
+        {currentUser && currentUser._id === room.hostId && (
+          <SyncRaceResults
+            room={room}
+            race={race}
+            currentUser={currentUser}
+            compact
+          />
+        )}
+      </div>
     </div>
   );
 }

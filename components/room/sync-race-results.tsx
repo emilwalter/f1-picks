@@ -3,23 +3,23 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { RefreshCw, CheckCircle2 } from "lucide-react";
 import type { Doc } from "@/convex/_generated/dataModel";
 
 interface SyncRaceResultsProps {
   room: Doc<"rooms">;
   race: Doc<"races">;
   currentUser: Doc<"users"> | null;
+  compact?: boolean;
 }
 
 export function SyncRaceResults({
   room,
   race,
   currentUser,
+  compact = false,
 }: SyncRaceResultsProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const syncRaceResults = useAction(
@@ -30,19 +30,14 @@ export function SyncRaceResults({
   const hasResults = !!race.officialResults;
   const isPast = race.date < Date.now();
 
-  // Only show to hosts
-  if (!isHost) {
-    return null;
-  }
+  if (!isHost) return null;
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
       const result = await syncRaceResults({ raceId: race._id });
       if (result.success && "roomsScored" in result) {
-        toast.success(
-          `Successfully synced results and scored ${result.roomsScored} rooms!`
-        );
+        toast.success(`Synced results and scored ${result.roomsScored} rooms!`);
       } else {
         toast.error(result.message || "Failed to sync race results");
       }
@@ -56,80 +51,90 @@ export function SyncRaceResults({
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Race Results</CardTitle>
+  if (compact) {
+    return (
+      <div className="rounded-sm bg-paddock-surface-low p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h4 className="font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+            Host Tools
+          </h4>
           {hasResults ? (
-            <Badge variant="default" className="gap-1">
-              <CheckCircle2 className="h-3 w-3" />
+            <span className="flex items-center gap-1 font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-cyan">
+              <CheckCircle2 className="h-2.5 w-2.5" />
               Synced
-            </Badge>
+            </span>
           ) : (
-            <Badge variant="outline" className="gap-1">
-              <AlertCircle className="h-3 w-3" />
+            <span className="font-display text-[9px] uppercase tracking-widest text-paddock-on-muted/50">
               Not Synced
-            </Badge>
+            </span>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-3">
-          {hasResults ? (
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">
-              <p>Race results have been synced and scoring has been applied.</p>
-              {race.officialResults && (
-                <p className="mt-2">
-                  {race.officialResults.positions.length} drivers finished the
-                  race.
-                  {race.officialResults.dnfDriverIds &&
-                    race.officialResults.dnfDriverIds.length > 0 && (
-                      <span className="ml-1">
-                        {race.officialResults.dnfDriverIds.length} driver
-                        {race.officialResults.dnfDriverIds.length !== 1
-                          ? "s"
-                          : ""}{" "}
-                        did not finish (DNF).
-                      </span>
-                    )}
-                </p>
-              )}
-              {isPast && (
-                <p className="mt-2 text-xs">
-                  You can manually sync again to recalculate scores if needed.
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {isPast
-                ? "This race has completed but results haven't been synced yet. Click the button below to sync results from the F1 API and automatically score all predictions."
-                : "Sync race results and calculate scores. This will update results from the F1 API and recalculate all prediction scores."}
-            </p>
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={isSyncing}
+          className={cn(
+            "flex w-full items-center justify-center gap-2 rounded-sm py-2 font-display text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50",
+            hasResults
+              ? "bg-paddock-surface-high text-paddock-on hover:bg-paddock-surface-highest"
+              : "bg-paddock-surface-high text-paddock-on hover:bg-paddock-surface-highest"
           )}
-          <Button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="w-full"
-            variant={hasResults ? "outline" : "default"}
-          >
-            {isSyncing ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Syncing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {hasResults
-                  ? "Re-sync Results & Recalculate Scores"
-                  : "Sync Results & Score Predictions"}
-              </>
-            )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        >
+          <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
+          {isSyncing
+            ? "Syncing..."
+            : hasResults
+              ? "Re-sync Results"
+              : "Sync & Score"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-sm bg-paddock-surface-low p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+          Race Results
+        </h3>
+        {hasResults ? (
+          <span className="flex items-center gap-1.5 font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-cyan">
+            <CheckCircle2 className="h-3 w-3" />
+            Synced
+          </span>
+        ) : (
+          <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+            Not Synced
+          </span>
+        )}
+      </div>
+
+      <p className="mb-4 text-xs text-paddock-on-muted">
+        {hasResults
+          ? "Race results have been synced and scoring applied."
+          : isPast
+            ? "Sync race results from the F1 API and score all predictions."
+            : "Sync race results and calculate scores. This will update results from the F1 API and recalculate all prediction scores."}
+      </p>
+
+      <button
+        type="button"
+        onClick={handleSync}
+        disabled={isSyncing}
+        className={cn(
+          "flex w-full items-center justify-center gap-2 rounded-sm py-2.5 font-display text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50",
+          hasResults
+            ? "bg-paddock-surface-high text-paddock-on hover:bg-paddock-surface-highest"
+            : "bg-paddock-accent text-white hover:bg-paddock-accent/90"
+        )}
+      >
+        <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+        {isSyncing
+          ? "Syncing..."
+          : hasResults
+            ? "Re-sync & Recalculate"
+            : "Sync Results & Score Predictions"}
+      </button>
+    </div>
   );
 }

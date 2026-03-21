@@ -149,12 +149,10 @@ export function getTeamLogoUrl(teamName: string, teamLogo?: string): string {
 }
 
 /**
- * Get circuit image URL
- * Placeholder for now - can be replaced with actual circuit images
+ * Fallback circuit visual when no static asset is available.
+ * Prefer `getF1RaceStaticImagePaths` from `@/lib/f1-race-images` for 2026 races.
  */
 export function getCircuitImageUrl(circuitName: string): string {
-  // Placeholder: Use a service or static circuit images
-  // In production, replace with actual circuit images from F1 API or Wikipedia
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
     circuitName
   )}&background=random&size=256`;

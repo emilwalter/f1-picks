@@ -1,0 +1,291 @@
+{
+  "generated": "2026-03-21T16:20:46.125Z",
+  "races": [
+    {
+      "slug": "australia",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 401030
+        },
+        {
+          "name": "track",
+          "bytes": 108926
+        }
+      ]
+    },
+    {
+      "slug": "austria",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 612112
+        },
+        {
+          "name": "track",
+          "bytes": 76872
+        }
+      ]
+    },
+    {
+      "slug": "azerbaijan",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 292558
+        },
+        {
+          "name": "track",
+          "bytes": 72302
+        }
+      ]
+    },
+    {
+      "slug": "barcelona-catalunya",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 532986
+        },
+        {
+          "name": "track",
+          "bytes": 63518
+        }
+      ]
+    },
+    {
+      "slug": "belgium",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 596580
+        },
+        {
+          "name": "track",
+          "bytes": 81548
+        }
+      ]
+    },
+    {
+      "slug": "brazil",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 449884
+        },
+        {
+          "name": "track",
+          "bytes": 87240
+        }
+      ]
+    },
+    {
+      "slug": "canada",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 336848
+        },
+        {
+          "name": "track",
+          "bytes": 66170
+        }
+      ]
+    },
+    {
+      "slug": "china",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 368034
+        },
+        {
+          "name": "track",
+          "bytes": 92878
+        }
+      ]
+    },
+    {
+      "slug": "great-britain",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 329828
+        },
+        {
+          "name": "track",
+          "bytes": 82144
+        }
+      ]
+    },
+    {
+      "slug": "hungary",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 604182
+        },
+        {
+          "name": "track",
+          "bytes": 56910
+        }
+      ]
+    },
+    {
+      "slug": "italy",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 405258
+        },
+        {
+          "name": "track",
+          "bytes": 53426
+        }
+      ]
+    },
+    {
+      "slug": "japan",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 308554
+        },
+        {
+          "name": "track",
+          "bytes": 78842
+        }
+      ]
+    },
+    {
+      "slug": "las-vegas",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 277456
+        },
+        {
+          "name": "track",
+          "bytes": 61708
+        }
+      ]
+    },
+    {
+      "slug": "mexico",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 358526
+        },
+        {
+          "name": "track",
+          "bytes": 52448
+        }
+      ]
+    },
+    {
+      "slug": "miami",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 395956
+        },
+        {
+          "name": "track",
+          "bytes": 84056
+        }
+      ]
+    },
+    {
+      "slug": "monaco",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 363534
+        },
+        {
+          "name": "track",
+          "bytes": 81050
+        }
+      ]
+    },
+    {
+      "slug": "netherlands",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 476042
+        },
+        {
+          "name": "track",
+          "bytes": 74210
+        }
+      ]
+    },
+    {
+      "slug": "qatar",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 183686
+        },
+        {
+          "name": "track",
+          "bytes": 67984
+        }
+      ]
+    },
+    {
+      "slug": "singapore",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 325910
+        },
+        {
+          "name": "track",
+          "bytes": 75448
+        }
+      ]
+    },
+    {
+      "slug": "spain",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 281268
+        },
+        {
+          "name": "track",
+          "bytes": 46952
+        }
+      ]
+    },
+    {
+      "slug": "united-arab-emirates",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 299172
+        },
+        {
+          "name": "track",
+          "bytes": 76544
+        }
+      ]
+    },
+    {
+      "slug": "united-states",
+      "files": [
+        {
+          "name": "card",
+          "bytes": 288000
+        },
+        {
+          "name": "track",
+          "bytes": 80758
+        }
+      ]
+    }
+  ]
+}

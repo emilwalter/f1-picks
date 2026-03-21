@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Paddock Precision - Live Race &amp; Results</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-secondary-container": "#00616d",
+                        "on-error": "#690005",
+                        "inverse-surface": "#e5e1e4",
+                        "tertiary-container": "#b1b100",
+                        "inverse-on-surface": "#303032",
+                        "secondary": "#bdf4ff",
+                        "surface-variant": "#353437",
+                        "error": "#ffb4ab",
+                        "surface-bright": "#39393b",
+                        "on-surface": "#e5e1e4",
+                        "primary": "#ffb4a8",
+                        "surface": "#131315",
+                        "surface-container-lowest": "#0e0e10",
+                        "secondary-fixed-dim": "#00daf3",
+                        "primary-fixed-dim": "#ffb4a8",
+                        "surface-container": "#201f21",
+                        "on-surface-variant": "#e9bcb5",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed": "#1d1d00",
+                        "surface-container-high": "#2a2a2c",
+                        "surface-container-low": "#1b1b1d",
+                        "on-secondary": "#00363d",
+                        "on-tertiary-container": "#424200",
+                        "primary-container": "#e10600",
+                        "outline": "#af8781",
+                        "tertiary": "#cdcd00",
+                        "inverse-primary": "#c00500",
+                        "background": "#131315",
+                        "secondary-container": "#00e3fd",
+                        "secondary-fixed": "#9cf0ff",
+                        "surface-tint": "#ffb4a8",
+                        "on-tertiary": "#323200",
+                        "primary-fixed": "#ffdad4",
+                        "on-primary-container": "#fff2f0",
+                        "surface-dim": "#131315",
+                        "on-secondary-fixed": "#001f24",
+                        "on-primary-fixed-variant": "#930300",
+                        "on-background": "#e5e1e4",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed": "#410100",
+                        "tertiary-fixed": "#eaea00",
+                        "outline-variant": "#5e3f3a",
+                        "tertiary-fixed-dim": "#cdcd00",
+                        "on-primary": "#680200",
+                        "on-tertiary-fixed-variant": "#494900",
+                        "on-secondary-fixed-variant": "#004f58",
+                        "surface-container-highest": "#353437"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .telemetry-grid {
+            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.03) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+        .carbon-texture {
+            background: linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1) 75%, transparent 75%, transparent);
+            background-size: 4px 4px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-6 h-16 bg-[#131315]/60 backdrop-blur-xl z-50 bg-gradient-to-b from-[#131315] to-transparent">
+<div class="flex items-center gap-4">
+<span class="text-xl font-black italic tracking-tighter text-[#e10600]">PADDOCK PRECISION</span>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="font-label uppercase tracking-widest text-[10px] text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200" href="#">DASHBOARD</a>
+<a class="font-label uppercase tracking-widest text-[10px] text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200" href="#">PREDICTIONS</a>
+<a class="font-label uppercase tracking-widest text-[10px] text-[#ffb4a8] border-b-2 border-[#e10600] pb-1" href="#">LIVE RACE</a>
+<a class="font-label uppercase tracking-widest text-[10px] text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200" href="#">LEADERBOARD</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#ffb4a8] cursor-pointer hover:scale-95 transition-transform" data-icon="leaderboard">leaderboard</span>
+<span class="material-symbols-outlined text-[#ffb4a8] cursor-pointer hover:scale-95 transition-transform" data-icon="settings">settings</span>
+<div class="w-8 h-8 rounded-full border border-primary/20 overflow-hidden bg-surface-container-high">
+<img alt="User profile avatar with team colors" data-alt="User profile avatar with team colors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfxY6eJKhP6LKA2Reuq_I29fUYxgYa0NvUKPfI8Rq1VYLpaHAPh0qRcswt7AYOrFwRpTt2mSCmUH6tIprgXDy0EL4PJHjH8j1h_XmkN9pqgCWUJVl9ZTKgOi4SavRqvLNzH3R7vNFjZ-KZ9etS_X7oIDDQ8U3x2aGPZjoiLNOXnntYEuXmAP097U6XaZzVhziWRgdBg6JN3Pey0gMHb9cpoCP2-M3JSdGftvDEwAinEHG2ZtZr8RQ9fXYh5HwxuHYFQE3EGXSlakw"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Desktop Only) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col pt-8 bg-[#131315] h-screen w-64 hidden lg:flex border-r border-white/5 z-40">
+<div class="px-6 mb-12">
+<div class="text-2xl font-black text-[#e10600] mb-8 font-headline">PADDOCK</div>
+<div class="p-4 bg-surface-container-high rounded border-l-4 border-secondary shadow-2xl shadow-black/50">
+<p class="font-label text-[10px] tracking-widest text-secondary opacity-80">RACE ENGINEER</p>
+<p class="font-headline text-xl font-bold text-on-surface">1,420 PTS</p>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 mt-1 uppercase">Global Rank 142</p>
+</div>
+</div>
+<nav class="flex-1">
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 font-label text-[12px] tracking-widest hover:text-[#00daf3]" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span> DASHBOARD
+            </a>
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 font-label text-[12px] tracking-widest hover:text-[#00daf3]" href="#">
+<span class="material-symbols-outlined" data-icon="precision_manufacturing">precision_manufacturing</span> PREDICTIONS
+            </a>
+<a class="bg-gradient-to-r from-[#e10600]/20 to-transparent text-[#ffb4a8] border-l-4 border-[#e10600] py-4 px-6 mb-2 flex items-center gap-4 font-label text-[12px] tracking-widest translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="speed">speed</span> LIVE RACE
+            </a>
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 font-label text-[12px] tracking-widest hover:text-[#00daf3]" href="#">
+<span class="material-symbols-outlined" data-icon="emoji_events">emoji_events</span> LEADERBOARD
+            </a>
+</nav>
+<div class="p-6">
+<button class="w-full bg-primary-container text-on-primary-container py-3 font-label text-[12px] font-bold tracking-widest rounded hover:shadow-[0_0_15px_rgba(225,6,0,0.4)] transition-all">JOIN LEAGUE</button>
+<button class="w-full mt-4 flex items-center justify-center gap-2 text-on-surface/50 font-label text-[10px] tracking-widest hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="logout">logout</span> LOGOUT
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-20 pb-24 px-4 md:px-8 telemetry-grid min-h-screen">
+<!-- Hero Header: Australian Grand Prix -->
+<div class="relative overflow-hidden bg-surface-container-low rounded-lg mb-8 p-6 md:p-10 border-l-4 border-primary shadow-2xl">
+<div class="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
+<img alt="Australia Flag Watermark" class="w-full h-full object-contain" data-alt="Faded Australian flag as background watermark" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTwiL9Oytrpsy2PUrvJ3zsQvNz5HdnBPomekJoLeshG3w4VA10lqUsPu8Byc6cdd0FlRnMfaWii9qPiv-IkkGnotN9uBfU8TOwIERzPVFC0WUNlUZoO2ET3eIKlwG2KpO3xtbByRVsYAPdJq9bmDwAvzexsu8ljJX3Bvh3Xt-7Cd7DdRnsDHhvRPTHCv1U-DrtQ1Jezd9l2xXndFgAYc7-yLTvHSW0KwvJw4gFTgogggIqX-SYxoIUk6vkG-aJLzFCCupVNCDoFGw"/>
+</div>
+<div class="relative z-10 flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="bg-primary-container text-[10px] font-bold px-2 py-0.5 rounded-sm font-label tracking-tighter">FINISHED</span>
+<span class="text-secondary font-label text-[10px] tracking-widest uppercase">MELBOURNE • ROUND 3</span>
+</div>
+<h1 class="font-headline text-4xl md:text-6xl font-black uppercase tracking-tighter text-on-surface">Australian <span class="text-primary-container italic">Grand Prix</span></h1>
+</div>
+<div class="text-right">
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 mb-1 uppercase">Points Earned</p>
+<div class="flex items-baseline gap-2 justify-end">
+<span class="font-headline text-5xl font-black text-secondary-fixed-dim tracking-tight">+84</span>
+<span class="font-label text-sm text-secondary-fixed-dim/60">PTS</span>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+<!-- Column 1 & 2: Results and Performance Comparison -->
+<div class="xl:col-span-2 space-y-8">
+<!-- Performance Comparison Grid (Bento Style) -->
+<section>
+<h2 class="font-headline text-xl font-bold mb-4 uppercase tracking-widest flex items-center gap-2">
+<span class="w-1 h-6 bg-secondary"></span>
+                        League Performance
+                    </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<!-- Hit: Winner Pick -->
+<div class="bg-surface-container-highest p-5 border-l-4 border-tertiary-container relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-tertiary-fixed text-4xl" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-3">Predicted Winner</p>
+<h3 class="font-headline text-2xl font-bold text-on-surface mb-1">C. SAINZ</h3>
+<p class="font-label text-xs text-tertiary-fixed font-bold">+25 PTS <span class="ml-2 opacity-50 font-normal text-on-surface">HIT</span></p>
+</div>
+<!-- Miss: Podium Pick -->
+<div class="bg-surface-container-highest p-5 border-l-4 border-primary-container relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity text-primary">
+<span class="material-symbols-outlined text-4xl" data-icon="cancel" style="font-variation-settings: 'FILL' 1;">cancel</span>
+</div>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-3">Podium Pick</p>
+<h3 class="font-headline text-2xl font-bold text-on-surface mb-1">M. VERSTAPPEN</h3>
+<p class="font-label text-xs text-primary font-bold">0 PTS <span class="ml-2 opacity-50 font-normal text-on-surface">DNF</span></p>
+</div>
+<!-- Hit: Fastest Lap -->
+<div class="bg-surface-container-highest p-5 border-l-4 border-tertiary-container relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-2 opacity-20 group-hover:opacity-100 transition-opacity text-tertiary">
+<span class="material-symbols-outlined text-4xl" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-3">Fastest Lap</p>
+<h3 class="font-headline text-2xl font-bold text-on-surface mb-1">C. LECLERC</h3>
+<p class="font-label text-xs text-tertiary-fixed font-bold">+10 PTS <span class="ml-2 opacity-50 font-normal text-on-surface">HIT</span></p>
+</div>
+<!-- Multi-Metric Card -->
+<div class="md:col-span-2 lg:col-span-3 bg-surface-container p-6 rounded relative flex flex-wrap gap-8 items-center justify-between border border-white/5 carbon-texture">
+<div class="flex-1 min-w-[200px]">
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-4">Precision Analysis</p>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<span class="font-label text-xs tracking-wider">TOP 10 ACCURACY</span>
+<span class="font-headline font-bold text-secondary">7/10</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed-dim" style="width: 70%"></div>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-label text-xs tracking-wider">TEAM STRATEGY BONUS</span>
+<span class="font-headline font-bold text-tertiary">+15 PTS</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary" style="width: 100%"></div>
+</div>
+</div>
+</div>
+<div class="hidden lg:block h-32 w-px bg-white/10"></div>
+<div class="flex flex-col items-center justify-center text-center px-8">
+<span class="material-symbols-outlined text-4xl text-secondary mb-2" data-icon="insights">insights</span>
+<h4 class="font-headline text-xl font-bold">LEGENDARY</h4>
+<p class="font-label text-[9px] tracking-[0.2em] text-on-surface/40">PICK QUALITY</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Official Race Results Table -->
+<section>
+<h2 class="font-headline text-xl font-bold mb-4 uppercase tracking-widest flex items-center gap-2">
+<span class="w-1 h-6 bg-primary"></span>
+                        Official Race Standings
+                    </h2>
+<div class="bg-surface-container rounded overflow-hidden">
+<div class="grid grid-cols-12 gap-4 p-4 border-b border-white/5 font-label text-[10px] tracking-[0.2em] text-on-surface/40 uppercase">
+<div class="col-span-1">POS</div>
+<div class="col-span-6 md:col-span-8">DRIVER</div>
+<div class="col-span-3 md:col-span-2 text-right">TIME/GAP</div>
+<div class="col-span-2 md:col-span-1 text-right">PTS</div>
+</div>
+<!-- Driver Row 1 -->
+<div class="grid grid-cols-12 gap-4 p-4 items-center bg-surface-container-high/40 hover:bg-surface-container-highest transition-colors">
+<div class="col-span-1 font-headline font-black text-xl italic text-secondary">01</div>
+<div class="col-span-6 md:col-span-8 flex items-center gap-4">
+<div class="w-1 h-8 bg-red-600"></div>
+<div>
+<p class="font-headline font-bold text-on-surface">CARLOS <span class="font-black text-2xl">SAINZ</span></p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40 uppercase">FERRARI</p>
+</div>
+</div>
+<div class="col-span-3 md:col-span-2 text-right font-headline text-sm text-on-surface/60">1:20:26.843</div>
+<div class="col-span-2 md:col-span-1 text-right font-headline font-black text-lg">25</div>
+</div>
+<!-- Driver Row 2 -->
+<div class="grid grid-cols-12 gap-4 p-4 items-center hover:bg-surface-container-highest transition-colors">
+<div class="col-span-1 font-headline font-black text-xl italic text-on-surface/60">02</div>
+<div class="col-span-6 md:col-span-8 flex items-center gap-4">
+<div class="w-1 h-8 bg-red-600"></div>
+<div>
+<p class="font-headline font-bold text-on-surface">CHARLES <span class="font-black text-2xl">LECLERC</span></p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40 uppercase">FERRARI</p>
+</div>
+</div>
+<div class="col-span-3 md:col-span-2 text-right font-headline text-sm text-on-surface/60">+2.366s</div>
+<div class="col-span-2 md:col-span-1 text-right font-headline font-black text-lg">19</div>
+</div>
+<!-- Driver Row 3 -->
+<div class="grid grid-cols-12 gap-4 p-4 items-center bg-surface-container-high/40 hover:bg-surface-container-highest transition-colors">
+<div class="col-span-1 font-headline font-black text-xl italic text-on-surface/60">03</div>
+<div class="col-span-6 md:col-span-8 flex items-center gap-4">
+<div class="w-1 h-8 bg-orange-500"></div>
+<div>
+<p class="font-headline font-bold text-on-surface">LANDO <span class="font-black text-2xl">NORRIS</span></p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40 uppercase">MCLAREN</p>
+</div>
+</div>
+<div class="col-span-3 md:col-span-2 text-right font-headline text-sm text-on-surface/60">+5.904s</div>
+<div class="col-span-2 md:col-span-1 text-right font-headline font-black text-lg">15</div>
+</div>
+<!-- Driver Row 4 -->
+<div class="grid grid-cols-12 gap-4 p-4 items-center hover:bg-surface-container-highest transition-colors">
+<div class="col-span-1 font-headline font-black text-xl italic text-on-surface/60">04</div>
+<div class="col-span-6 md:col-span-8 flex items-center gap-4">
+<div class="w-1 h-8 bg-orange-500"></div>
+<div>
+<p class="font-headline font-bold text-on-surface">OSCAR <span class="font-black text-2xl">PIASTRI</span></p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40 uppercase">MCLAREN</p>
+</div>
+</div>
+<div class="col-span-3 md:col-span-2 text-right font-headline text-sm text-on-surface/60">+35.770s</div>
+<div class="col-span-2 md:col-span-1 text-right font-headline font-black text-lg">12</div>
+</div>
+<!-- Driver Row 5 -->
+<div class="grid grid-cols-12 gap-4 p-4 items-center bg-surface-container-high/40 hover:bg-surface-container-highest transition-colors">
+<div class="col-span-1 font-headline font-black text-xl italic text-on-surface/60">05</div>
+<div class="col-span-6 md:col-span-8 flex items-center gap-4">
+<div class="w-1 h-8 bg-blue-800"></div>
+<div>
+<p class="font-headline font-bold text-on-surface">SERGIO <span class="font-black text-2xl">PEREZ</span></p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40 uppercase">RED BULL RACING</p>
+</div>
+</div>
+<div class="col-span-3 md:col-span-2 text-right font-headline text-sm text-on-surface/60">+56.309s</div>
+<div class="col-span-2 md:col-span-1 text-right font-headline font-black text-lg">10</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Column 3: League Standings & Metadata -->
+<div class="space-y-8">
+<!-- Quick Session Stats -->
+<section class="bg-surface-container-low p-6 border border-white/5 relative">
+<div class="absolute top-0 right-0 p-4">
+<span class="material-symbols-outlined text-secondary/20 text-6xl" data-icon="timer">timer</span>
+</div>
+<h2 class="font-headline text-lg font-bold mb-6 uppercase tracking-widest">Session Telemetry</h2>
+<div class="space-y-6 relative z-10">
+<div>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-2">Race Duration</p>
+<p class="font-headline text-2xl font-bold">1:20:26.843</p>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-2">Avg Speed</p>
+<p class="font-headline text-xl font-bold">234.4 KM/H</p>
+</div>
+<div>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-2">Laps</p>
+<p class="font-headline text-xl font-bold">58/58</p>
+</div>
+</div>
+<div>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase mb-2">Track Status</p>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-tertiary"></span>
+<span class="font-headline font-bold text-tertiary">GREEN FLAG</span>
+</div>
+</div>
+</div>
+</section>
+<!-- League Mini-Leaderboard -->
+<section class="bg-surface-container p-6 border border-white/5">
+<h2 class="font-headline text-lg font-bold mb-6 uppercase tracking-widest">World Championship</h2>
+<div class="space-y-4">
+<div class="flex items-center justify-between p-3 bg-primary-container/10 border-l-4 border-primary-container">
+<div class="flex items-center gap-3">
+<span class="font-headline font-black italic text-on-surface">142</span>
+<div>
+<p class="font-headline font-bold text-sm">YOU (RACE ENG)</p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40">↑ 12 POSITIONS</p>
+</div>
+</div>
+<span class="font-headline font-bold text-primary">1,420</span>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-high/50">
+<div class="flex items-center gap-3">
+<span class="font-headline font-black italic text-on-surface/40">143</span>
+<div>
+<p class="font-headline font-bold text-sm">STRAT_MASTER_99</p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40">↓ 4 POSITIONS</p>
+</div>
+</div>
+<span class="font-headline font-bold text-on-surface/60">1,418</span>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-high/50">
+<div class="flex items-center gap-3">
+<span class="font-headline font-black italic text-on-surface/40">144</span>
+<div>
+<p class="font-headline font-bold text-sm">PIT_STOP_PIETRO</p>
+<p class="font-label text-[9px] tracking-widest text-on-surface/40">→ STABLE</p>
+</div>
+</div>
+<span class="font-headline font-bold text-on-surface/60">1,412</span>
+</div>
+</div>
+<button class="w-full mt-6 py-2 border border-secondary text-secondary font-label text-[10px] tracking-[0.3em] font-bold hover:bg-secondary hover:text-on-secondary transition-all uppercase">View Full Rankings</button>
+</section>
+<!-- Next Race Teaser -->
+<div class="bg-surface-container-highest p-6 carbon-texture border border-white/5">
+<p class="font-label text-[10px] tracking-widest text-secondary uppercase mb-4">Upcoming Session</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-surface-container-low flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="flag">flag</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-lg leading-tight">JAPANESE GRAND PRIX</h4>
+<p class="font-label text-[10px] tracking-widest text-on-surface/40 uppercase">SUZUKA • APRIL 07</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-[#131315]/80 backdrop-blur-2xl lg:hidden z-50 border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+<div class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="font-label uppercase font-bold text-[9px]">DASHBOARD</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full">
+<span class="material-symbols-outlined" data-icon="edit_note">edit_note</span>
+<span class="font-label uppercase font-bold text-[9px]">PICKS</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#ffb4a8] bg-[#e10600]/10 rounded-lg py-1 w-full scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="timer">timer</span>
+<span class="font-label uppercase font-bold text-[9px]">LIVE</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-label uppercase font-bold text-[9px]">STANDINGS</span>
+</div>
+</nav>
+</body></html>

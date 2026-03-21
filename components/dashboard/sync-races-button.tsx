@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -38,9 +37,7 @@ export function SyncRacesButton() {
     setIsSyncing(true);
     try {
       const result = await syncSeason({ year: selectedYear });
-      toast.success(
-        `Successfully synced ${result.racesSynced} races for ${selectedYear}!`
-      );
+      toast.success(`Synced ${result.racesSynced} races for ${selectedYear}!`);
       setOpen(false);
     } catch (error) {
       console.error("Error syncing races:", error);
@@ -57,14 +54,20 @@ export function SyncRacesButton() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" disabled={isSyncing}>
+        <button
+          type="button"
+          disabled={isSyncing}
+          className="rounded-sm bg-paddock-surface-high px-3 py-2 font-display text-[10px] font-bold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest disabled:opacity-50"
+        >
           {isSyncing ? "Syncing..." : "Sync Races"}
-        </Button>
+        </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64" align="end">
+      <PopoverContent className="w-64 bg-paddock-surface-low" align="end">
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Season</label>
+            <label className="font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+              Season
+            </label>
             <Select
               value={selectedYear.toString()}
               onValueChange={(v) => setSelectedYear(parseInt(v, 10))}
@@ -81,14 +84,14 @@ export function SyncRacesButton() {
               </SelectContent>
             </Select>
           </div>
-          <Button
+          <button
+            type="button"
             onClick={handleSync}
             disabled={isSyncing}
-            className="w-full"
-            size="sm"
+            className="w-full rounded-sm bg-paddock-accent py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90 disabled:opacity-50"
           >
             {isSyncing ? "Syncing..." : `Sync ${selectedYear} Season`}
-          </Button>
+          </button>
         </div>
       </PopoverContent>
     </Popover>
