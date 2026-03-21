@@ -2,19 +2,22 @@
 
 import { useState, useEffect } from "react";
 import {
-  differenceInDays,
   differenceInHours,
   differenceInMinutes,
   differenceInSeconds,
-  intervalToDuration,
 } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface CountdownProps {
   targetTime: number | null;
-  label: string;
+  /** Uppercase telemetry label (e.g. "Race start"). Omit or "" to hide. */
+  label?: string;
   className?: string;
   expiredLabel?: string;
+  /** Classes for the live countdown digits (default: large timing screen). */
+  timeClassName?: string;
+  /** Classes for the expired / ended state line. */
+  expiredClassName?: string;
 }
 
 function formatCountdown(targetTime: number): string {
@@ -28,31 +31,23 @@ function formatCountdown(targetTime: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function formatCountdownReadable(targetTime: number): string {
-  const now = Date.now();
-  if (targetTime <= now) return "Expired";
+const defaultTimeClass =
+  "font-display text-xl font-black tabular-nums tracking-tight text-paddock-on";
 
-  const duration = intervalToDuration({ start: now, end: targetTime });
-  const parts: string[] = [];
+const defaultExpiredClass =
+  "font-display text-sm font-bold uppercase tracking-wide text-paddock-accent";
 
-  if (duration.days && duration.days > 0) {
-    parts.push(`${duration.days}d`);
-  }
-  if (duration.hours && duration.hours > 0) {
-    parts.push(`${duration.hours}h`);
-  }
-  if (duration.minutes && duration.minutes > 0 && !duration.days) {
-    parts.push(`${duration.minutes}m`);
-  }
-
-  return parts.length > 0 ? parts.join(" ") : "<1m";
-}
+/** Must match telemetry labels (Circuit / Date / Round) for alignment. */
+const labelClass =
+  "block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted";
 
 export function Countdown({
   targetTime,
-  label,
+  label = "",
   className,
   expiredLabel = "Expired",
+  timeClassName,
+  expiredClassName,
 }: CountdownProps) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -62,15 +57,15 @@ export function Countdown({
     return () => clearInterval(interval);
   }, [targetTime]);
 
+  const showLabel = Boolean(label && label.trim());
+
   if (targetTime === null) {
     return (
       <div className={cn(className)}>
-        <div className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
-          {label}
-        </div>
-        <div className="mt-0.5 font-display text-sm font-bold text-paddock-on-muted">
+        {showLabel && <span className={labelClass}>{label}</span>}
+        <p className="font-display text-sm font-bold text-paddock-on-muted">
           N/A
-        </div>
+        </p>
       </div>
     );
   }
@@ -79,19 +74,15 @@ export function Countdown({
 
   return (
     <div className={cn(className)}>
-      <div className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
-        {label}
-      </div>
+      {showLabel && <span className={labelClass}>{label}</span>}
       {isExpired ? (
-        <div className="mt-0.5 font-display text-sm font-bold uppercase tracking-wide text-paddock-accent">
+        <p className={expiredClassName ?? defaultExpiredClass}>
           {expiredLabel}
-        </div>
+        </p>
       ) : (
-        <div className="mt-0.5">
-          <div className="font-display text-xl font-black tabular-nums tracking-tight text-paddock-on">
-            {formatCountdown(targetTime)}
-          </div>
-        </div>
+        <p className={timeClassName ?? defaultTimeClass}>
+          {formatCountdown(targetTime)}
+        </p>
       )}
     </div>
   );

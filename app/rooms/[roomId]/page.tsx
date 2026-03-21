@@ -16,6 +16,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
+import { getRaceStartTimestamp } from "@/lib/race-time";
 import {
   Users,
   ChevronLeft,
@@ -153,6 +154,9 @@ export default function RoomPage() {
       ? getF1RaceStaticImagePaths(season.year, nextRace.round)
       : null;
 
+  const nextRaceStart = nextRace ? getRaceStartTimestamp(nextRace) : null;
+  const showNextRaceCountdown = nextRaceStart !== null && nextRaceStart > now;
+
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6">
       {/* Breadcrumb */}
@@ -254,20 +258,6 @@ export default function RoomPage() {
                 <div className="absolute inset-0 z-[1] bg-paddock-bg/35" />
 
                 <div className="relative z-10">
-                  {/* Lockout badge */}
-                  {lockoutInfo?.lockoutTime &&
-                    lockoutInfo.lockoutTime > now && (
-                      <div className="mb-6 inline-flex items-center gap-3 bg-paddock-accent px-3 py-1">
-                        <Lock className="h-3 w-3 text-white" />
-                        <Countdown
-                          targetTime={lockoutInfo.lockoutTime}
-                          label=""
-                          expiredLabel="Locked"
-                          className="!mb-0 font-display text-[10px] font-bold uppercase tracking-widest text-white [&>div:first-child]:hidden [&>div>div:last-child]:hidden"
-                        />
-                      </div>
-                    )}
-
                   <p className="font-display text-[10px] font-semibold uppercase tracking-[0.4em] text-paddock-cyan">
                     Next Grand Prix
                   </p>
@@ -275,34 +265,53 @@ export default function RoomPage() {
                     {nextRace.name.replace(/Grand Prix/i, "GP")}
                   </h2>
 
-                  <div className="mt-6 flex flex-wrap items-center gap-8">
+                  <div className="mt-6 flex flex-wrap items-start gap-8">
                     <div>
-                      <span className="font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                      <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
                         Circuit
                       </span>
-                      <p className="text-sm font-bold text-paddock-on">
+                      <p className="font-display text-sm font-bold text-paddock-on">
                         {nextRace.circuit}
                       </p>
                     </div>
                     <div>
-                      <span className="font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                      <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
                         Date
                       </span>
-                      <p className="text-sm font-bold text-paddock-on">
+                      <p className="font-display text-sm font-bold text-paddock-on">
                         {format(nextRace.date, "MMM dd, yyyy")}
                       </p>
                     </div>
                     {roundNumber && (
                       <div>
-                        <span className="font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                        <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
                           Round
                         </span>
-                        <p className="text-sm font-bold text-paddock-on">
+                        <p className="font-display text-sm font-bold tabular-nums text-paddock-on">
                           {String(roundNumber).padStart(2, "0")} /{" "}
                           {season.totalRaces}
                         </p>
                       </div>
                     )}
+                    {showNextRaceCountdown && nextRaceStart !== null && (
+                      <Countdown
+                        targetTime={nextRaceStart}
+                        label="Race start"
+                        expiredLabel="Started"
+                        timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+                        expiredClassName="font-display text-sm font-bold text-paddock-on-muted"
+                      />
+                    )}
+                    {lockoutInfo?.lockoutTime &&
+                      lockoutInfo.lockoutTime > now && (
+                        <Countdown
+                          targetTime={lockoutInfo.lockoutTime}
+                          label="Picks lock"
+                          expiredLabel="Locked"
+                          timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+                          expiredClassName="font-display text-sm font-bold text-paddock-accent"
+                        />
+                      )}
                   </div>
                 </div>
               </div>

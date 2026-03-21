@@ -5,9 +5,10 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRoom } from "@/hooks/use-room";
-import type { Id } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { RoomLeaderboard } from "@/components/room/room-leaderboard";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
+import { AvatarStack } from "@/components/ui/avatar-stack";
 import { getTeamColor, getCountryFlag } from "@/lib/f1-images";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -40,6 +41,11 @@ export default function RoomResultsPage() {
 
   const raceLeaderboard = useQuery(
     api.queries.leaderboard.getRoomRaceLeaderboard,
+    room && raceId ? { roomId, raceId } : "skip"
+  );
+
+  const roomRacePredictions = useQuery(
+    api.queries.predictions.getRoomRacePredictions,
     room && raceId ? { roomId, raceId } : "skip"
   );
 
@@ -275,20 +281,24 @@ export default function RoomResultsPage() {
         {/* ── Left column ── */}
         <div className="space-y-8">
           {/* ── League Performance bento (matches example) ── */}
-          {userPrediction && race?.officialResults && !isLoadingDrivers && (
-            <section>
-              <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold uppercase tracking-widest text-paddock-on">
-                <span className="h-6 w-1 bg-paddock-cyan" />
-                League Performance
-              </h2>
-              <LeaguePerformanceGrid
-                prediction={userPrediction}
-                officialResults={race.officialResults}
-                getDriverLastName={getDriverLastName}
-                getDriverTeam={getDriverTeam}
-              />
-            </section>
-          )}
+          {userPrediction &&
+            race?.officialResults &&
+            !isLoadingDrivers &&
+            roomRacePredictions !== undefined && (
+              <section>
+                <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold uppercase tracking-widest text-paddock-on">
+                  <span className="h-6 w-1 bg-paddock-cyan" />
+                  League Performance
+                </h2>
+                <LeaguePerformanceGrid
+                  prediction={userPrediction}
+                  officialResults={race.officialResults}
+                  getDriverLastName={getDriverLastName}
+                  getDriverTeam={getDriverTeam}
+                  roomPredictions={roomRacePredictions}
+                />
+              </section>
+            )}
 
           {/* ── Official Race Standings ── */}
           {race?.officialResults && (
@@ -507,12 +517,58 @@ export default function RoomResultsPage() {
   );
 }
 
+type PredictionWithUser = {
+  predictedPositions: Array<{ position: number; driverNumber: number }>;
+  fastestLapDriverId?: number;
+  polePositionDriverId?: number;
+  dnfDriverIds: number[];
+  user: Doc<"users"> | null;
+};
+
+function usersWhoPickedP1(
+  predictions: PredictionWithUser[],
+  driverNumber: number | undefined
+): Doc<"users">[] {
+  if (driverNumber === undefined) return [];
+  return predictions
+    .filter(
+      (p) =>
+        p.predictedPositions.find((x) => x.position === 1)?.driverNumber ===
+        driverNumber
+    )
+    .map((p) => p.user)
+    .filter((u): u is Doc<"users"> => u != null);
+}
+
+function usersWhoPickedFastestLap(
+  predictions: PredictionWithUser[],
+  driverNumber: number | undefined
+): Doc<"users">[] {
+  if (driverNumber === undefined) return [];
+  return predictions
+    .filter((p) => p.fastestLapDriverId === driverNumber)
+    .map((p) => p.user)
+    .filter((u): u is Doc<"users"> => u != null);
+}
+
+function usersWhoPickedPole(
+  predictions: PredictionWithUser[],
+  driverNumber: number | undefined
+): Doc<"users">[] {
+  if (driverNumber === undefined) return [];
+  return predictions
+    .filter((p) => p.polePositionDriverId === driverNumber)
+    .map((p) => p.user)
+    .filter((u): u is Doc<"users"> => u != null);
+}
+
 /* ── League Performance Bento Grid ── */
 function LeaguePerformanceGrid({
   prediction,
   officialResults,
   getDriverLastName,
   getDriverTeam,
+  roomPredictions,
 }: {
   prediction: {
     predictedPositions: Array<{ position: number; driverNumber: number }>;
@@ -532,6 +588,7 @@ function LeaguePerformanceGrid({
   };
   getDriverLastName: (n: number) => string;
   getDriverTeam: (n: number) => string;
+  roomPredictions: PredictionWithUser[];
 }) {
   const p1Predicted = prediction.predictedPositions.find(
     (p) => p.position === 1
@@ -562,12 +619,23 @@ function LeaguePerformanceGrid({
     .map((p) => p.driverNumber);
   const top10Hits = predictedTop10.filter((n) => actualTop10.has(n)).length;
 
+  const votersP1 = usersWhoPickedP1(roomPredictions, p1Predicted);
+  const votersFl = usersWhoPickedFastestLap(
+    roomPredictions,
+    prediction.fastestLapDriverId
+  );
+  const votersPole = usersWhoPickedPole(
+    roomPredictions,
+    prediction.polePositionDriverId
+  );
+
   const cards = [
     {
       label: "Predicted Winner",
       driver: p1Predicted
         ? `${getDriverLastName(p1Predicted).split(" ").pop()?.charAt(0) || ""}. ${getDriverLastName(p1Predicted)}`
         : "—",
+      voters: votersP1,
       hit: winnerHit,
       pts: winnerHit ? "+25" : "0",
       note: winnerHit
@@ -584,6 +652,7 @@ function LeaguePerformanceGrid({
       driver: prediction.fastestLapDriverId
         ? getDriverLastName(prediction.fastestLapDriverId)
         : "—",
+      voters: votersFl,
       hit: flHit,
       pts: flHit ? "+10" : "0",
       note: flHit ? "HIT" : "MISS",
@@ -594,6 +663,7 @@ function LeaguePerformanceGrid({
       driver: prediction.polePositionDriverId
         ? getDriverLastName(prediction.polePositionDriverId)
         : "—",
+      voters: votersPole,
       hit: poleHit,
       pts: poleHit ? "+10" : "0",
       note: poleHit ? "HIT" : "MISS",
@@ -614,9 +684,14 @@ function LeaguePerformanceGrid({
           <p className="mb-3 font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
             {card.label}
           </p>
-          <h3 className="mb-1 font-display text-2xl font-bold text-paddock-on">
-            {card.driver}
-          </h3>
+          <div className="mb-1 flex items-start justify-between gap-3">
+            <h3 className="min-w-0 flex-1 font-display text-2xl font-bold text-paddock-on">
+              {card.driver}
+            </h3>
+            {card.voters.length > 0 && (
+              <AvatarStack users={card.voters} className="shrink-0 pt-1" />
+            )}
+          </div>
           <p className="font-display text-xs font-bold">
             <span
               className={

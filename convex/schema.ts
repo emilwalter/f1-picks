@@ -176,4 +176,19 @@ export default defineSchema({
     .index("by_room_user", ["roomId", "userId"])
     .index("by_room_race_user", ["roomId", "raceId", "userId"])
     .index("by_room_points", ["roomId", "points"]),
+
+  /** Cached F1 driver list per season (f1api.dev rate limits heavy client fetches). */
+  driverSeasonCache: defineTable({
+    year: v.number(),
+    drivers: v.array(
+      v.object({
+        driverNumber: v.number(),
+        name: v.string(),
+        teamName: v.string(),
+        teamLogo: v.optional(v.string()),
+        countryCode: v.string(),
+      })
+    ),
+    updatedAt: v.number(),
+  }).index("by_year", ["year"]),
 });

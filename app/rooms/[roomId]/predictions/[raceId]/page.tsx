@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { Lock, Trophy } from "lucide-react";
 import { useAction } from "convex/react";
 import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
+import { getRaceStartTimestamp } from "@/lib/race-time";
 
 export default function PredictionPage() {
   const params = useParams();
@@ -100,6 +101,9 @@ export default function PredictionPage() {
   const isParticipant =
     currentUser && participants?.some((p) => p.userId === currentUser._id);
 
+  const raceStartTime = getRaceStartTimestamp(selectedRace);
+  const showRaceCountdown = raceStartTime > now;
+
   const f1Images = getF1RaceStaticImagePaths(season.year, selectedRace.round);
 
   return (
@@ -123,33 +127,57 @@ export default function PredictionPage() {
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-paddock-surface-low via-transparent to-transparent" />
+          <div
+            className="pointer-events-none absolute bottom-3 right-3 z-10 aspect-[5/3] w-[min(220px,46%)] sm:bottom-4 sm:right-4 sm:w-[min(280px,42%)]"
+            aria-hidden
+          >
+            <Image
+              src={f1Images.track}
+              alt=""
+              fill
+              className="object-contain object-right-bottom drop-shadow-[0_4px_16px_rgba(0,0,0,0.45)]"
+              sizes="280px"
+            />
+          </div>
         </div>
       )}
 
-      {/* Page header with circuit & lockout (matches make_your_picks) */}
+      {/* Page header — telemetry row (DESIGN.md: label-sm clusters, Space Grotesk numerals) */}
       <div className="mb-8">
-        {/* Top bar: circuit location + lockout */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-paddock-accent" />
+        <div className="mb-6 flex flex-wrap items-start gap-x-8 gap-y-6">
+          <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-paddock-accent" />
             <span className="font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-paddock-on-muted">
               {selectedRace.circuit} /{" "}
               {selectedRace.name.replace(/Grand Prix/i, "GP")}
             </span>
           </div>
-
+          <div>
+            <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+              Round
+            </span>
+            <p className="font-display text-sm font-bold tabular-nums text-paddock-on">
+              {String(selectedRace.round).padStart(2, "0")} /{" "}
+              {season.totalRaces}
+            </p>
+          </div>
+          {showRaceCountdown && (
+            <Countdown
+              targetTime={raceStartTime}
+              label="Race start"
+              expiredLabel="Started"
+              timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+              expiredClassName="font-display text-sm font-bold text-paddock-on-muted"
+            />
+          )}
           {lockoutInfo?.lockoutTime && lockoutInfo.lockoutTime > now && (
-            <div className="text-right">
-              <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-accent">
-                Lockout in
-              </span>
-              <Countdown
-                targetTime={lockoutInfo.lockoutTime}
-                label=""
-                expiredLabel="Locked"
-                className="!mb-0 font-display text-2xl font-black tabular-nums text-paddock-on [&>div:first-child]:hidden"
-              />
-            </div>
+            <Countdown
+              targetTime={lockoutInfo.lockoutTime}
+              label="Picks lock"
+              expiredLabel="Locked"
+              timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+              expiredClassName="font-display text-sm font-bold text-paddock-accent"
+            />
           )}
         </div>
 
