@@ -7,19 +7,10 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Image from "next/image";
 import type { Doc } from "@/convex/_generated/dataModel";
-import { getDriverImageUrl, getTeamLogoUrl } from "@/lib/f1-images";
+import { getDriverImageUrl } from "@/lib/f1-images";
 import { DriverCombobox } from "@/components/room/driver-combobox";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
 import { X } from "lucide-react";
-
-interface PredictionFormProps {
-  room: Doc<"rooms">;
-  race: Doc<"races">;
-  seasonYear: number;
-  currentPrediction: Doc<"predictions"> | null | undefined;
-  isLocked?: boolean;
-  currentUser?: Doc<"users"> | null;
-}
 
 interface Driver {
   driverNumber: number;
@@ -29,6 +20,17 @@ interface Driver {
   countryCode: string;
 }
 
+interface PredictionFormProps {
+  room: Doc<"rooms">;
+  race: Doc<"races">;
+  seasonYear: number;
+  currentPrediction: Doc<"predictions"> | null | undefined;
+  isLocked?: boolean;
+  currentUser?: Doc<"users"> | null;
+  /** When the parent already loads drivers (e.g. locked race + summary), skip duplicate fetch */
+  prefetchedDrivers?: Driver[] | null;
+}
+
 export function PredictionForm({
   room,
   race,
@@ -36,6 +38,7 @@ export function PredictionForm({
   currentPrediction,
   isLocked: isLockedProp,
   currentUser,
+  prefetchedDrivers,
 }: PredictionFormProps) {
   const submitPrediction = useMutation(
     api.mutations.predictions.submitPrediction
@@ -43,9 +46,20 @@ export function PredictionForm({
   const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [drivers, setDrivers] = useState<Driver[] | null>(null);
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(
+    () => prefetchedDrivers === undefined || prefetchedDrivers === null
+  );
 
   useEffect(() => {
+    if (prefetchedDrivers !== undefined) {
+      if (prefetchedDrivers === null) {
+        setIsLoadingDrivers(true);
+        return;
+      }
+      setDrivers(prefetchedDrivers);
+      setIsLoadingDrivers(false);
+      return;
+    }
     const fetchDrivers = async () => {
       setIsLoadingDrivers(true);
       try {
@@ -60,7 +74,7 @@ export function PredictionForm({
       }
     };
     fetchDrivers();
-  }, [seasonYear, getDriversForRace]);
+  }, [seasonYear, getDriversForRace, prefetchedDrivers]);
 
   const [predictedPositions, setPredictedPositions] = useState<
     Array<{ position: number; driverNumber: number }>
@@ -216,7 +230,7 @@ export function PredictionForm({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:grid-cols-[1fr_320px]">
       {/* Left — Prediction slots */}
       <div className="space-y-6">
         {/* Race Winner (P1) — Hero slot */}
@@ -268,7 +282,8 @@ export function PredictionForm({
                   <button
                     type="button"
                     onClick={() => handlePositionChange(1, 0)}
-                    className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:bg-paddock-surface-high hover:text-paddock-on"
+                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm text-paddock-on-muted touch-manipulation transition-colors hover:bg-paddock-surface-high hover:text-paddock-on active:bg-paddock-surface-high"
+                    aria-label="Clear race winner"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -293,8 +308,8 @@ export function PredictionForm({
           })()}
         </div>
 
-        {/* Podium P2 & P3 */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Podium P2 & P3 — stack on narrow phones for comfortable combobox + touch */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[2, 3].map((pos) => {
             const posEntry = predictedPositions.find((p) => p.position === pos);
             const selectedDriver = posEntry?.driverNumber
@@ -338,7 +353,8 @@ export function PredictionForm({
                     <button
                       type="button"
                       onClick={() => handlePositionChange(pos, 0)}
-                      className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:bg-paddock-surface-high hover:text-paddock-on"
+                      className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-sm text-paddock-on-muted touch-manipulation transition-colors hover:bg-paddock-surface-high hover:text-paddock-on active:bg-paddock-surface-high"
+                      aria-label={`Clear podium P${pos}`}
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -412,7 +428,8 @@ export function PredictionForm({
                         <button
                           type="button"
                           onClick={() => handlePositionChange(pos.position, 0)}
-                          className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:text-paddock-on"
+                          className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-sm text-paddock-on-muted touch-manipulation transition-colors hover:text-paddock-on active:bg-paddock-surface-high"
+                          aria-label={`Clear position ${pos.position}`}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -438,8 +455,8 @@ export function PredictionForm({
           </div>
         </div>
 
-        {/* Pole Position & Fastest Lap — side by side */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Pole Position & Fastest Lap */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {/* Pole Position */}
           <div className="rounded-sm bg-paddock-surface-low p-5">
             <div className="mb-3 flex items-center justify-between">
@@ -478,7 +495,8 @@ export function PredictionForm({
                     <button
                       type="button"
                       onClick={() => setPolePositionDriverId(undefined)}
-                      className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:text-paddock-on"
+                      className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-sm text-paddock-on-muted touch-manipulation transition-colors hover:text-paddock-on active:bg-paddock-surface-high"
+                      aria-label="Clear pole position"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -535,7 +553,8 @@ export function PredictionForm({
                     <button
                       type="button"
                       onClick={() => setFastestLapDriverId(undefined)}
-                      className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:text-paddock-on"
+                      className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-sm text-paddock-on-muted touch-manipulation transition-colors hover:text-paddock-on active:bg-paddock-surface-high"
+                      aria-label="Clear fastest lap"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -563,7 +582,7 @@ export function PredictionForm({
           <p className="mb-4 text-xs text-paddock-on-muted">
             Select drivers who won&apos;t finish the race (optional)
           </p>
-          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
             {drivers.map((driver) => {
               const isDnf = dnfDriverIds.includes(driver.driverNumber);
               const lastName = driver.name.split(" ").pop() || driver.name;
@@ -573,7 +592,7 @@ export function PredictionForm({
                   type="button"
                   onClick={() => toggleDnf(driver.driverNumber)}
                   className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-sm px-1.5 py-2 transition-colors",
+                    "flex min-h-[44px] flex-col items-center justify-center gap-1.5 rounded-sm px-1.5 py-2 touch-manipulation transition-colors active:scale-[0.98]",
                     isDnf
                       ? "bg-paddock-accent/20 ring-1 ring-paddock-accent"
                       : "bg-paddock-surface hover:bg-paddock-surface-high"
@@ -664,7 +683,7 @@ export function PredictionForm({
             onClick={handleSubmit}
             disabled={isSubmitting || isLocked}
             className={cn(
-              "mt-5 w-full rounded-sm py-3 font-display text-[11px] font-bold uppercase tracking-widest transition-colors",
+              "mt-5 flex min-h-12 w-full items-center justify-center rounded-sm px-4 py-3 font-display text-[11px] font-bold uppercase tracking-widest touch-manipulation transition-colors active:opacity-90",
               isLocked
                 ? "cursor-not-allowed bg-white/20 text-white/50"
                 : "bg-white text-paddock-accent hover:bg-white/90"

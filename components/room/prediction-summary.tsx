@@ -105,7 +105,7 @@ export function PredictionSummary({
       <button
         type="button"
         className={cn(
-          "flex w-full items-start justify-between gap-2 px-4 py-4 text-left transition-colors",
+          "flex min-h-[3.25rem] w-full touch-manipulation items-start justify-between gap-2 px-4 py-4 text-left transition-colors sm:min-h-0",
           isPast && "hover:bg-paddock-surface/40"
         )}
         onClick={() => isPast && setIsExpanded(!isExpanded)}
@@ -163,7 +163,7 @@ export function PredictionSummary({
               type="button"
               onClick={() => setViewMode("aggregate")}
               className={cn(
-                "flex-1 rounded-sm py-2 font-display text-[10px] font-semibold uppercase tracking-[0.2em] transition-all",
+                "min-h-11 flex-1 touch-manipulation rounded-sm py-2.5 font-display text-[10px] font-semibold uppercase tracking-[0.2em] transition-all sm:min-h-0 sm:py-2",
                 viewMode === "aggregate"
                   ? "bg-paddock-surface-high text-paddock-on shadow-[inset_0_0_0_1px_rgba(0,218,243,0.25)]"
                   : "text-paddock-on-muted/70 hover:text-paddock-on-muted"
@@ -175,7 +175,7 @@ export function PredictionSummary({
               type="button"
               onClick={() => setViewMode("by-user")}
               className={cn(
-                "flex-1 rounded-sm py-2 font-display text-[10px] font-semibold uppercase tracking-[0.2em] transition-all",
+                "min-h-11 flex-1 touch-manipulation rounded-sm py-2.5 font-display text-[10px] font-semibold uppercase tracking-[0.2em] transition-all sm:min-h-0 sm:py-2",
                 viewMode === "by-user"
                   ? "bg-paddock-surface-high text-paddock-on shadow-[inset_0_0_0_1px_rgba(0,218,243,0.25)]"
                   : "text-paddock-on-muted/70 hover:text-paddock-on-muted"

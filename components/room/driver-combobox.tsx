@@ -68,7 +68,7 @@ export function DriverCombobox({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "flex w-full items-center justify-between rounded-sm bg-paddock-surface-lowest px-4 py-3 text-left transition-colors",
+            "flex min-h-11 w-full touch-manipulation items-center justify-between rounded-sm bg-paddock-surface-lowest px-4 py-3 text-left transition-colors",
             "hover:bg-paddock-surface focus:outline-none focus:ring-1 focus:ring-paddock-cyan/30",
             "disabled:cursor-not-allowed disabled:opacity-40",
             className
@@ -119,7 +119,7 @@ export function DriverCombobox({
                     onChange(driver.driverNumber);
                     setOpen(false);
                   }}
-                  className="rounded-sm px-3 py-2.5 data-[selected=true]:bg-paddock-surface-highest"
+                  className="min-h-11 rounded-sm px-3 py-2.5 data-[selected=true]:bg-paddock-surface-highest"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-sm">

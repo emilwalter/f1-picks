@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { Authenticated } from "convex/react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useRoom } from "@/hooks/use-room";
+import { useRoomPredictionPage } from "@/hooks/use-room-prediction-page";
 import type { Id } from "@/convex/_generated/dataModel";
-import { PredictionForm } from "@/components/room/prediction-form";
-import { PredictionSummary } from "@/components/room/prediction-summary";
 import { Countdown } from "@/components/ui/countdown";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,6 +16,34 @@ import { Lock, Trophy } from "lucide-react";
 import { useAction } from "convex/react";
 import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
 import { getRaceStartTimestamp } from "@/lib/race-time";
+
+const PredictionForm = dynamic(
+  () =>
+    import("@/components/room/prediction-form").then((m) => ({
+      default: m.PredictionForm,
+    })),
+  {
+    loading: () => (
+      <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+        Loading form...
+      </div>
+    ),
+  }
+);
+
+const PredictionSummary = dynamic(
+  () =>
+    import("@/components/room/prediction-summary").then((m) => ({
+      default: m.PredictionSummary,
+    })),
+  {
+    loading: () => (
+      <div className="py-6 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+        Loading predictions...
+      </div>
+    ),
+  }
+);
 
 export default function PredictionPage() {
   const params = useParams();
@@ -34,7 +61,7 @@ export default function PredictionPage() {
     userPrediction,
     participants,
     isLoading,
-  } = useRoom(roomId, raceId);
+  } = useRoomPredictionPage(roomId, raceId);
 
   const lockoutInfo = useQuery(api.queries.lockout.getRoomLockoutInfo, {
     roomId,
@@ -88,11 +115,31 @@ export default function PredictionPage() {
     );
   }
 
-  if (!room || !season || !selectedRace) {
+  if (!room || !season) {
     return (
       <div className="container mx-auto px-4 py-16">
         <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
-          Room or race not found
+          {!room ? "Room not found" : "Season not found"}
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedRace === undefined) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedRace === null) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+          Race not found
         </div>
       </div>
     );
@@ -111,19 +158,19 @@ export default function PredictionPage() {
       {/* Breadcrumb */}
       <Link
         href={`/rooms/${roomId}`}
-        className="mb-6 inline-block font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan"
+        className="mb-6 inline-flex min-h-11 items-center font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan active:text-paddock-cyan"
       >
         ← Room
       </Link>
 
       {f1Images && (
-        <div className="relative mb-8 aspect-[21/9] w-full overflow-hidden rounded-sm bg-paddock-surface-highest">
+        <div className="relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-sm bg-paddock-surface-highest md:aspect-[21/9]">
           <Image
             src={f1Images.card}
             alt=""
             fill
             className="object-cover object-center"
-            sizes="(max-width: 1280px) 100vw, 1280px"
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 100vw, 1280px"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-paddock-surface-low via-transparent to-transparent" />
@@ -184,7 +231,7 @@ export default function PredictionPage() {
         <h1 className="font-display text-4xl font-black uppercase tracking-tighter text-paddock-on md:text-5xl">
           Predictions
         </h1>
-        <p className="mt-3 max-w-lg text-sm text-paddock-on-muted">
+        <p className="mt-3 max-w-lg text-base leading-relaxed text-paddock-on-muted sm:text-sm sm:leading-normal">
           Configure your technical strategy for the {selectedRace.name}. Point
           multipliers are active for early submission.
         </p>
@@ -192,24 +239,26 @@ export default function PredictionPage() {
 
       {/* Locked/Past banner */}
       {(isLocked || isPast) && (
-        <div className="mb-6 flex items-center gap-3 rounded-sm border-l-4 border-paddock-accent bg-paddock-accent/[0.08] px-5 py-4">
-          <Lock className="h-4 w-4 shrink-0 text-paddock-accent" />
-          <div>
-            <p className="font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
-              {isPast ? "Race complete" : "Predictions locked"}
-            </p>
-            <p className="text-xs text-paddock-on-muted">
-              {isPast
-                ? "This race has already happened."
-                : lockoutInfo?.lockoutTime
-                  ? `Locked at ${format(lockoutInfo.lockoutTime, "PPp")}`
-                  : "The prediction deadline has passed."}
-            </p>
+        <div className="mb-6 flex flex-col gap-3 rounded-sm border-l-4 border-paddock-accent bg-paddock-accent/[0.08] px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-paddock-accent" />
+            <div className="min-w-0">
+              <p className="font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+                {isPast ? "Race complete" : "Predictions locked"}
+              </p>
+              <p className="mt-0.5 text-xs leading-snug text-paddock-on-muted">
+                {isPast
+                  ? "This race has already happened."
+                  : lockoutInfo?.lockoutTime
+                    ? `Locked at ${format(lockoutInfo.lockoutTime, "PPp")}`
+                    : "The prediction deadline has passed."}
+              </p>
+            </div>
           </div>
           {selectedRace.officialResults && (
             <Link
               href={`/rooms/${roomId}/results?raceId=${raceId}`}
-              className="ml-auto flex items-center gap-1.5 rounded-sm bg-paddock-accent px-3 py-2 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90"
+              className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-sm bg-paddock-accent px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90 active:bg-paddock-accent/80 sm:ml-auto sm:w-auto sm:justify-center"
             >
               <Trophy className="h-3.5 w-3.5" />
               Results
@@ -250,6 +299,13 @@ export default function PredictionPage() {
             currentPrediction={userPrediction}
             isLocked={isLocked}
             currentUser={currentUser}
+            prefetchedDrivers={
+              isLocked || isPast
+                ? isLoadingDrivers
+                  ? null
+                  : drivers
+                : undefined
+            }
           />
         ) : (
           <div className="rounded-sm bg-paddock-surface-low p-8 text-center">
@@ -265,7 +321,7 @@ export default function PredictionPage() {
             <button
               type="button"
               onClick={() => router.push(`/rooms/${roomId}`)}
-              className="rounded-sm bg-paddock-accent px-6 py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90"
+              className="min-h-11 rounded-sm bg-paddock-accent px-6 py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90 active:bg-paddock-accent/80"
             >
               Go to Room
             </button>
