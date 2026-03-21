@@ -1,9 +1,8 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { cn } from "@/lib/utils";
 
 interface RoomHeaderProps {
   room: Doc<"rooms">;
@@ -12,50 +11,47 @@ interface RoomHeaderProps {
 
 export function RoomHeader({ room, race }: RoomHeaderProps) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-2xl">{race.name}</CardTitle>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              {race.circuit}, {race.location}
-            </p>
-          </div>
-          <Badge
-            variant={
-              room.status === "open"
-                ? "default"
-                : room.status === "archived"
-                  ? "outline"
-                  : "outline"
-            }
-          >
-            {room.status}
-          </Badge>
+    <div className="rounded-sm bg-paddock-surface-low p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-display text-2xl font-black italic uppercase tracking-tight text-paddock-on">
+            {race.name}
+          </h2>
+          <p className="mt-1 text-sm text-paddock-on-muted">
+            {race.circuit}, {race.location}
+          </p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2 text-sm">
-            <div>
-              <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                Race Date:
-              </span>{" "}
-              <span className="text-zinc-600 dark:text-zinc-400">
-                {format(race.date, "PPP 'at' p")}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                Join Code:
-              </span>{" "}
-              <code className="ml-2 rounded bg-zinc-100 px-2 py-1 font-mono text-lg dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50">
-                {room.joinCode}
-              </code>
-            </div>
+        <span
+          className={cn(
+            "rounded-sm px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-widest",
+            room.status === "open"
+              ? "bg-paddock-cyan/15 text-paddock-cyan"
+              : "bg-paddock-surface-high text-paddock-on-muted"
+          )}
+        >
+          {room.status}
+        </span>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-3">
+            <span className="w-20 shrink-0 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+              Race Date
+            </span>
+            <span className="text-paddock-on">
+              {format(race.date, "PPP 'at' p")}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-20 shrink-0 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+              Join Code
+            </span>
+            <code className="font-mono text-lg font-bold tracking-[0.2em] text-paddock-on">
+              {room.joinCode}
+            </code>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-container": "#00616d",
+              "on-error": "#690005",
+              "inverse-surface": "#e5e1e4",
+              "tertiary-container": "#b1b100",
+              "inverse-on-surface": "#303032",
+              "secondary": "#bdf4ff",
+              "surface-variant": "#353437",
+              "error": "#ffb4ab",
+              "surface-bright": "#39393b",
+              "on-surface": "#e5e1e4",
+              "primary": "#ffb4a8",
+              "surface": "#131315",
+              "surface-container-lowest": "#0e0e10",
+              "secondary-fixed-dim": "#00daf3",
+              "primary-fixed-dim": "#ffb4a8",
+              "surface-container": "#201f21",
+              "on-surface-variant": "#e9bcb5",
+              "error-container": "#93000a",
+              "on-tertiary-fixed": "#1d1d00",
+              "surface-container-high": "#2a2a2c",
+              "surface-container-low": "#1b1b1d",
+              "on-secondary": "#00363d",
+              "on-tertiary-container": "#424200",
+              "primary-container": "#e10600",
+              "outline": "#af8781",
+              "tertiary": "#cdcd00",
+              "inverse-primary": "#c00500",
+              "background": "#131315",
+              "secondary-container": "#00e3fd",
+              "secondary-fixed": "#9cf0ff",
+              "surface-tint": "#ffb4a8",
+              "on-tertiary": "#323200",
+              "primary-fixed": "#ffdad4",
+              "on-primary-container": "#fff2f0",
+              "surface-dim": "#131315",
+              "on-secondary-fixed": "#001f24",
+              "on-primary-fixed-variant": "#930300",
+              "on-background": "#e5e1e4",
+              "on-error-container": "#ffdad6",
+              "on-primary-fixed": "#410100",
+              "tertiary-fixed": "#eaea00",
+              "outline-variant": "#5e3f3a",
+              "tertiary-fixed-dim": "#cdcd00",
+              "on-primary": "#680200",
+              "on-tertiary-fixed-variant": "#494900",
+              "on-secondary-fixed-variant": "#004f58",
+              "surface-container-highest": "#353437"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .text-shadow-red {
+        text-shadow: 0 0 10px rgba(225, 6, 0, 0.4);
+      }
+      .carbon-texture {
+        background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.03) 1px, transparent 0);
+        background-size: 8px 8px;
+      }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary-container selection:text-white">
+<!-- Top Navigation -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-6 h-16 bg-[#131315]/60 backdrop-blur-xl z-50">
+<div class="flex items-center gap-4">
+<span class="text-xl font-black italic tracking-tighter text-[#e10600]">PADDOCK PRECISION</span>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<nav class="flex gap-6">
+<a class="text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200 font-label uppercase tracking-widest text-[10px]" href="#">DASHBOARD</a>
+<a class="text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200 font-label uppercase tracking-widest text-[10px]" href="#">PREDICTIONS</a>
+<a class="text-[#ffb4a8] border-b-2 border-[#e10600] pb-1 font-label uppercase tracking-widest text-[10px]" href="#">LEADERBOARD</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-[#ffb4a8] hover:text-[#00daf3] transition-colors"><span class="material-symbols-outlined">leaderboard</span></button>
+<button class="text-[#ffb4a8] hover:text-[#00daf3] transition-colors"><span class="material-symbols-outlined">settings</span></button>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-white/10">
+<img alt="User profile avatar with team colors" data-alt="F1 fan avatar with red team cap" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBt6xIJwOqiNmJZfQXtfXumE5v2eIrFj7pTIPp6tSPxW82DtEn3WUW3-QWc6bjRFwpnVIm5LtC-1DW85-J0zHIUZlCAeF39bhvkwGjsO3n2Y02gwtYYUopk-EYT1MuQwn3zM9QF5YliOoPtWjkUhTGKsVoVrwn2Moh5ev-FHL-K-SeksTzwmzY4zYpRQehrGReX3H1ER-TZAtys2BNWpMEkLkbqZej7LxLWi8MNiREIi2drQ88RNb42IWtm8pEYkua-OV4QKo4rQDM"/>
+</div>
+</div>
+</header>
+<!-- Sidebar (Desktop) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col pt-8 bg-[#131315] h-screen w-64 hidden lg:flex border-r border-white/5 z-40">
+<div class="px-6 mb-10">
+<div class="text-2xl font-black text-[#e10600] mb-8">PADDOCK</div>
+<div class="bg-surface-container-low p-4 rounded border-l-4 border-secondary-fixed-dim">
+<p class="font-label text-[10px] tracking-widest opacity-60 uppercase">Race Engineer</p>
+<p class="font-headline font-bold text-lg">1,420 PTS</p>
+<p class="font-label text-[10px] tracking-widest text-secondary-fixed-dim uppercase">Rank #142 Global</p>
+</div>
+</div>
+<nav class="flex-1">
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 group" href="#">
+<span class="material-symbols-outlined group-hover:text-[#00daf3]">dashboard</span>
+<span class="font-label text-[12px] tracking-widest uppercase">DASHBOARD</span>
+</a>
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 group" href="#">
+<span class="material-symbols-outlined group-hover:text-[#00daf3]">precision_manufacturing</span>
+<span class="font-label text-[12px] tracking-widest uppercase">PREDICTIONS</span>
+</a>
+<a class="bg-gradient-to-r from-[#e10600]/20 to-transparent text-[#ffb4a8] border-l-4 border-[#e10600] py-4 px-6 mb-2 flex items-center gap-4" href="#">
+<span class="material-symbols-outlined">emoji_events</span>
+<span class="font-label text-[12px] tracking-widest uppercase">LEADERBOARD</span>
+</a>
+</nav>
+<div class="p-6">
+<button class="w-full bg-primary-container text-on-primary-container font-label text-[12px] py-3 tracking-widest font-bold uppercase hover:shadow-[0_0_15px_rgba(225,6,0,0.3)] transition-all">JOIN LEAGUE</button>
+<a class="mt-4 flex items-center gap-4 text-[#e5e1e4] opacity-50 hover:opacity-100 py-2" href="#">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span class="font-label text-[12px] uppercase tracking-widest">LOGOUT</span>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="lg:ml-64 pt-24 pb-32 px-4 md:px-10 min-h-screen">
+<!-- Header Section -->
+<div class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<h1 class="font-headline font-bold text-4xl md:text-5xl uppercase tracking-tighter mb-2 italic">League Standings</h1>
+<div class="flex items-center gap-3">
+<span class="bg-primary-container text-white text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest">Live Updates</span>
+<span class="font-label text-xs tracking-widest text-on-surface-variant uppercase">Interlagos Circuit • Post-Race Analysis</span>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="bg-surface-container-high p-4 flex flex-col items-center min-w-[120px]">
+<span class="font-label text-[9px] tracking-widest text-on-surface-variant uppercase mb-1">Active League</span>
+<span class="font-headline font-bold text-lg">PRO LEAGUE #1</span>
+</div>
+<div class="bg-surface-container-high p-4 flex flex-col items-center min-w-[120px] border-t-2 border-tertiary">
+<span class="font-label text-[9px] tracking-widest text-on-surface-variant uppercase mb-1">Round</span>
+<span class="font-headline font-bold text-lg">21 / 24</span>
+</div>
+</div>
+</div>
+<!-- Bento Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
+<div class="md:col-span-2 bg-surface-container-low p-6 carbon-texture relative overflow-hidden group">
+<div class="relative z-10">
+<p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase mb-4">League Top Performer</p>
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 bg-surface-container-highest border-2 border-[#e10600] flex items-center justify-center p-1">
+<img alt="Leader avatar" class="w-full h-full object-cover" data-alt="User avatar with trophy icon overlay" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsNcrfbB7C20_9TmaHXDAv_KJNASb-_aO5mz-ByDLXUhKKqdxGTy5wlHdseDt_2TfPNKjsJ3cY7gytP2k7Zj7RYa1dQ7YeCabew2sKFhGKS3OG_y3awFWwjFXJ9FsaMlZV--H50-DERmZrqoCVDiyKGX2WmcNwS7rqp-dqFtY9VYW5sa78ljHhgPQ4nqIB1i_50ncVO_QFRceEgSz4qlhIEzkEBDQLfbgp5NuRPjGMbwT7FAbnYDfR0fxhY0GVDgL6_NlmuIs-80I"/>
+</div>
+<div>
+<h3 class="font-headline font-bold text-2xl uppercase italic">Michael Poe</h3>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-secondary-fixed-dim text-sm" style="font-variation-settings: 'FILL' 1;">stars</span>
+<span class="text-sm font-label tracking-wide">1,842 TOTAL PTS</span>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute -bottom-4 -right-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[120px]">emoji_events</span>
+</div>
+</div>
+<div class="bg-surface-container-high p-6 flex flex-col justify-between">
+<p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Highest Accuracy</p>
+<div class="mt-4">
+<h4 class="font-headline font-bold text-3xl">92%</h4>
+<p class="text-[11px] font-label uppercase text-secondary-fixed-dim tracking-wider">Fastest Lap Predictions</p>
+</div>
+</div>
+<div class="bg-surface-container-high p-6 flex flex-col justify-between border-b-2 border-primary-container">
+<p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Last Race Gain</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container">trending_up</span>
+<h4 class="font-headline font-bold text-3xl">+45</h4>
+</div>
+<p class="text-[11px] font-label uppercase text-on-surface-variant tracking-wider">Avg Points vs Rivals</p>
+</div>
+</div>
+<!-- Leaderboard Table -->
+<div class="bg-surface-container-lowest overflow-hidden border border-white/5">
+<div class="grid grid-cols-12 gap-2 px-6 py-4 bg-surface-container-high border-b border-white/10 font-label text-[10px] tracking-widest uppercase text-on-surface-variant">
+<div class="col-span-1">Pos</div>
+<div class="col-span-1 text-center">+/-</div>
+<div class="col-span-4">Driver / User</div>
+<div class="col-span-2 text-center">Podiums</div>
+<div class="col-span-2 text-center">Fastest Laps</div>
+<div class="col-span-2 text-right">Points</div>
+</div>
+<!-- Leaderboard Row 1 -->
+<div class="grid grid-cols-12 gap-2 px-6 py-6 items-center hover:bg-white/5 transition-colors group relative">
+<div class="absolute left-0 top-0 h-full w-1 bg-tertiary"></div>
+<div class="col-span-1 font-headline font-bold text-xl italic">01</div>
+<div class="col-span-1 text-center text-on-surface-variant">—</div>
+<div class="col-span-4 flex items-center gap-4">
+<div class="w-10 h-10 bg-surface-container flex-shrink-0">
+<img alt="Michael Poe avatar" data-alt="Portrait of Michael Poe" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_HVZwXWkHwi_u7mOWh8IAbxd8YrFsrhADx9x5VI9vDdVlDVCmSYseMOrtgUOL-40mnlZMYAOILBtyZtsgIX-k1JNDp8FXA2gxLwOTELPoFKYUdHXEGsdbKKIzdsZByoIT4UnpM0obqGLk1349Wh7vkV7Z4awub7TUEbE993ZnFzuFQ4pVdGt846F4i0igFXRFrtJIgyhvt09pKed8Q_y3fpAEl8S3xxjGz68Fsj8u_DqlK00_T5ghQJfdACed-DltHzfWK82zIx0"/>
+</div>
+<div>
+<p class="font-headline font-bold uppercase tracking-tight group-hover:text-primary transition-colors">Michael Poe</p>
+<div class="flex gap-1 mt-1">
+<span class="bg-secondary/10 text-secondary text-[8px] px-1.5 py-0.5 font-bold uppercase border border-secondary/20">Elite</span>
+<span class="bg-tertiary/10 text-tertiary text-[8px] px-1.5 py-0.5 font-bold uppercase border border-tertiary/20">Winstreak</span>
+</div>
+</div>
+</div>
+<div class="col-span-2 text-center font-headline font-medium">14</div>
+<div class="col-span-2 text-center font-headline font-medium">8</div>
+<div class="col-span-2 text-right font-headline font-bold text-xl text-shadow-red">1,842</div>
+</div>
+<!-- Leaderboard Row 2 (User Highlighted) -->
+<div class="grid grid-cols-12 gap-2 px-6 py-6 items-center bg-primary-container/10 border-y border-primary-container/20 group relative">
+<div class="absolute left-0 top-0 h-full w-1 bg-primary-container shadow-[0_0_10px_rgba(225,6,0,0.8)]"></div>
+<div class="col-span-1 font-headline font-bold text-xl italic">02</div>
+<div class="col-span-1 text-center text-primary-container">
+<span class="material-symbols-outlined text-sm font-bold">arrow_drop_up</span>
+</div>
+<div class="col-span-4 flex items-center gap-4">
+<div class="w-10 h-10 bg-surface-container flex-shrink-0 border border-primary-container/30">
+<img alt="Current User avatar" data-alt="Portrait of User" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBC7v1NVs00fj2-ndQyEbweqSWzuQ9Zdez86f2AXk_PMbuvUYXdlf4p2apOcxrKJ_7suvruPSB4W2mmB9we5SL_qYvHNhnqezvot-aboeedx0uJp_l2JciGHZG5kDKvGzumLkCcA6fdyajho8VcxClbujzqXSAJexmeL-zsryfrR-YKNvbCv-1JoZf-hjf7hgKdMV1N8c8BO4preZaDchVJsEHvSRbKrz6uL9uh20rwxmOAnxg2GbnNFmUAxoH1Gw-oBknzca389zo"/>
+</div>
+<div>
+<p class="font-headline font-bold uppercase tracking-tight text-primary">YOU</p>
+<div class="flex gap-1 mt-1">
+<span class="bg-primary/20 text-primary text-[8px] px-1.5 py-0.5 font-bold uppercase border border-primary/30">Challenger</span>
+</div>
+</div>
+</div>
+<div class="col-span-2 text-center font-headline font-medium">11</div>
+<div class="col-span-2 text-center font-headline font-medium">5</div>
+<div class="col-span-2 text-right font-headline font-bold text-xl">1,420</div>
+</div>
+<!-- Leaderboard Row 3 -->
+<div class="grid grid-cols-12 gap-2 px-6 py-6 items-center hover:bg-white/5 transition-colors group">
+<div class="col-span-1 font-headline font-bold text-xl italic opacity-60">03</div>
+<div class="col-span-1 text-center text-error">
+<span class="material-symbols-outlined text-sm font-bold">arrow_drop_down</span>
+</div>
+<div class="col-span-4 flex items-center gap-4">
+<div class="w-10 h-10 bg-surface-container flex-shrink-0">
+<img alt="Emil Walter avatar" data-alt="Portrait of Emil Walter" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwXLFySbJwTybpfbbbjr6aytfVxoePNGysOfxm0L4qeMDU8sxwiHl22C2pafO7KFLjn3v6pnrnaWWE0_AcbbToIQsJCImLpFIiAxpi5wuXdEnWh7YSZRmNX4UDr2Ic30OcpNq-_Zp_7zdALwFwrpu0gv2VY2BceybMNCFtMq-yXzNG2vQpVeilvHT6BkB5ApWiiignSMjxSLUUhtuKr0WybTTqpXzgI8nQSdTaQVsmDTkL7K0Um_rkm6h3e2K8mxg-ccs1oIPHwDY"/>
+</div>
+<div>
+<p class="font-headline font-bold uppercase tracking-tight group-hover:text-primary transition-colors">Emil Walter</p>
+<div class="flex gap-1 mt-1">
+<span class="bg-surface-variant text-on-surface-variant text-[8px] px-1.5 py-0.5 font-bold uppercase">Tactician</span>
+</div>
+</div>
+</div>
+<div class="col-span-2 text-center font-headline font-medium">9</div>
+<div class="col-span-2 text-center font-headline font-medium">12</div>
+<div class="col-span-2 text-right font-headline font-bold text-xl opacity-80">1,385</div>
+</div>
+<!-- Leaderboard Row 4 -->
+<div class="grid grid-cols-12 gap-2 px-6 py-6 items-center hover:bg-white/5 transition-colors group">
+<div class="col-span-1 font-headline font-bold text-xl italic opacity-60">04</div>
+<div class="col-span-1 text-center text-on-surface-variant">—</div>
+<div class="col-span-4 flex items-center gap-4">
+<div class="w-10 h-10 bg-surface-container flex-shrink-0">
+<img alt="Sarah Connor avatar" data-alt="Portrait of Sarah Connor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVqnZ2GFCCrKHZ2t8_ql-JRFarUHGiX-6VGo574gvhHz73XArQ9QDc0sMNo4PW7hqRo1UdggBY6QFYcc0MwgIf_8Xm86t3fGAgepGZj_AQwsQwIOnyShhKCshb76hP0cgE8OYTiiJO766l9nLYlk4WOcc_w3iqKPWD3zTNP7_jwo4nyvUWY8P4UJEAXtOxaibnJY3G6LjPt3MRYKTmf27H5-VAZ8aAbM2XtbvIu09oCnLeZ-liBRNXXDkm_-tpYarKVxAZXiGJbHY"/>
+</div>
+<div>
+<p class="font-headline font-bold uppercase tracking-tight group-hover:text-primary transition-colors">Sarah Connor</p>
+</div>
+</div>
+<div class="col-span-2 text-center font-headline font-medium">7</div>
+<div class="col-span-2 text-center font-headline font-medium">4</div>
+<div class="col-span-2 text-right font-headline font-bold text-xl opacity-80">1,102</div>
+</div>
+</div>
+<!-- Head-to-Head Comparison -->
+<section class="mt-16">
+<h2 class="font-headline font-bold text-2xl uppercase italic mb-8 border-l-4 border-secondary-fixed-dim pl-4">Head-to-Head: The Rivals</h2>
+<div class="bg-surface-container p-8 rounded border border-white/5 relative overflow-hidden">
+<div class="flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
+<div class="flex flex-col items-center gap-4 text-center">
+<div class="w-24 h-24 bg-surface-container-high p-1 border-2 border-primary-container">
+<img alt="Michael Poe" class="grayscale hover:grayscale-0 transition-all" data-alt="Michael Poe Profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB64QGAbpPkr-03vo_0fwrMRbQJPUiqBkJ4axBEtd4DP82Bn55Ufl6Yprg5nxvInhslTpU6tVCfTjEv5Sm0d7goRm1kWU8-w8JqxAsRz-jhFBkGjpp3ge1eE4IN74fzoU5FLDziaIiuhSAx3JyC6zjdT_lkLrQZn0zwS9eUi4ekYYx3YR090gOjc5oxYiTE3k-lQyB7a3eFjJl7XfcDtJwOVxvDK1gIxYSnyorTRO-HUDsEGQKfoS08gBD7WjFDMHqy0NzzgKdp2Ek"/>
+</div>
+<div>
+<p class="font-headline font-bold text-xl uppercase">Michael Poe</p>
+<p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Leader</p>
+</div>
+</div>
+<div class="flex-1 w-full max-w-md space-y-6">
+<div class="relative">
+<div class="flex justify-between text-[10px] font-label tracking-widest uppercase mb-2">
+<span>65 Wins</span>
+<span>Predictive Accuracy</span>
+<span>42 Wins</span>
+</div>
+<div class="h-2 bg-surface-container-lowest flex">
+<div class="h-full bg-primary-container" style="width: 60%"></div>
+<div class="h-full bg-secondary-fixed-dim" style="width: 40%"></div>
+</div>
+</div>
+<div class="relative">
+<div class="flex justify-between text-[10px] font-label tracking-widest uppercase mb-2">
+<span>12</span>
+<span>Podium Streaks</span>
+<span>8</span>
+</div>
+<div class="h-2 bg-surface-container-lowest flex">
+<div class="h-full bg-primary-container" style="width: 75%"></div>
+<div class="h-full bg-secondary-fixed-dim" style="width: 25%"></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center gap-4 text-center">
+<div class="w-24 h-24 bg-surface-container-high p-1 border-2 border-secondary-fixed-dim">
+<img alt="You" data-alt="User profile portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4bA552bGNVIpmEXg8F1EXUtErFNqW82Z5gS4i1MfEHBaJS0flza5tddTo8Y8srYngYYIkK0yomBPbp7lXEOMdYrP1KJ-xpTzhKvnoDwevKQXhyLXrAhAE04AFxHe0xljyprCR1OonwIIg0X1q7x6c58fuJeZMIoSUNCafLtURE7-xIr8Tb7y-AZDDYODLGzGMW15_upTbUAx9Th1RRIAm3PuhpSVlmkmZyKoRVJhmeEvh2Qmm61xT3YP0o-ZC0X8Ngtmdky1gj20"/>
+</div>
+<div>
+<p class="font-headline font-bold text-xl uppercase">YOU</p>
+<p class="font-label text-[10px] tracking-widest text-on-surface-variant uppercase">Challenger</p>
+</div>
+</div>
+</div>
+<div class="absolute inset-0 carbon-texture opacity-20 pointer-events-none"></div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-[#131315]/80 backdrop-blur-2xl lg:hidden z-50 border-t border-white/10">
+<a class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-label uppercase font-bold text-[9px]">DASHBOARD</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="font-label uppercase font-bold text-[9px]">PICKS</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="font-label uppercase font-bold text-[9px]">LIVE</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#ffb4a8] bg-[#e10600]/10 rounded-lg py-1 w-full" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label uppercase font-bold text-[9px]">STANDINGS</span>
+</a>
+</nav>
+</body></html>

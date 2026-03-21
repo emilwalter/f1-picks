@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Paddock Precision | League Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-container": "#00616d",
+              "on-error": "#690005",
+              "inverse-surface": "#e5e1e4",
+              "tertiary-container": "#b1b100",
+              "inverse-on-surface": "#303032",
+              "secondary": "#bdf4ff",
+              "surface-variant": "#353437",
+              "error": "#ffb4ab",
+              "surface-bright": "#39393b",
+              "on-surface": "#e5e1e4",
+              "primary": "#ffb4a8",
+              "surface": "#131315",
+              "surface-container-lowest": "#0e0e10",
+              "secondary-fixed-dim": "#00daf3",
+              "primary-fixed-dim": "#ffb4a8",
+              "surface-container": "#201f21",
+              "on-surface-variant": "#e9bcb5",
+              "error-container": "#93000a",
+              "on-tertiary-fixed": "#1d1d00",
+              "surface-container-high": "#2a2a2c",
+              "surface-container-low": "#1b1b1d",
+              "on-secondary": "#00363d",
+              "on-tertiary-container": "#424200",
+              "primary-container": "#e10600",
+              "outline": "#af8781",
+              "tertiary": "#cdcd00",
+              "inverse-primary": "#c00500",
+              "background": "#131315",
+              "secondary-container": "#00e3fd",
+              "secondary-fixed": "#9cf0ff",
+              "surface-tint": "#ffb4a8",
+              "on-tertiary": "#323200",
+              "primary-fixed": "#ffdad4",
+              "on-primary-container": "#fff2f0",
+              "surface-dim": "#131315",
+              "on-secondary-fixed": "#001f24",
+              "on-primary-fixed-variant": "#930300",
+              "on-background": "#e5e1e4",
+              "on-error-container": "#ffdad6",
+              "on-primary-fixed": "#410100",
+              "tertiary-fixed": "#eaea00",
+              "outline-variant": "#5e3f3a",
+              "tertiary-fixed-dim": "#cdcd00",
+              "on-primary": "#680200",
+              "on-tertiary-fixed-variant": "#494900",
+              "on-secondary-fixed-variant": "#004f58",
+              "surface-container-highest": "#353437"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .carbon-texture {
+            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 12px 12px;
+        }
+        .glass-panel {
+            background: rgba(19, 19, 21, 0.6);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary">
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-6 h-16 bg-[#131315]/60 backdrop-blur-xl z-50">
+<div class="flex items-center gap-4">
+<span class="text-xl font-black italic tracking-tighter text-[#e10600]">PADDOCK PRECISION</span>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-[#ffb4a8] border-b-2 border-[#e10600] pb-1 font-label uppercase tracking-widest text-[10px]" href="#">DASHBOARD</a>
+<a class="text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200 font-label uppercase tracking-widest text-[10px]" href="#">PREDICTIONS</a>
+<a class="text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200 font-label uppercase tracking-widest text-[10px]" href="#">LIVE RACE</a>
+<a class="text-[#e5e1e4] opacity-70 hover:text-[#00daf3] transition-colors duration-200 font-label uppercase tracking-widest text-[10px]" href="#">LEADERBOARD</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-[#ffb4a8] hover:text-[#00daf3] transition-colors">leaderboard</button>
+<button class="material-symbols-outlined text-[#ffb4a8] hover:text-[#00daf3] transition-colors">settings</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-primary/20">
+<img alt="User profile avatar with team colors" data-alt="User profile avatar with team colors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0cmK99Z9X1PXbWKN8JOAYnICRexaPMG64caO1uyQwgvAk3SpRo1u8Mabp_v6rTPD0ZlhU2OO-eOD4c3vu_y_uEx23sL6OYU4sdv_k9ZiGbymLFtyhnSTPnwHBntJhWOYI3j7-ZrT9yHvIKRMJKnDmymWnykuZGWWnly3Lt4Wsfpb1EBFjK-F4etsEv-rkdR83rLvKgHuK3Sbcu5MArR7vKUmDPI4p6Ap226hym0k9tcTjjgzCfo0kmu90oRj_sD0GvRwarbBIiNk"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar Shell (Web) -->
+<aside class="fixed left-0 top-0 h-full hidden lg:flex flex-col pt-24 w-64 bg-[#131315] border-r border-white/5 z-40">
+<div class="px-6 mb-8">
+<h2 class="font-headline font-bold text-[#e10600] text-xs uppercase tracking-[0.2em] mb-1">RACE ENGINEER</h2>
+<p class="font-headline font-black text-2xl text-on-surface">1,420 <span class="text-xs font-normal opacity-50">PTS</span></p>
+</div>
+<nav class="flex flex-col flex-grow">
+<a class="bg-gradient-to-r from-[#e10600]/20 to-transparent text-[#ffb4a8] border-l-4 border-[#e10600] py-4 px-6 mb-2 flex items-center gap-4 group" href="#">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label uppercase tracking-widest text-[12px] font-bold">DASHBOARD</span>
+</a>
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 group hover:text-[#00daf3]" href="#">
+<span class="material-symbols-outlined text-lg">precision_manufacturing</span>
+<span class="font-label uppercase tracking-widest text-[12px]">PREDICTIONS</span>
+</a>
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 group hover:text-[#00daf3]" href="#">
+<span class="material-symbols-outlined text-lg">speed</span>
+<span class="font-label uppercase tracking-widest text-[12px]">LIVE RACE</span>
+</a>
+<a class="text-[#e5e1e4] hover:bg-white/5 py-4 px-6 mb-2 transition-all flex items-center gap-4 group hover:text-[#00daf3]" href="#">
+<span class="material-symbols-outlined text-lg">emoji_events</span>
+<span class="font-label uppercase tracking-widest text-[12px]">LEADERBOARD</span>
+</a>
+</nav>
+<div class="p-6">
+<button class="w-full bg-primary-container text-on-primary-container font-headline font-bold py-3 text-xs tracking-widest uppercase hover:brightness-110 active:scale-95 transition-all">
+                JOIN LEAGUE
+            </button>
+</div>
+<div class="mt-auto border-t border-white/5">
+<a class="text-[#e5e1e4] hover:bg-white/5 py-6 px-6 flex items-center gap-4" href="#">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span class="font-label uppercase tracking-widest text-[12px]">LOGOUT</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-20 pb-24 px-4 md:px-8 max-w-7xl mx-auto min-h-screen">
+<!-- Header Section -->
+<section class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<div class="flex items-center gap-2 mb-2">
+<span class="w-8 h-[2px] bg-primary"></span>
+<span class="font-label text-primary uppercase tracking-[0.3em] text-[10px] font-bold">CURRENT CHAMPIONSHIP</span>
+</div>
+<h1 class="font-headline font-bold text-4xl md:text-5xl tracking-tight text-on-surface uppercase italic">
+                    MP &amp; EW F1 League
+                </h1>
+</div>
+<div class="bg-surface-container-high p-4 flex items-center gap-6 relative overflow-hidden group">
+<div class="absolute inset-0 carbon-texture opacity-10"></div>
+<div class="relative z-10">
+<p class="font-label text-xs text-on-surface-variant uppercase tracking-widest mb-1">GLOBAL RANK</p>
+<p class="font-headline font-black text-3xl text-secondary-fixed-dim italic">#142</p>
+</div>
+<div class="w-[1px] h-12 bg-white/10 relative z-10"></div>
+<div class="relative z-10">
+<p class="font-label text-xs text-on-surface-variant uppercase tracking-widest mb-1">LEAGUE POS</p>
+<p class="font-headline font-black text-3xl text-primary italic">02 <span class="text-sm font-normal text-on-surface/40">/ 18</span></p>
+</div>
+</div>
+</section>
+<!-- Main Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Hero Countdown Card -->
+<div class="lg:col-span-8 bg-surface-container overflow-hidden relative min-h-[400px] flex flex-col justify-end p-8 group">
+<div class="absolute inset-0">
+<img alt="Suzuka International Racing Course" class="w-full h-full object-cover opacity-30 grayscale group-hover:scale-105 transition-transform duration-700" data-alt="F1 race car on Suzuka circuit track blur" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDchn5WS3hBObl-a0fGZeRauv5FUfgDXA3JT21bBNfJJtyEAyiiLncFIidmYT1-QUuVhOUqwomhvl0g3EZyubTXqYX8zyRcRlBeQUWNiFVYQLLUM38Wj3XVZZuhGVXWmgl1tnfk2mgsdAbET5D7gq3A27SECy2YN0m2AOnVakmOwa169Zr5hHK1diK300s_D7fG28xD3jJ0yZqCOPEtiRPMwLQOkw9G2vYFak1_nP69hVU-ZaGWkwW7VGuxc8001pP_kuKk1adPy2c"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent"></div>
+</div>
+<div class="relative z-10">
+<div class="inline-flex items-center gap-3 bg-primary-container px-3 py-1 mb-6">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">timer</span>
+<span class="font-label text-[10px] font-bold tracking-widest text-on-primary-container uppercase">PREDICTIONS LOCK IN 18:42:05</span>
+</div>
+<p class="font-label text-secondary-fixed-dim tracking-[0.4em] uppercase text-xs mb-2">NEXT GRAND PRIX</p>
+<h2 class="font-headline font-black text-5xl md:text-7xl italic uppercase tracking-tighter mb-4 text-on-surface">JAPANESE GP</h2>
+<div class="flex flex-wrap items-center gap-8 mt-6">
+<div class="flex flex-col">
+<span class="font-label text-[10px] text-on-surface-variant tracking-widest uppercase mb-1">CIRCUIT</span>
+<span class="font-body font-bold text-sm">SUZUKA INTERNATIONAL</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label text-[10px] text-on-surface-variant tracking-widest uppercase mb-1">DATE</span>
+<span class="font-body font-bold text-sm">APR 07, 2024</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label text-[10px] text-on-surface-variant tracking-widest uppercase mb-1">LAPS</span>
+<span class="font-body font-bold text-sm">53</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Side Stats/Status Bento -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<!-- Prediction Summary Panel -->
+<div class="bg-surface-container-high p-6 flex-grow border-l-4 border-tertiary">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="font-headline font-bold text-lg uppercase tracking-tight">PREDICTION STATUS</h3>
+<p class="text-xs text-on-surface-variant font-body">SUZUKA SELECTION</p>
+</div>
+<span class="material-symbols-outlined text-tertiary">lock_open</span>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-sm">
+<span class="text-[10px] font-label text-on-surface-variant uppercase tracking-widest">POLE POSITION</span>
+<span class="text-sm font-bold font-headline italic">VERSTAPPEN</span>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-sm">
+<span class="text-[10px] font-label text-on-surface-variant uppercase tracking-widest">P1 WINNER</span>
+<span class="text-sm font-bold font-headline italic">LECLERC</span>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-sm">
+<span class="text-[10px] font-label text-on-surface-variant uppercase tracking-widest">FASTEST LAP</span>
+<span class="text-sm font-bold font-headline italic">HAMILTON</span>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-sm">
+<span class="text-[10px] font-label text-on-surface-variant uppercase tracking-widest">DNF COUNT</span>
+<span class="text-sm font-bold font-headline italic">02</span>
+</div>
+</div>
+<button class="w-full mt-6 py-4 bg-transparent border border-outline-variant hover:border-secondary-fixed-dim text-on-surface font-label text-[10px] tracking-widest uppercase transition-all">
+                        EDIT ALL PICKS
+                    </button>
+</div>
+<!-- Last Race Delta -->
+<div class="bg-surface-container-lowest p-6 flex flex-col items-center justify-center text-center group">
+<p class="font-label text-[10px] text-on-surface-variant tracking-widest uppercase mb-4">LAST RACE PERFORMANCE</p>
+<div class="flex items-baseline gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary-fixed-dim text-4xl">trending_up</span>
+<span class="font-headline font-black text-5xl text-on-surface italic">+124</span>
+</div>
+<p class="font-body text-xs text-on-surface/60">Points gained at Australian GP</p>
+</div>
+</div>
+<!-- Upcoming Schedule Horizontal Scroller/Grid -->
+<div class="lg:col-span-12 mt-4">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline font-bold text-xl uppercase tracking-tighter italic">UPCOMING RACES</h3>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-high text-on-surface hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center bg-surface-container-high text-on-surface hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Race Card 1 -->
+<div class="bg-surface-container-low p-5 hover:bg-surface-container-high transition-all group border-b-4 border-transparent hover:border-primary">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label text-[24px] font-black text-on-surface/10">R05</span>
+<span class="text-[10px] font-label px-2 py-0.5 bg-surface-container-highest text-on-surface-variant uppercase tracking-widest">APR 21</span>
+</div>
+<h4 class="font-headline font-bold text-lg uppercase tracking-tight mb-1 group-hover:text-primary transition-colors">CHINESE GP</h4>
+<p class="text-[10px] font-label text-on-surface/40 uppercase tracking-widest mb-6">SHANGHAI INTERNATIONAL</p>
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-label text-secondary-fixed-dim uppercase tracking-widest font-bold">LOCKED</span>
+<span class="material-symbols-outlined text-sm opacity-20">lock</span>
+</div>
+</div>
+<!-- Race Card 2 -->
+<div class="bg-surface-container-low p-5 hover:bg-surface-container-high transition-all group border-b-4 border-transparent hover:border-primary">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label text-[24px] font-black text-on-surface/10">R06</span>
+<span class="text-[10px] font-label px-2 py-0.5 bg-surface-container-highest text-on-surface-variant uppercase tracking-widest">MAY 05</span>
+</div>
+<h4 class="font-headline font-bold text-lg uppercase tracking-tight mb-1 group-hover:text-primary transition-colors">MIAMI GP</h4>
+<p class="text-[10px] font-label text-on-surface/40 uppercase tracking-widest mb-6">MIAMI INTERNATIONAL AUTODROME</p>
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-label text-secondary-fixed-dim uppercase tracking-widest font-bold">LOCKED</span>
+<span class="material-symbols-outlined text-sm opacity-20">lock</span>
+</div>
+</div>
+<!-- Race Card 3 -->
+<div class="bg-surface-container-low p-5 hover:bg-surface-container-high transition-all group border-b-4 border-transparent hover:border-primary">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label text-[24px] font-black text-on-surface/10">R07</span>
+<span class="text-[10px] font-label px-2 py-0.5 bg-surface-container-highest text-on-surface-variant uppercase tracking-widest">MAY 19</span>
+</div>
+<h4 class="font-headline font-bold text-lg uppercase tracking-tight mb-1 group-hover:text-primary transition-colors">EMILIA ROMAGNA</h4>
+<p class="text-[10px] font-label text-on-surface/40 uppercase tracking-widest mb-6">IMOLA CIRCUIT</p>
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-label text-secondary-fixed-dim uppercase tracking-widest font-bold">LOCKED</span>
+<span class="material-symbols-outlined text-sm opacity-20">lock</span>
+</div>
+</div>
+<!-- Race Card 4 -->
+<div class="bg-surface-container-low p-5 hover:bg-surface-container-high transition-all group border-b-4 border-transparent hover:border-primary">
+<div class="flex justify-between items-start mb-4">
+<span class="font-label text-[24px] font-black text-on-surface/10">R08</span>
+<span class="text-[10px] font-label px-2 py-0.5 bg-surface-container-highest text-on-surface-variant uppercase tracking-widest">MAY 26</span>
+</div>
+<h4 class="font-headline font-bold text-lg uppercase tracking-tight mb-1 group-hover:text-primary transition-colors">MONACO GP</h4>
+<p class="text-[10px] font-label text-on-surface/40 uppercase tracking-widest mb-6">CIRCUIT DE MONACO</p>
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-label text-secondary-fixed-dim uppercase tracking-widest font-bold">LOCKED</span>
+<span class="material-symbols-outlined text-sm opacity-20">lock</span>
+</div>
+</div>
+</div>
+</div>
+<!-- League Standings Quick View -->
+<div class="lg:col-span-12 bg-surface-container border border-white/5 mt-8 overflow-hidden">
+<div class="px-8 py-6 border-b border-white/5 flex justify-between items-center bg-surface-container-high">
+<h3 class="font-headline font-bold text-sm uppercase tracking-widest">LEAGUE STANDINGS (TOP 5)</h3>
+<a class="text-[10px] font-label text-primary uppercase tracking-widest hover:underline" href="#">VIEW FULL LEADERBOARD</a>
+</div>
+<div class="divide-y divide-white/5">
+<!-- Row 1 -->
+<div class="px-8 py-4 flex items-center gap-6 hover:bg-white/5 transition-colors">
+<span class="font-headline font-black text-lg italic text-on-surface/20 w-8">01</span>
+<div class="flex items-center gap-3 flex-grow">
+<img alt="User Avatar" class="w-8 h-8 rounded-full grayscale" data-alt="F1 player profile headshot placeholder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcasVLUomHLAEZBGCncn5qJQn6roPUBej0ZQGh_qtNjtcgRiZxwl5GBmPO8-MhK_yOyapJ2EON-wHCRjAGdZZPEmrWU4WuNVE392wr5dzOpfYPVOrqdIEvbNn-rGmBFbgOcbWE9iVKDaf0RnPah9mYHV-Zq4gkBhLW47w7Y2kCEoxbBVz15RAOz7nZnuxnPHh3pplEQxbHK3l6iC3n7epVgZXH3ROeerriL5lqeW7pBnLBdYYz0ndwT8tS0YA1UMV5_lxgNOm_QFI"/>
+<div>
+<p class="font-body font-bold text-sm">Sebastian V.</p>
+<p class="text-[9px] font-label text-tertiary uppercase tracking-widest">WOKING ELITE</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline font-bold text-lg italic">2,490</p>
+<p class="text-[9px] font-label text-on-surface/40 uppercase tracking-widest">PTS</p>
+</div>
+</div>
+<!-- Row 2 (Active User) -->
+<div class="px-8 py-4 flex items-center gap-6 bg-primary/5 border-l-4 border-primary">
+<span class="font-headline font-black text-lg italic text-primary w-8">02</span>
+<div class="flex items-center gap-3 flex-grow">
+<img alt="User Avatar" class="w-8 h-8 rounded-full" data-alt="Active user profile headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3C_K5b3nlbkQYTfdcfA5N5oOV-14M75RV95XFJ-r-R6SYpILq7nwRyLs4zj79sbDz0lQ4Wp4xg7HZBR05GTglywC7J4dQkpEIXRNiMB3cDlUDZdyR1xKEsciFnA5O75z3NQLTQ9GU5XnnmmVvSKcB_TlfpZqqGBvsDrY-F5ouG6I1JjHW_5ZjCUB23d82MDMiLMz9TpF53e_BO72qBp5SBz1RlXJ9bDQv4cVZ41LAiBbE2sqGza0T7j9pLZBaiqdlSovGOvUHRxg"/>
+<div>
+<p class="font-body font-bold text-sm">Lewis H. (YOU)</p>
+<p class="text-[9px] font-label text-secondary-fixed-dim uppercase tracking-widest">SILVER ARROWS FAN</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline font-bold text-lg italic text-primary">2,385</p>
+<p class="text-[9px] font-label text-on-surface/40 uppercase tracking-widest">PTS</p>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="px-8 py-4 flex items-center gap-6 hover:bg-white/5 transition-colors">
+<span class="font-headline font-black text-lg italic text-on-surface/20 w-8">03</span>
+<div class="flex items-center gap-3 flex-grow">
+<img alt="User Avatar" class="w-8 h-8 rounded-full grayscale" data-alt="F1 player profile headshot placeholder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjGri9Ouy6HUuPVP3Vok_eSQhJMPOe-IJ1EzpxbVj89g_kkglaMoLVOOr77d6ziDdVCpb6rMDnU2dtNxDP56tOgdJM0yVtIYBU6iIwck_BIdyl5iGgqw4srwjV7HiZpf5yysjKqVDASLxNBeuIJMNL1tI_kgdnRc6J8dCs5PlFiEAhabYWUctr2b_6ADF8r56MpkBu_zmvJNjQRC7gzaKnL0_Q6tCxbfPA3IuqLTs30ypMwdeBL-7oio5qIjRR4Kag9JgBOD-gTu4"/>
+<div>
+<p class="font-body font-bold text-sm">Max P.</p>
+<p class="text-[9px] font-label text-on-surface-variant uppercase tracking-widest">ORACLE RACER</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline font-bold text-lg italic">2,210</p>
+<p class="text-[9px] font-label text-on-surface/40 uppercase tracking-widest">PTS</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Shell (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-[#131315]/80 backdrop-blur-2xl lg:hidden z-50 border-t border-white/10">
+<a class="flex flex-col items-center justify-center text-[#ffb4a8] bg-[#e10600]/10 rounded-lg py-1 w-full transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<span class="font-label uppercase font-bold text-[9px] mt-1">DASHBOARD</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full active:bg-[#e10600]/20" href="#">
+<span class="material-symbols-outlined text-xl">edit_note</span>
+<span class="font-label uppercase font-bold text-[9px] mt-1">PICKS</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full active:bg-[#e10600]/20" href="#">
+<span class="material-symbols-outlined text-xl">timer</span>
+<span class="font-label uppercase font-bold text-[9px] mt-1">LIVE</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#e5e1e4]/50 py-1 w-full active:bg-[#e10600]/20" href="#">
+<span class="material-symbols-outlined text-xl">leaderboard</span>
+<span class="font-label uppercase font-bold text-[9px] mt-1">STANDINGS</span>
+</a>
+</nav>
+</body></html>

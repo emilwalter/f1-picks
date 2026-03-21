@@ -12,14 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
 import { toast } from "sonner";
 
 export function JoinRoomDialog() {
@@ -57,45 +49,57 @@ export function JoinRoomDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Join Room</Button>
+        <button
+          type="button"
+          className="rounded-sm border border-paddock-cyan/30 bg-transparent px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-paddock-cyan-soft transition-colors hover:border-paddock-cyan/60 hover:bg-paddock-surface-high"
+        >
+          Join room
+        </button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="bg-paddock-surface-low">
         <DialogHeader>
-          <DialogTitle>Join a Room</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="font-display text-lg font-bold italic uppercase tracking-tight text-paddock-on">
+            Join a Room
+          </DialogTitle>
+          <DialogDescription className="text-paddock-on-muted">
             Enter the 6-character join code to join a prediction room.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleJoin}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="joinCode">Join Code</FieldLabel>
-              <Input
-                id="joinCode"
-                placeholder="ABC123"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                maxLength={6}
-                className="font-mono text-center text-lg tracking-wider"
-                autoFocus
-              />
-              <FieldDescription>
-                Enter the 6-character join code provided by the room host.
-              </FieldDescription>
-            </Field>
-            <Field orientation="horizontal">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isJoining}>
-                {isJoining ? "Joining..." : "Join Room"}
-              </Button>
-            </Field>
-          </FieldGroup>
+        <form onSubmit={handleJoin} className="space-y-4">
+          <div>
+            <label
+              htmlFor="joinCode"
+              className="mb-1.5 block font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted"
+            >
+              Join Code
+            </label>
+            <input
+              id="joinCode"
+              type="text"
+              placeholder="ABC123"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              maxLength={6}
+              autoFocus
+              className="w-full rounded-sm bg-paddock-surface px-4 py-3 text-center font-mono text-lg font-bold tracking-[0.3em] text-paddock-on placeholder:text-paddock-on-muted focus:outline-none focus:ring-1 focus:ring-paddock-cyan/40"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="flex-1 rounded-sm bg-paddock-surface-high py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isJoining}
+              className="flex-1 rounded-sm bg-paddock-accent py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90 disabled:opacity-50"
+            >
+              {isJoining ? "Joining..." : "Join Room"}
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

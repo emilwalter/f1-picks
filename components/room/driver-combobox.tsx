@@ -4,7 +4,6 @@ import * as React from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -39,10 +38,6 @@ interface DriverComboboxProps {
   className?: string;
 }
 
-/**
- * Search string for filtering - includes name and team so users can search
- * "lewis", "hamilton", "ferrari", "mercedes", etc.
- */
 function getDriverSearchValue(driver: Driver): string {
   return `${driver.name} ${driver.teamName}`.toLowerCase();
 }
@@ -52,7 +47,7 @@ export function DriverCombobox({
   value,
   onChange,
   excludeDriverNumbers = [],
-  placeholder = "Search driver (e.g. lewis, ferrari, hamilton)...",
+  placeholder = "Select driver...",
   disabled = false,
   className,
 }: DriverComboboxProps) {
@@ -67,43 +62,55 @@ export function DriverCombobox({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
+        <button
+          type="button"
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "min-w-0 flex-1 justify-between font-normal",
-            !selectedDriver && "text-muted-foreground",
+            "flex w-full items-center justify-between rounded-sm bg-paddock-surface-lowest px-4 py-3 text-left transition-colors",
+            "hover:bg-paddock-surface focus:outline-none focus:ring-1 focus:ring-paddock-cyan/30",
+            "disabled:cursor-not-allowed disabled:opacity-40",
             className
           )}
         >
           {selectedDriver ? (
-            <span className="truncate">
-              #{selectedDriver.driverNumber} {selectedDriver.name} -{" "}
-              {selectedDriver.teamName}
+            <span className="truncate font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+              #{selectedDriver.driverNumber} {selectedDriver.name}
             </span>
           ) : (
-            placeholder
+            <span className="font-display text-xs uppercase tracking-widest text-paddock-on-muted/50">
+              {placeholder}
+            </span>
           )}
-          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-        </Button>
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 text-paddock-on-muted/40" />
+        </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0"
+        className="min-w-[min(22rem,calc(100vw-2rem))] w-[var(--radix-popover-trigger-width)] max-w-[26rem] overflow-hidden rounded-sm border-0 bg-paddock-surface-high p-0 shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
         align="start"
+        sideOffset={6}
+        collisionPadding={12}
       >
         <Command
+          className="bg-transparent"
           filter={(itemValue, searchValue) => {
             const search = searchValue.toLowerCase();
             const item = itemValue.toLowerCase();
             return item.includes(search) ? 1 : 0;
           }}
         >
-          <CommandInput placeholder={placeholder} />
-          <CommandList>
-            <CommandEmpty>No driver found.</CommandEmpty>
-            <CommandGroup>
+          <div className="bg-paddock-surface-highest [&_[data-slot=command-input-wrapper]]:h-auto [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-4 [&_[data-slot=command-input-wrapper]]:py-3 [&_[data-slot=command-input-wrapper]_svg]:text-paddock-on-muted/40">
+            <CommandInput
+              placeholder="Search by name or team..."
+              className="h-auto bg-transparent p-0 font-display text-xs text-paddock-on placeholder:text-paddock-on-muted/40"
+            />
+          </div>
+          <CommandList className="max-h-[min(22rem,50vh)]">
+            <CommandEmpty className="py-6 text-center font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+              No driver found.
+            </CommandEmpty>
+            <CommandGroup className="p-1">
               {availableDrivers.map((driver) => (
                 <CommandItem
                   key={driver.driverNumber}
@@ -112,9 +119,10 @@ export function DriverCombobox({
                     onChange(driver.driverNumber);
                     setOpen(false);
                   }}
+                  className="rounded-sm px-3 py-2.5 data-[selected=true]:bg-paddock-surface-highest"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-sm">
                       <Image
                         src={getDriverImageUrl(
                           driver.driverNumber,
@@ -128,9 +136,11 @@ export function DriverCombobox({
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{driver.name}</div>
+                      <div className="truncate font-display text-sm font-bold text-paddock-on">
+                        {driver.name}
+                      </div>
                       <div className="flex items-center gap-2">
-                        <div className="relative h-3 w-3 shrink-0 overflow-hidden rounded">
+                        <div className="relative h-3 w-3 shrink-0 overflow-hidden rounded-sm">
                           <Image
                             src={getTeamLogoUrl(
                               driver.teamName,
@@ -142,7 +152,7 @@ export function DriverCombobox({
                             sizes="12px"
                           />
                         </div>
-                        <span className="truncate text-xs text-muted-foreground">
+                        <span className="truncate font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
                           {driver.teamName}
                         </span>
                       </div>
@@ -150,7 +160,7 @@ export function DriverCombobox({
                   </div>
                   <Check
                     className={cn(
-                      "ml-2 size-4 shrink-0",
+                      "ml-2 h-4 w-4 shrink-0 text-paddock-cyan",
                       value === driver.driverNumber
                         ? "opacity-100"
                         : "opacity-0"

@@ -10,20 +10,23 @@ import { RoomLeaderboard } from "@/components/room/room-leaderboard";
 import { PredictionSummary } from "@/components/room/prediction-summary";
 import { RoomSettingsDialog } from "@/components/room/room-settings-dialog";
 import { SyncAllRacesButton } from "@/components/room/sync-all-races-button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Countdown } from "@/components/ui/countdown";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
+import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
+import { getRaceStartTimestamp } from "@/lib/race-time";
 import {
   Users,
-  ChevronDown,
-  ChevronUp,
-  Settings,
   ChevronLeft,
   ChevronRight,
+  Settings,
   LogOut,
+  Trophy,
+  Lock,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -52,15 +55,12 @@ export default function RoomPage() {
     isLoading,
   } = useRoom(roomId);
 
-  // Get all predictions grouped by race for the summary
   const predictionsByRace = useQuery(
     api.queries.predictions.getRoomPredictionsByRace,
     room ? { roomId } : "skip"
   );
 
-  // Get the next race for countdown
   const now = Date.now();
-  // Include races from today (within last 24 hours) in upcoming races
   const oneDayAgo = now - 24 * 60 * 60 * 1000;
   const allUnlockedRaces =
     races?.filter((race) => race.date >= oneDayAgo) || [];
@@ -72,14 +72,12 @@ export default function RoomPage() {
     sortedUnlockedRaces[0] ||
     null;
 
-  // Get lockout info for the next race
   const lockoutInfo = useQuery(
     api.queries.lockout.getRoomLockoutInfo,
     room && nextRace ? { roomId, raceId: nextRace._id } : "skip"
   );
 
-  // Fetch drivers for visualization
-  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
   const [showLockedRaces, setShowLockedRaces] = useState(false);
@@ -104,12 +102,10 @@ export default function RoomPage() {
     fetchDrivers();
   }, [room, season, getDriversForRace]);
 
-  // Calculate maxUpcomingIndex for the useEffect hook (must be before early returns)
-  const RACES_PER_PAGE = 3;
+  const RACES_PER_PAGE = 4;
   const totalUpcomingRaces = sortedUnlockedRaces.length;
   const maxUpcomingIndex = Math.max(0, totalUpcomingRaces - RACES_PER_PAGE);
 
-  // Reset index if it's out of bounds (must be called before early returns)
   useEffect(() => {
     if (totalUpcomingRaces > 0 && upcomingRacesIndex > maxUpcomingIndex) {
       setUpcomingRacesIndex(Math.max(0, maxUpcomingIndex));
@@ -118,8 +114,8 @@ export default function RoomPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-zinc-600 dark:text-zinc-400">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
           Loading...
         </div>
       </div>
@@ -128,8 +124,8 @@ export default function RoomPage() {
 
   if (!room || !season) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-zinc-600 dark:text-zinc-400">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
           Room not found
         </div>
       </div>
@@ -138,516 +134,479 @@ export default function RoomPage() {
 
   const isHost = currentUser && room && currentUser._id === room.hostId;
 
-  // Separate races into: next 3 active races, remaining future races, and locked races
-  const next3Races = sortedUnlockedRaces.slice(
+  const next4Races = sortedUnlockedRaces.slice(
     upcomingRacesIndex,
     upcomingRacesIndex + RACES_PER_PAGE
   );
-  const remainingFutureRaces = sortedUnlockedRaces.slice(3);
-  // Only show races older than 24 hours in locked races section
+  const remainingFutureRaces = sortedUnlockedRaces.slice(RACES_PER_PAGE);
   const lockedRaces = races?.filter((race) => race.date < oneDayAgo) || [];
+  const mostRecentLockedRaceId =
+    lockedRaces.length > 0
+      ? [...lockedRaces].sort((a, b) => b.date - a.date)[0]._id
+      : null;
+
+  const roundNumber = nextRace
+    ? (races?.findIndex((r) => r._id === nextRace._id) ?? 0) + 1
+    : null;
+
+  const nextGpImages =
+    season && nextRace
+      ? getF1RaceStaticImagePaths(season.year, nextRace.round)
+      : null;
+
+  const nextRaceStart = nextRace ? getRaceStartTimestamp(nextRace) : null;
+  const showNextRaceCountdown = nextRaceStart !== null && nextRaceStart > now;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link
-          href="/"
-          className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          ← Back to Dashboard
-        </Link>
+    <div className="container mx-auto max-w-7xl px-4 py-6">
+      {/* Breadcrumb */}
+      <Link
+        href="/"
+        className="room-overview-enter mb-6 inline-block font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan"
+      >
+        ← Dashboard
+      </Link>
+
+      {/* Page header — room name + stats (matches league_dashboard) */}
+      <div className="room-overview-enter room-overview-enter-delay-1 mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-[2px] w-8 bg-paddock-accent" />
+            <span className="font-display text-[10px] font-bold uppercase tracking-[0.3em] text-paddock-accent">
+              Current Championship
+            </span>
+          </div>
+          <h1 className="font-display text-4xl font-bold italic uppercase tracking-tight text-paddock-on md:text-5xl">
+            {room.name || `${season.year} Season`}
+          </h1>
+        </div>
+
+        <div className="flex w-full items-stretch gap-2 sm:w-auto sm:justify-end">
+          {/* Participant count & actions — equal width for visual rhythm */}
+          <Link
+            href={`/rooms/${roomId}/participants`}
+            className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-surface-high px-2 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest sm:w-[9.5rem] sm:flex-none"
+          >
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            <span className="tabular-nums">{participants?.length || 0}</span>
+          </Link>
+          <Link
+            href={`/rooms/${roomId}/results`}
+            className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-accent px-2 py-2 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90 sm:w-[9.5rem] sm:flex-none"
+          >
+            <Trophy className="h-3.5 w-3.5 shrink-0" />
+            Results
+          </Link>
+          {isHost && (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-surface-high px-2 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest sm:w-[9.5rem] sm:flex-none"
+            >
+              <Settings className="h-3.5 w-3.5 shrink-0" />
+            </button>
+          )}
+          {!isHost && currentUser && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await leaveRoom({ roomId });
+                  toast.success("Left room");
+                  router.push("/");
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to leave room"
+                  );
+                }
+              }}
+              className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-surface-high px-2 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-accent transition-colors hover:bg-paddock-surface-highest sm:w-[9.5rem] sm:flex-none"
+            >
+              <LogOut className="h-3.5 w-3.5 shrink-0" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Room Header */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <CardTitle className="mb-1 text-2xl leading-tight">
-                {room.name || `${season.year} Season Room`}
-              </CardTitle>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {season.year} Formula 1 World Championship
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {isHost && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSettingsOpen(true)}
-                  className="shrink-0"
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Button>
-              )}
-              {!isHost && currentUser && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      await leaveRoom({ roomId });
-                      toast.success("Left room");
-                      router.push("/");
-                    } catch (error) {
-                      toast.error(
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to leave room"
-                      );
-                    }
-                  }}
-                  className="shrink-0 text-destructive hover:text-destructive"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Leave Room
-                </Button>
-              )}
-              <Badge
-                variant={room.status === "open" ? "default" : "outline"}
-                className="shrink-0"
-              >
-                {room.status}
-              </Badge>
-              <Link href={`/rooms/${roomId}/participants`}>
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                >
-                  <Users className="mr-1 h-3 w-3" />
-                  {participants?.length || 0}
-                </Badge>
-              </Link>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Join Code
-              </div>
-              <code className="block rounded bg-zinc-100 px-2 py-1.5 font-mono text-sm font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50">
-                {room.joinCode}
-              </code>
-            </div>
-            <div>
-              <div className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Total Races
-              </div>
-              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                {season.totalRaces}
-              </div>
-            </div>
-            {nextRace && (
-              <Countdown
-                targetTime={nextRace.date}
-                label="Next Race"
-                expiredLabel="Race Started"
-              />
-            )}
-            {lockoutInfo?.lockoutTime !== null &&
-              lockoutInfo?.lockoutTime !== undefined && (
-                <Countdown
-                  targetTime={lockoutInfo.lockoutTime}
-                  label="Prediction Lockout"
-                  expiredLabel="Locked"
-                />
-              )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="mt-8">
-        {/* Race Selection */}
-        {races && races.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Select Race</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Next 3 Active Races - Always Visible */}
-                {next3Races.length > 0 && (
-                  <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                        Upcoming Races
-                      </div>
-                      {totalUpcomingRaces > RACES_PER_PAGE && (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() =>
-                              setUpcomingRacesIndex(
-                                Math.max(0, upcomingRacesIndex - 1)
-                              )
-                            }
-                            disabled={upcomingRacesIndex === 0}
-                            className="h-7 w-7"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                            {upcomingRacesIndex + 1}-
-                            {Math.min(
-                              upcomingRacesIndex + RACES_PER_PAGE,
-                              totalUpcomingRaces
-                            )}{" "}
-                            of {totalUpcomingRaces}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() =>
-                              setUpcomingRacesIndex(
-                                Math.min(
-                                  maxUpcomingIndex,
-                                  upcomingRacesIndex + 1
-                                )
-                              )
-                            }
-                            disabled={upcomingRacesIndex >= maxUpcomingIndex}
-                            className="h-7 w-7"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {next3Races.map((race) => {
-                        const hasPrediction = userPredictions?.some(
-                          (p) => p.raceId === race._id
-                        );
-
-                        return (
-                          <Link
-                            key={race._id}
-                            href={`/rooms/${roomId}/predictions/${race._id}`}
-                            className="block"
-                          >
-                            <div className="h-auto w-full flex-col items-start rounded-md border border-zinc-200 bg-white p-3 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800">
-                              <div className="w-full">
-                                <div className="mb-1 flex items-start justify-between gap-2">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate font-semibold text-sm">
-                                      {race.name}
-                                    </div>
-                                    <div className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">
-                                      {race.circuit}
-                                    </div>
-                                  </div>
-                                  {hasPrediction && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="shrink-0 text-xs"
-                                    >
-                                      ✓
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="mt-1.5 flex items-center justify-between">
-                                  <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                                    {format(race.date, "MMM d")}
-                                  </span>
-                                  {race.date < now && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      Locked
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Remaining Future Races - Collapsible */}
-                {remainingFutureRaces.length > 0 && (
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mb-2 w-full justify-between"
-                      onClick={() => setShowRemainingRaces(!showRemainingRaces)}
-                    >
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {remainingFutureRaces.length} More Future Race
-                        {remainingFutureRaces.length !== 1 ? "s" : ""}
-                      </span>
-                      {showRemainingRaces ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                    {showRemainingRaces && (
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {remainingFutureRaces.map((race) => {
-                          const hasPrediction = userPredictions?.some(
-                            (p) => p.raceId === race._id
-                          );
-
-                          return (
-                            <Link
-                              key={race._id}
-                              href={`/rooms/${roomId}/predictions/${race._id}`}
-                              className="block"
-                            >
-                              <div className="h-auto w-full flex-col items-start rounded-md border border-zinc-200 bg-white p-3 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800">
-                                <div className="w-full">
-                                  <div className="mb-1 flex items-start justify-between gap-2">
-                                    <div className="min-w-0 flex-1">
-                                      <div className="truncate font-semibold text-sm">
-                                        {race.name}
-                                      </div>
-                                      <div className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">
-                                        {race.circuit}
-                                      </div>
-                                    </div>
-                                    {hasPrediction && (
-                                      <Badge
-                                        variant="secondary"
-                                        className="shrink-0 text-xs"
-                                      >
-                                        ✓
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="mt-1.5 flex items-center justify-between">
-                                    <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                                      {format(race.date, "MMM d")}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Locked Races - Accordion */}
-                {lockedRaces.length > 0 && (
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mb-2 w-full justify-between"
-                      onClick={() => setShowLockedRaces(!showLockedRaces)}
-                    >
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {lockedRaces.length} Locked Race
-                        {lockedRaces.length !== 1 ? "s" : ""}
-                      </span>
-                      {showLockedRaces ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                    {showLockedRaces && (
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {lockedRaces.map((race) => {
-                          const hasPrediction = userPredictions?.some(
-                            (p) => p.raceId === race._id
-                          );
-
-                          return (
-                            <Link
-                              key={race._id}
-                              href={`/rooms/${roomId}/predictions/${race._id}`}
-                              className="block"
-                            >
-                              <div className="h-auto w-full flex-col items-start rounded-md border border-zinc-300 bg-zinc-50 p-3 text-left transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800">
-                                <div className="w-full">
-                                  <div className="mb-1 flex items-start justify-between gap-2">
-                                    <div className="min-w-0 flex-1">
-                                      <div className="truncate font-semibold text-sm">
-                                        {race.name}
-                                      </div>
-                                      <div className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">
-                                        {race.circuit}
-                                      </div>
-                                    </div>
-                                    {hasPrediction && (
-                                      <Badge
-                                        variant="secondary"
-                                        className="shrink-0 text-xs"
-                                      >
-                                        ✓
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="mt-1.5 flex items-center justify-between">
-                                    <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                                      {format(race.date, "MMM d")}
-                                    </span>
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      Locked
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Prediction Summary */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Prediction Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingDrivers ? (
-              <div className="py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
-                Loading driver data...
-              </div>
-            ) : next3Races.length > 0 ||
-              remainingFutureRaces.length > 0 ||
-              lockedRaces.length > 0 ? (
-              <div className="space-y-3">
-                {/* Next 3 Active Races */}
-                {next3Races.map((race) => {
-                  const racePredictions = predictionsByRace?.[race._id] || [];
-                  return (
-                    <PredictionSummary
-                      key={race._id}
-                      race={race}
-                      predictions={racePredictions}
-                      drivers={drivers}
-                      participantCount={participants?.length || 0}
-                      isPast={false}
+      {/* Main grid — content + sidebar */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        {/* Left column */}
+        <div className="space-y-6">
+          {/* Hero — Next Grand Prix (matches league_dashboard hero) */}
+          {nextRace && (
+            <Link
+              href={`/rooms/${roomId}/predictions/${nextRace._id}`}
+              className="room-overview-enter room-overview-enter-delay-2 group block origin-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.008] motion-reduce:transition-none motion-reduce:hover:scale-100"
+            >
+              <div className="relative flex min-h-[360px] flex-col justify-end overflow-hidden rounded-sm bg-paddock-surface p-8 sm:min-h-[400px]">
+                {nextGpImages && (
+                  <div className="absolute inset-0 z-0">
+                    <Image
+                      src={nextGpImages.card}
+                      alt=""
+                      fill
+                      className="object-cover object-center"
+                      sizes="(max-width: 1280px) 100vw, 1280px"
+                      priority
                     />
+                  </div>
+                )}
+                {/* Dark gradient overlays */}
+                <div className="absolute inset-0 z-[1] bg-gradient-to-t from-paddock-bg via-paddock-bg/70 to-paddock-bg/20" />
+                <div className="absolute inset-0 z-[1] bg-paddock-bg/35" />
+
+                <div className="relative z-10">
+                  <p className="font-display text-[10px] font-semibold uppercase tracking-[0.4em] text-paddock-cyan">
+                    Next Grand Prix
+                  </p>
+                  <h2 className="mt-2 font-display text-4xl font-black italic uppercase tracking-tighter text-paddock-on transition-colors group-hover:text-white sm:text-5xl md:text-7xl">
+                    {nextRace.name.replace(/Grand Prix/i, "GP")}
+                  </h2>
+
+                  <div className="mt-6 flex flex-wrap items-start gap-8">
+                    <div>
+                      <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                        Circuit
+                      </span>
+                      <p className="font-display text-sm font-bold text-paddock-on">
+                        {nextRace.circuit}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                        Date
+                      </span>
+                      <p className="font-display text-sm font-bold text-paddock-on">
+                        {format(nextRace.date, "MMM dd, yyyy")}
+                      </p>
+                    </div>
+                    {roundNumber && (
+                      <div>
+                        <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                          Round
+                        </span>
+                        <p className="font-display text-sm font-bold tabular-nums text-paddock-on">
+                          {String(roundNumber).padStart(2, "0")} /{" "}
+                          {season.totalRaces}
+                        </p>
+                      </div>
+                    )}
+                    {showNextRaceCountdown && nextRaceStart !== null && (
+                      <Countdown
+                        targetTime={nextRaceStart}
+                        label="Race start"
+                        expiredLabel="Started"
+                        timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+                        expiredClassName="font-display text-sm font-bold text-paddock-on-muted"
+                      />
+                    )}
+                    {lockoutInfo?.lockoutTime &&
+                      lockoutInfo.lockoutTime > now && (
+                        <Countdown
+                          targetTime={lockoutInfo.lockoutTime}
+                          label="Picks lock"
+                          expiredLabel="Locked"
+                          timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+                          expiredClassName="font-display text-sm font-bold text-paddock-accent"
+                        />
+                      )}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )}
+
+          {/* Upcoming Races carousel */}
+          {sortedUnlockedRaces.length > 0 && (
+            <div className="room-overview-enter room-overview-enter-delay-3">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-display text-xl font-bold italic uppercase tracking-tighter text-paddock-on">
+                  Upcoming Races
+                </h3>
+                {totalUpcomingRaces > RACES_PER_PAGE && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUpcomingRacesIndex(
+                          Math.max(0, upcomingRacesIndex - 1)
+                        )
+                      }
+                      disabled={upcomingRacesIndex === 0}
+                      className="rounded-sm bg-paddock-surface-high p-1.5 text-paddock-on transition-colors hover:bg-paddock-surface-highest active:scale-95 disabled:opacity-30 motion-reduce:active:scale-100"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUpcomingRacesIndex(
+                          Math.min(maxUpcomingIndex, upcomingRacesIndex + 1)
+                        )
+                      }
+                      disabled={upcomingRacesIndex >= maxUpcomingIndex}
+                      className="rounded-sm bg-paddock-surface-high p-1.5 text-paddock-on transition-colors hover:bg-paddock-surface-highest active:scale-95 disabled:opacity-30 motion-reduce:active:scale-100"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {next4Races.map((race) => {
+                  const raceRound =
+                    (races?.findIndex((r) => r._id === race._id) ?? 0) + 1;
+                  const hasPrediction = userPredictions?.some(
+                    (p) => p.raceId === race._id
+                  );
+                  const isLocked = race.date < now;
+                  const f1Images =
+                    season &&
+                    getF1RaceStaticImagePaths(season.year, race.round);
+
+                  return (
+                    <Link
+                      key={race._id}
+                      href={`/rooms/${roomId}/predictions/${race._id}`}
+                      className="group block origin-center transition-transform duration-300 ease-out hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:scale-100"
+                    >
+                      <div className="rounded-sm border-b-4 border-transparent bg-paddock-surface-low transition-[border-color,background-color] duration-300 ease-out group-hover:border-paddock-accent group-hover:bg-paddock-surface-high">
+                        {f1Images && (
+                          <div className="relative aspect-[16/7] w-full overflow-hidden rounded-t-sm bg-paddock-surface-highest">
+                            <Image
+                              src={f1Images.card}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 640px) 50vw, 25vw"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-paddock-surface-low to-transparent" />
+                          </div>
+                        )}
+                        <div className="p-5">
+                          <div className="mb-4 flex items-start justify-between">
+                            <span className="font-display text-[24px] font-black text-paddock-on/10">
+                              R{String(raceRound).padStart(2, "0")}
+                            </span>
+                            <span className="rounded-sm bg-paddock-surface-highest px-2 py-0.5 font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                              {format(race.date, "MMM dd")}
+                            </span>
+                          </div>
+                          <h4 className="mb-1 font-display text-lg font-bold uppercase tracking-tight text-paddock-on transition-colors group-hover:text-paddock-soft">
+                            {race.name.replace(/Grand Prix/i, "GP")}
+                          </h4>
+                          <p className="mb-6 font-display text-[10px] uppercase tracking-widest text-paddock-on-muted/40">
+                            {race.circuit}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            {isLocked ? (
+                              <span className="font-display text-[10px] font-bold uppercase tracking-widest text-paddock-cyan">
+                                Locked
+                              </span>
+                            ) : hasPrediction ? (
+                              <span className="font-display text-[10px] font-bold uppercase tracking-widest text-paddock-cyan">
+                                Predicted
+                              </span>
+                            ) : (
+                              <span className="font-display text-[10px] font-bold uppercase tracking-widest text-paddock-warning">
+                                Open
+                              </span>
+                            )}
+                            {isLocked && (
+                              <Lock className="h-3.5 w-3.5 text-paddock-on-muted/20" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
                   );
                 })}
-
-                {/* Remaining Future Races */}
-                {remainingFutureRaces.length > 0 && (
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mb-2 w-full justify-between"
-                      onClick={() => setShowRemainingRaces(!showRemainingRaces)}
-                    >
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {remainingFutureRaces.length} More Future Race
-                        {remainingFutureRaces.length !== 1 ? "s" : ""}
-                      </span>
-                      {showRemainingRaces ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                    {showRemainingRaces && (
-                      <div className="space-y-3">
-                        {remainingFutureRaces.map((race) => {
-                          const racePredictions =
-                            predictionsByRace?.[race._id] || [];
-                          return (
-                            <PredictionSummary
-                              key={race._id}
-                              race={race}
-                              predictions={racePredictions}
-                              drivers={drivers}
-                              participantCount={participants?.length || 0}
-                              isPast={false}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Locked Races - Collapsible */}
-                {lockedRaces.length > 0 && (
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mb-2 w-full justify-between"
-                      onClick={() => setShowLockedRaces(!showLockedRaces)}
-                    >
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {lockedRaces.length} Locked Race
-                        {lockedRaces.length !== 1 ? "s" : ""}
-                      </span>
-                      {showLockedRaces ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                    {showLockedRaces && (
-                      <div className="space-y-3">
-                        {lockedRaces.map((race) => {
-                          const racePredictions =
-                            predictionsByRace?.[race._id] || [];
-                          return (
-                            <PredictionSummary
-                              key={race._id}
-                              race={race}
-                              predictions={racePredictions}
-                              drivers={drivers}
-                              participantCount={participants?.length || 0}
-                              isPast={true}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
-            ) : (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                No races available. Click on a race above to make your
-                predictions.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
 
-        {/* Leaderboard */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Leaderboard</CardTitle>
-              {isHost && lockedRaces.length > 0 && (
-                <SyncAllRacesButton races={lockedRaces} />
+          {/* Locked Races (collapsed by default) */}
+          {lockedRaces.length > 0 && (
+            <div className="room-overview-enter room-overview-enter-delay-4">
+              <button
+                type="button"
+                onClick={() => setShowLockedRaces(!showLockedRaces)}
+                className="mb-4 flex w-full items-center justify-between transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="h-[2px] w-6 bg-paddock-on-muted/40" />
+                  <h3 className="font-display text-[11px] font-bold uppercase tracking-[0.25em] text-paddock-on-muted">
+                    Past Races
+                    <span className="ml-2 text-paddock-on-muted/50">
+                      ({lockedRaces.length})
+                    </span>
+                  </h3>
+                </div>
+                {showLockedRaces ? (
+                  <ChevronUp className="h-4 w-4 text-paddock-on-muted/50" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-paddock-on-muted/50" />
+                )}
+              </button>
+
+              {showLockedRaces && (
+                <div className="space-y-4">
+                  {lockedRaces
+                    .sort((a, b) => b.date - a.date)
+                    .map((race) => {
+                      const racePredictions =
+                        predictionsByRace?.[race._id] || [];
+                      return (
+                        <PredictionSummary
+                          key={race._id}
+                          race={race}
+                          predictions={racePredictions}
+                          drivers={drivers}
+                          participantCount={participants?.length || 0}
+                          isPast={true}
+                          defaultExpanded={race._id === mostRecentLockedRaceId}
+                        />
+                      );
+                    })}
+                </div>
               )}
             </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <RoomLeaderboard leaderboard={leaderboard || []} />
-          </CardContent>
-        </Card>
+          )}
+        </div>
+
+        {/* Right sidebar */}
+        <div className="room-overview-enter room-overview-enter-delay-2 space-y-6">
+          {/* Prediction Status */}
+          {nextRace && (
+            <div className="rounded-sm bg-paddock-surface-low p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                  Prediction Status
+                </h3>
+                {lockoutInfo?.locked ? (
+                  <Lock className="h-4 w-4 text-paddock-warning" />
+                ) : (
+                  <div className="h-2 w-2 rounded-full bg-paddock-cyan" />
+                )}
+              </div>
+
+              {(() => {
+                const pred = userPredictions?.find(
+                  (p) => p.raceId === nextRace._id
+                );
+                if (!pred) {
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-sm text-paddock-on-muted">
+                        No prediction submitted for this race yet.
+                      </p>
+                      <Link
+                        href={`/rooms/${roomId}/predictions/${nextRace._id}`}
+                        className="block w-full rounded-sm bg-paddock-surface-high py-2.5 text-center font-display text-[10px] font-bold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest"
+                      >
+                        Edit all picks
+                      </Link>
+                    </div>
+                  );
+                }
+
+                const getDriverName = (num: number | undefined) => {
+                  if (!num) return "—";
+                  const d = drivers.find((d) => d.driverNumber === num);
+                  return d
+                    ? d.name.split(" ").pop()?.toUpperCase() || d.name
+                    : `#${num}`;
+                };
+
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between rounded-sm bg-paddock-surface px-3 py-2">
+                      <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                        Pole Position
+                      </span>
+                      <span className="font-display text-sm font-bold uppercase text-paddock-on">
+                        {getDriverName(pred.polePositionDriverId)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-sm bg-paddock-surface px-3 py-2">
+                      <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                        P1 Winner
+                      </span>
+                      <span className="font-display text-sm font-bold uppercase text-paddock-on">
+                        {getDriverName(
+                          pred.predictedPositions.find(
+                            (p: { position: number }) => p.position === 1
+                          )?.driverNumber
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-sm bg-paddock-surface px-3 py-2">
+                      <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                        Fastest Lap
+                      </span>
+                      <span className="font-display text-sm font-bold uppercase text-paddock-on">
+                        {getDriverName(pred.fastestLapDriverId)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-sm bg-paddock-surface px-3 py-2">
+                      <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                        DNF Count
+                      </span>
+                      <span className="font-display text-sm font-bold uppercase text-paddock-on">
+                        {String(pred.dnfDriverIds.length).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <Link
+                      href={`/rooms/${roomId}/predictions/${nextRace._id}`}
+                      className="block w-full rounded-sm bg-paddock-surface-high py-2.5 text-center font-display text-[10px] font-bold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest"
+                    >
+                      Edit all picks
+                    </Link>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Join Code */}
+          <div className="rounded-sm bg-paddock-surface-low p-5">
+            <h3 className="mb-3 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+              Join Code
+            </h3>
+            <code className="block rounded-sm bg-paddock-surface-lowest px-3 py-2 text-center font-mono text-lg font-bold tracking-[0.3em] text-paddock-on">
+              {room.joinCode}
+            </code>
+          </div>
+
+          {/* League standings (top 5) */}
+          <div className="rounded-sm bg-paddock-surface-low p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                League Standings (Top 5)
+              </h3>
+              <Link
+                href={`/rooms/${roomId}/results`}
+                className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-cyan transition-colors hover:text-paddock-cyan-soft"
+              >
+                View full rankings
+              </Link>
+            </div>
+            <RoomLeaderboard leaderboard={leaderboard || []} compact />
+          </div>
+
+          {/* Host tools */}
+          {isHost && lockedRaces.length > 0 && (
+            <div className="rounded-sm bg-paddock-surface-low p-5">
+              <h3 className="mb-3 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                Host Tools
+              </h3>
+              <SyncAllRacesButton races={lockedRaces} />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Room Settings Dialog */}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/lib/convex";
@@ -8,9 +8,16 @@ import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/layout/app-header";
 import { Attribution } from "@/components/layout/attribution";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -41,7 +48,7 @@ export default function RootLayout({
     return (
       <html lang="en" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} antialiased`}
         >
           <ThemeProvider
             attribute="class"
@@ -49,8 +56,8 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-              <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
+            <div className="flex min-h-screen flex-col items-center justify-center bg-paddock-bg font-sans">
+              <p className="text-paddock-on-muted">Loading...</p>
             </div>
           </ThemeProvider>
         </body>
@@ -61,7 +68,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} antialiased`}
       >
         <ClerkProvider publishableKey={publishableKey}>
           <ThemeProvider
@@ -71,9 +78,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ConvexClientProvider>
-              <div className="flex min-h-screen flex-col bg-zinc-50 font-sans dark:bg-black">
+              <div className="flex min-h-screen flex-col bg-paddock-bg font-sans">
                 <AppHeader />
-                <main className="flex-1">{children}</main>
+                <main className="flex-1 dark:telemetry-grid">{children}</main>
                 <Attribution />
               </div>
               <Toaster />

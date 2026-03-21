@@ -1,7 +1,6 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Doc } from "@/convex/_generated/dataModel";
 
 interface ParticipantWithUser {
@@ -19,50 +18,51 @@ interface RoomParticipantsProps {
 
 export function RoomParticipants({ participants }: RoomParticipantsProps) {
   return (
-    <div>
-      <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-        Participants ({participants.length})
-      </h3>
-      <div className="space-y-2">
-        {participants.map((participant) => {
-          const user = participant.user;
-          const username = user?.username || "Unknown";
-          const initials = username
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2);
+    <div className="space-y-1">
+      {participants.map((participant) => {
+        const user = participant.user;
+        const username = user?.username || "Unknown";
+        const initials = username
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+        const isHost = participant.role === "host";
 
-          return (
+        return (
+          <div
+            key={participant._id}
+            className={cn(
+              "flex items-center gap-3 rounded-sm px-4 py-3",
+              isHost &&
+                "border-l-4 border-paddock-accent bg-paddock-accent/[0.06]",
+              !isHost && "border-l-4 border-transparent"
+            )}
+          >
             <div
-              key={participant._id}
-              className="flex items-center gap-3 rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800"
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-xs font-bold",
+                isHost
+                  ? "bg-paddock-accent/20 text-paddock-accent"
+                  : "bg-paddock-surface-high text-paddock-on-muted"
+              )}
             >
-              <Avatar className="h-9 w-9 shrink-0">
-                {user?.avatarUrl && (
-                  <AvatarImage src={user.avatarUrl} alt={username} />
-                )}
-                <AvatarFallback className="text-xs font-medium">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-medium text-zinc-900 dark:text-zinc-50">
-                    {username}
-                  </span>
-                  {participant.role === "host" && (
-                    <Badge variant="secondary" className="shrink-0 text-xs">
-                      Host
-                    </Badge>
-                  )}
-                </div>
-              </div>
+              {initials}
             </div>
-          );
-        })}
-      </div>
+            <div className="min-w-0 flex-1">
+              <span className="block truncate font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+                {username}
+              </span>
+            </div>
+            {isHost && (
+              <span className="rounded-sm bg-paddock-accent/20 px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-accent">
+                Host
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

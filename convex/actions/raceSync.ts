@@ -43,7 +43,7 @@ export const syncRaceResultsAndScore = action({
     // Check if race has actually completed
     const now = Date.now();
 
-    // If results don't exist, sync them from OpenF1 API
+    // If results don't exist, sync them from F1 Connect API
     if (!race.officialResults) {
       // Only try to sync if race has completed (race date has passed)
       // The direct race endpoint should have results available immediately after race finishes
@@ -57,7 +57,7 @@ export const syncRaceResultsAndScore = action({
 
       try {
         const syncResult = await ctx.runAction(
-          api.actions.openf1.updateRaceResultsFromOpenF1,
+          api.actions.f1Connect.updateRaceResultsFromF1Connect,
           {
             raceId: args.raceId,
           }

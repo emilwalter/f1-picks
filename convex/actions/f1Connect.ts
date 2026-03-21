@@ -2,12 +2,13 @@
 
 import { action } from "../_generated/server";
 import { v } from "convex/values";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 
+/** Base URL for F1 Connect–compatible HTTP API (schedules, drivers, results). */
 const F1API_BASE_URL = "https://f1api.dev/api";
 
-// Type definitions for F1 API responses
+// Type definitions for F1 Connect API responses
 interface RaceData {
   raceId?: string;
   raceName?: string;
@@ -67,7 +68,7 @@ interface SessionData {
 }
 
 /**
- * Get the next upcoming race from F1 API
+ * Get the next upcoming race from F1 Connect API
  * Uses /current/next endpoint for efficient fetching
  */
 export const getNextRace = action({
@@ -102,11 +103,11 @@ export const getNextRace = action({
 });
 
 /**
- * Sync season schedule from F1 API (f1api.dev)
+ * Sync season schedule from F1 Connect API
  * Fetches race schedule (dates, circuits, locations) for a given year
  * Note: Driver/team info is fetched on-demand when needed for predictions/results
  */
-export const syncSeasonFromOpenF1 = action({
+export const syncSeasonFromF1Connect = action({
   args: {
     year: v.number(),
   },
@@ -318,11 +319,11 @@ interface RaceResultsResponse {
 }
 
 /**
- * Update race results from Open F1 API
+ * Update race results from F1 Connect API
  * Uses the direct race endpoint: /api/{year}/{round}/race
  * This is much more reliable than trying to find sessions by date
  */
-export const updateRaceResultsFromOpenF1 = action({
+export const updateRaceResultsFromF1Connect = action({
   args: {
     raceId: v.id("races"),
   },
@@ -497,6 +498,20 @@ export const updateRaceResultsFromOpenF1 = action({
   },
 });
 
+/** Normalized driver row returned by getDriversForRace (matches driverSeasonCache schema). */
+type SeasonDriverRow = {
+  driverNumber: number;
+  name: string;
+  teamName: string;
+  teamLogo?: string;
+  countryCode: string;
+};
+
+type DriverSeasonCacheDoc = {
+  drivers: SeasonDriverRow[];
+  updatedAt: number;
+} | null;
+
 /**
  * Get drivers and teams for a specific season
  * Uses /{year}/drivers and /{year}/teams endpoints for season-specific data
@@ -505,372 +520,152 @@ export const getDriversForRace = action({
   args: {
     year: v.number(), // Season year (e.g. 2025, 2026) - determines which drivers/teams to fetch
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SeasonDriverRow[]> => {
     const year = args.year;
-
-    // Fetch season-specific drivers and teams
-    const [driversResponse, teamsResponse] = await Promise.all([
-      fetch(`${F1API_BASE_URL}/${year}/drivers`),
-      fetch(`${F1API_BASE_URL}/${year}/teams`).catch(() => null),
-    ]);
-
-    if (!driversResponse.ok) {
-      const errorText = await driversResponse.text().catch(() => "");
-      throw new Error(
-        `Failed to fetch drivers: ${driversResponse.status} ${driversResponse.statusText}. ${errorText.substring(0, 200)}`
-      );
+    const TTL_MS = 6 * 60 * 60 * 1000;
+    const cached = (await ctx.runQuery(internal.driversCache.getByYear, {
+      year,
+    })) as DriverSeasonCacheDoc;
+    if (cached && Date.now() - cached.updatedAt < TTL_MS) {
+      return cached.drivers;
     }
 
-    const driversData = (await driversResponse.json()) as
-      | DriverData[]
-      | { drivers?: DriverData[]; driver?: DriverData[] };
+    try {
+      // Fetch season-specific drivers and teams
+      const [driversResponse, teamsResponse] = await Promise.all([
+        fetch(`${F1API_BASE_URL}/${year}/drivers`),
+        fetch(`${F1API_BASE_URL}/${year}/teams`).catch(() => null),
+      ]);
 
-    // Handle response format: {drivers: [...]} or {driver: [...]}
-    let drivers: DriverData[] = [];
-    if (Array.isArray(driversData)) {
-      drivers = driversData;
-    } else if (driversData.drivers && Array.isArray(driversData.drivers)) {
-      drivers = driversData.drivers;
-    } else if (driversData.driver && Array.isArray(driversData.driver)) {
-      drivers = driversData.driver;
-    } else {
-      console.warn(
-        "Unexpected drivers response format:",
-        JSON.stringify(driversData).substring(0, 500)
-      );
-      drivers = [];
-    }
-
-    // Build driver-to-team mapping using year-specific team endpoints
-    const teamMap: Map<number, { name: string; logo?: string }> = new Map();
-
-    // Known team names that work with the API (fallback if teams endpoint doesn't work)
-    const knownTeamNames = [
-      "mercedes",
-      "ferrari",
-      "red-bull-racing",
-      "mclaren",
-      "aston-martin",
-      "alpine",
-      "williams",
-      "alphatauri",
-      "alfa-romeo",
-      "haas",
-    ];
-
-    if (teamsResponse && teamsResponse.ok) {
-      const teamsData = (await teamsResponse.json()) as
-        | TeamData[]
-        | { teams?: TeamData[]; team?: TeamData[] };
-      // Handle both array and object with teams array
-      let teams: TeamData[] = [];
-      if (Array.isArray(teamsData)) {
-        teams = teamsData;
-      } else if (teamsData.teams && Array.isArray(teamsData.teams)) {
-        teams = teamsData.teams;
-      } else if (teamsData.team && Array.isArray(teamsData.team)) {
-        teams = teamsData.team;
-      }
-
-      console.log(`Found ${teams.length} teams from API`);
-      if (teams.length > 0) {
-        console.log(
-          `Sample team data:`,
-          JSON.stringify(teams[0]).substring(0, 200)
+      if (!driversResponse.ok) {
+        const errorText = await driversResponse.text().catch(() => "");
+        throw new Error(
+          `Failed to fetch drivers: ${driversResponse.status} ${driversResponse.statusText}. ${errorText.substring(0, 200)}`
         );
       }
 
-      // Fetch drivers for each team using /{year}/teams/{teamId}/drivers endpoint
-      const teamDriverPromises = teams.map(async (team) => {
-        // Get teamId - this is what the API uses in URLs (e.g., "mercedes")
-        const teamId = team.teamId || team.id || team.slug;
-        // Get team display name (will be updated from API if available)
-        let teamName = team.teamName || team.name || team.team_name || teamId;
+      const driversData = (await driversResponse.json()) as
+        | DriverData[]
+        | { drivers?: DriverData[]; driver?: DriverData[] };
 
-        if (!teamId) {
-          return null;
+      // Handle response format: {drivers: [...]} or {driver: [...]}
+      let drivers: DriverData[] = [];
+      if (Array.isArray(driversData)) {
+        drivers = driversData;
+      } else if (driversData.drivers && Array.isArray(driversData.drivers)) {
+        drivers = driversData.drivers;
+      } else if (driversData.driver && Array.isArray(driversData.driver)) {
+        drivers = driversData.driver;
+      } else {
+        console.warn(
+          "Unexpected drivers response format:",
+          JSON.stringify(driversData).substring(0, 500)
+        );
+        drivers = [];
+      }
+
+      // Build driver-to-team mapping using year-specific team endpoints
+      const teamMap: Map<number, { name: string; logo?: string }> = new Map();
+
+      // Known team names that work with the API (fallback if teams endpoint doesn't work)
+      const knownTeamNames = [
+        "mercedes",
+        "ferrari",
+        "red-bull-racing",
+        "mclaren",
+        "aston-martin",
+        "alpine",
+        "williams",
+        "alphatauri",
+        "alfa-romeo",
+        "haas",
+      ];
+
+      if (teamsResponse && teamsResponse.ok) {
+        const teamsData = (await teamsResponse.json()) as
+          | TeamData[]
+          | { teams?: TeamData[]; team?: TeamData[] };
+        // Handle both array and object with teams array
+        let teams: TeamData[] = [];
+        if (Array.isArray(teamsData)) {
+          teams = teamsData;
+        } else if (teamsData.teams && Array.isArray(teamsData.teams)) {
+          teams = teamsData.teams;
+        } else if (teamsData.team && Array.isArray(teamsData.team)) {
+          teams = teamsData.team;
         }
 
-        try {
-          // Use teamId directly in the URL (API expects it as-is, e.g., "mercedes")
-          const teamSlug = String(teamId).toLowerCase();
-
-          const [teamInfoResponse, teamDriversResponse] = await Promise.all([
-            fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-              () => null
-            ),
-            fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`).catch(
-              () => null
-            ),
-          ]);
-
-          let teamLogo: string | undefined = team.logo;
-          if (teamInfoResponse && teamInfoResponse.ok) {
-            const teamInfo = (await teamInfoResponse.json()) as
-              | TeamData
-              | { team?: TeamData[] };
-            // Handle team info response format: { team: [{ teamName: "...", ... }] }
-            const teamData = (
-              Array.isArray(teamInfo)
-                ? teamInfo[0]
-                : "team" in teamInfo && Array.isArray(teamInfo.team)
-                  ? teamInfo.team[0]
-                  : teamInfo
-            ) as TeamData;
-            teamLogo =
-              teamData.logo || (teamInfo as TeamData).logo || team.logo;
-            // Update teamName from API if available
-            if (teamData.teamName || (teamInfo as TeamData).teamName) {
-              teamName =
-                teamData.teamName ||
-                (teamInfo as TeamData).teamName ||
-                teamName;
-            }
-          }
-
-          let driversList: TeamDriverItem[] = [];
-          if (teamDriversResponse && teamDriversResponse.ok) {
-            const teamDriversData = (await teamDriversResponse.json()) as
-              | TeamDriverItem[]
-              | { drivers?: TeamDriverItem[] };
-            // API returns { drivers: [{ driver: {...} }] }
-            if (
-              !Array.isArray(teamDriversData) &&
-              "drivers" in teamDriversData &&
-              Array.isArray(teamDriversData.drivers)
-            ) {
-              driversList = teamDriversData.drivers;
-            } else if (Array.isArray(teamDriversData)) {
-              driversList = teamDriversData;
-            }
-          }
-
-          // Extract driver numbers from the drivers array
-          // Each item has format: { driver: { number: 44, ... } }
-          const driverNumbers = driversList
-            .map((item) => {
-              const driver = item.driver || item;
-              return (
-                (driver as DriverData).number ||
-                (driver as DriverData).driverNumber ||
-                (driver as DriverData).driver_number
-              );
-            })
-            .filter((n): n is number => typeof n === "number");
-
-          if (driverNumbers.length > 0) {
-            return {
-              teamName,
-              teamLogo,
-              driverNumbers,
-            };
-          } else {
-            console.warn(
-              `No drivers found for team ${teamName} (teamId: ${teamId})`
-            );
-          }
-        } catch (err) {
-          console.warn(
-            `Failed to fetch drivers for team ${teamName} (teamId: ${teamId}):`,
-            err
+        console.log(`Found ${teams.length} teams from API`);
+        if (teams.length > 0) {
+          console.log(
+            `Sample team data:`,
+            JSON.stringify(teams[0]).substring(0, 200)
           );
         }
-        return null;
-      });
 
-      const teamDriverMappings = await Promise.all(teamDriverPromises);
-      const successfulMappings = teamDriverMappings.filter(
-        (
-          m
-        ): m is {
-          teamName: string;
-          teamLogo: string | undefined;
-          driverNumbers: number[];
-        } =>
-          m !== null &&
-          m.teamName !== undefined &&
-          typeof m.teamName === "string"
-      );
+        // Fetch drivers for each team using /{year}/teams/{teamId}/drivers endpoint
+        const teamDriverPromises = teams.map(async (team) => {
+          // Get teamId - this is what the API uses in URLs (e.g., "mercedes")
+          const teamId = team.teamId || team.id || team.slug;
+          // Get team display name (will be updated from API if available)
+          let teamName = team.teamName || team.name || team.team_name || teamId;
 
-      console.log(
-        `Successfully mapped ${successfulMappings.length} teams out of ${teams.length}`
-      );
-
-      successfulMappings.forEach((mapping) => {
-        const teamName: string = mapping.teamName;
-        mapping.driverNumbers.forEach((driverNumber: number) => {
-          if (driverNumber) {
-            teamMap.set(driverNumber, {
-              name: teamName,
-              logo: mapping.teamLogo,
-            });
-          }
-        });
-      });
-
-      // If we didn't get enough mappings, try fallback with known team names
-      if (
-        successfulMappings.length === 0 ||
-        teamMap.size < drivers.length * 0.5
-      ) {
-        console.log("Using fallback: fetching drivers for known team names");
-        const fallbackPromises = knownTeamNames.map(
-          async (teamSlug: string) => {
-            try {
-              const [teamInfoResponse, teamDriversResponse] = await Promise.all(
-                [
-                  fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-                    () => null
-                  ),
-                  fetch(
-                    `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
-                  ).catch(() => null),
-                ]
-              );
-
-              let teamLogo: string | undefined;
-              let teamDisplayName = teamSlug
-                .replace(/-/g, " ")
-                .replace(/\b\w/g, (l) => l.toUpperCase());
-
-              if (teamInfoResponse && teamInfoResponse.ok) {
-                const teamInfo = (await teamInfoResponse.json()) as
-                  | TeamData
-                  | { team?: TeamData[] };
-                // Handle team info response format: { team: [{ teamName: "...", ... }] }
-                const teamData = (
-                  Array.isArray(teamInfo)
-                    ? teamInfo[0]
-                    : "team" in teamInfo && Array.isArray(teamInfo.team)
-                      ? teamInfo.team[0]
-                      : teamInfo
-                ) as TeamData;
-                teamLogo = teamData.logo || (teamInfo as TeamData).logo;
-                teamDisplayName =
-                  teamData.teamName ||
-                  (teamInfo as TeamData).teamName ||
-                  teamData.name ||
-                  (teamInfo as TeamData).name ||
-                  teamDisplayName;
-              }
-
-              if (teamDriversResponse && teamDriversResponse.ok) {
-                const teamDriversData = (await teamDriversResponse.json()) as
-                  | TeamDriverItem[]
-                  | { drivers?: TeamDriverItem[] };
-                // API returns { drivers: [{ driver: {...} }] }
-                let driversList: TeamDriverItem[] = [];
-                if (
-                  !Array.isArray(teamDriversData) &&
-                  "drivers" in teamDriversData &&
-                  Array.isArray(teamDriversData.drivers)
-                ) {
-                  driversList = teamDriversData.drivers;
-                } else if (Array.isArray(teamDriversData)) {
-                  driversList = teamDriversData;
-                }
-
-                // Extract driver numbers from the drivers array
-                // Each item has format: { driver: { number: 44, ... } }
-                const driverNumbers = driversList
-                  .map((item) => {
-                    const driver = item.driver || item;
-                    return (
-                      (driver as DriverData).number ||
-                      (driver as DriverData).driverNumber ||
-                      (driver as DriverData).driver_number
-                    );
-                  })
-                  .filter((n): n is number => typeof n === "number");
-
-                if (driverNumbers.length > 0) {
-                  return {
-                    teamName: teamDisplayName,
-                    teamLogo,
-                    driverNumbers,
-                  };
-                }
-              }
-            } catch {
-              // Silently continue
-            }
+          if (!teamId) {
             return null;
           }
-        );
 
-        const fallbackMappings = await Promise.all(fallbackPromises);
-        fallbackMappings.forEach((mapping) => {
-          if (mapping) {
-            mapping.driverNumbers.forEach((driverNumber: number) => {
-              if (driverNumber && !teamMap.has(driverNumber)) {
-                teamMap.set(driverNumber, {
-                  name: mapping.teamName,
-                  logo: mapping.teamLogo,
-                });
+          try {
+            // Use teamId directly in the URL (API expects it as-is, e.g., "mercedes")
+            const teamSlug = String(teamId).toLowerCase();
+
+            const [teamInfoResponse, teamDriversResponse] = await Promise.all([
+              fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
+                () => null
+              ),
+              fetch(
+                `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
+              ).catch(() => null),
+            ]);
+
+            let teamLogo: string | undefined = team.logo;
+            if (teamInfoResponse && teamInfoResponse.ok) {
+              const teamInfo = (await teamInfoResponse.json()) as
+                | TeamData
+                | { team?: TeamData[] };
+              // Handle team info response format: { team: [{ teamName: "...", ... }] }
+              const teamData = (
+                Array.isArray(teamInfo)
+                  ? teamInfo[0]
+                  : "team" in teamInfo && Array.isArray(teamInfo.team)
+                    ? teamInfo.team[0]
+                    : teamInfo
+              ) as TeamData;
+              teamLogo =
+                teamData.logo || (teamInfo as TeamData).logo || team.logo;
+              // Update teamName from API if available
+              if (teamData.teamName || (teamInfo as TeamData).teamName) {
+                teamName =
+                  teamData.teamName ||
+                  (teamInfo as TeamData).teamName ||
+                  teamName;
               }
-            });
-          }
-        });
+            }
 
-        console.log(`Fallback mapped ${teamMap.size} drivers to teams`);
-      }
-    } else {
-      console.warn(
-        `Teams endpoint failed: ${teamsResponse?.status || "no response"}, using fallback`
-      );
-
-      // Use fallback immediately if teams endpoint failed
-      const fallbackPromises = knownTeamNames.map(async (teamSlug) => {
-        try {
-          const [teamInfoResponse, teamDriversResponse] = await Promise.all([
-            fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-              () => null
-            ),
-            fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`).catch(
-              () => null
-            ),
-          ]);
-
-          let teamLogo: string | undefined;
-          let teamDisplayName = teamSlug
-            .replace(/-/g, " ")
-            .replace(/\b\w/g, (l) => l.toUpperCase());
-
-          if (teamInfoResponse && teamInfoResponse.ok) {
-            const teamInfo = (await teamInfoResponse.json()) as
-              | TeamData
-              | { team?: TeamData[] };
-            // Handle team info response format: { team: [{ teamName: "...", ... }] }
-            const teamData = (
-              Array.isArray(teamInfo)
-                ? teamInfo[0]
-                : "team" in teamInfo && Array.isArray(teamInfo.team)
-                  ? teamInfo.team[0]
-                  : teamInfo
-            ) as TeamData;
-            teamLogo = teamData.logo || (teamInfo as TeamData).logo;
-            teamDisplayName =
-              teamData.teamName ||
-              (teamInfo as TeamData).teamName ||
-              teamData.name ||
-              (teamInfo as TeamData).name ||
-              teamDisplayName;
-          }
-
-          if (teamDriversResponse && teamDriversResponse.ok) {
-            const teamDriversData = (await teamDriversResponse.json()) as
-              | TeamDriverItem[]
-              | { drivers?: TeamDriverItem[] };
-            // API returns { drivers: [{ driver: {...} }] }
             let driversList: TeamDriverItem[] = [];
-            if (
-              !Array.isArray(teamDriversData) &&
-              "drivers" in teamDriversData &&
-              Array.isArray(teamDriversData.drivers)
-            ) {
-              driversList = teamDriversData.drivers;
-            } else if (Array.isArray(teamDriversData)) {
-              driversList = teamDriversData;
+            if (teamDriversResponse && teamDriversResponse.ok) {
+              const teamDriversData = (await teamDriversResponse.json()) as
+                | TeamDriverItem[]
+                | { drivers?: TeamDriverItem[] };
+              // API returns { drivers: [{ driver: {...} }] }
+              if (
+                !Array.isArray(teamDriversData) &&
+                "drivers" in teamDriversData &&
+                Array.isArray(teamDriversData.drivers)
+              ) {
+                driversList = teamDriversData.drivers;
+              } else if (Array.isArray(teamDriversData)) {
+                driversList = teamDriversData;
+              }
             }
 
             // Extract driver numbers from the drivers array
@@ -888,79 +683,329 @@ export const getDriversForRace = action({
 
             if (driverNumbers.length > 0) {
               return {
-                teamName: teamDisplayName,
+                teamName,
                 teamLogo,
                 driverNumbers,
               };
+            } else {
+              console.warn(
+                `No drivers found for team ${teamName} (teamId: ${teamId})`
+              );
             }
+          } catch (err) {
+            console.warn(
+              `Failed to fetch drivers for team ${teamName} (teamId: ${teamId}):`,
+              err
+            );
           }
-        } catch {
-          // Silently continue
-        }
-        return null;
-      });
+          return null;
+        });
 
-      const fallbackMappings = await Promise.all(fallbackPromises);
-      fallbackMappings.forEach((mapping) => {
-        if (mapping) {
+        const teamDriverMappings = await Promise.all(teamDriverPromises);
+        const successfulMappings = teamDriverMappings.filter(
+          (
+            m
+          ): m is {
+            teamName: string;
+            teamLogo: string | undefined;
+            driverNumbers: number[];
+          } =>
+            m !== null &&
+            m.teamName !== undefined &&
+            typeof m.teamName === "string"
+        );
+
+        console.log(
+          `Successfully mapped ${successfulMappings.length} teams out of ${teams.length}`
+        );
+
+        successfulMappings.forEach((mapping) => {
+          const teamName: string = mapping.teamName;
           mapping.driverNumbers.forEach((driverNumber: number) => {
             if (driverNumber) {
               teamMap.set(driverNumber, {
-                name: mapping.teamName,
+                name: teamName,
                 logo: mapping.teamLogo,
               });
             }
           });
+        });
+
+        // If we didn't get enough mappings, try fallback with known team names
+        if (
+          successfulMappings.length === 0 ||
+          teamMap.size < drivers.length * 0.5
+        ) {
+          console.log("Using fallback: fetching drivers for known team names");
+          const fallbackPromises = knownTeamNames.map(
+            async (teamSlug: string) => {
+              try {
+                const [teamInfoResponse, teamDriversResponse] =
+                  await Promise.all([
+                    fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
+                      () => null
+                    ),
+                    fetch(
+                      `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
+                    ).catch(() => null),
+                  ]);
+
+                let teamLogo: string | undefined;
+                let teamDisplayName = teamSlug
+                  .replace(/-/g, " ")
+                  .replace(/\b\w/g, (l) => l.toUpperCase());
+
+                if (teamInfoResponse && teamInfoResponse.ok) {
+                  const teamInfo = (await teamInfoResponse.json()) as
+                    | TeamData
+                    | { team?: TeamData[] };
+                  // Handle team info response format: { team: [{ teamName: "...", ... }] }
+                  const teamData = (
+                    Array.isArray(teamInfo)
+                      ? teamInfo[0]
+                      : "team" in teamInfo && Array.isArray(teamInfo.team)
+                        ? teamInfo.team[0]
+                        : teamInfo
+                  ) as TeamData;
+                  teamLogo = teamData.logo || (teamInfo as TeamData).logo;
+                  teamDisplayName =
+                    teamData.teamName ||
+                    (teamInfo as TeamData).teamName ||
+                    teamData.name ||
+                    (teamInfo as TeamData).name ||
+                    teamDisplayName;
+                }
+
+                if (teamDriversResponse && teamDriversResponse.ok) {
+                  const teamDriversData = (await teamDriversResponse.json()) as
+                    | TeamDriverItem[]
+                    | { drivers?: TeamDriverItem[] };
+                  // API returns { drivers: [{ driver: {...} }] }
+                  let driversList: TeamDriverItem[] = [];
+                  if (
+                    !Array.isArray(teamDriversData) &&
+                    "drivers" in teamDriversData &&
+                    Array.isArray(teamDriversData.drivers)
+                  ) {
+                    driversList = teamDriversData.drivers;
+                  } else if (Array.isArray(teamDriversData)) {
+                    driversList = teamDriversData;
+                  }
+
+                  // Extract driver numbers from the drivers array
+                  // Each item has format: { driver: { number: 44, ... } }
+                  const driverNumbers = driversList
+                    .map((item) => {
+                      const driver = item.driver || item;
+                      return (
+                        (driver as DriverData).number ||
+                        (driver as DriverData).driverNumber ||
+                        (driver as DriverData).driver_number
+                      );
+                    })
+                    .filter((n): n is number => typeof n === "number");
+
+                  if (driverNumbers.length > 0) {
+                    return {
+                      teamName: teamDisplayName,
+                      teamLogo,
+                      driverNumbers,
+                    };
+                  }
+                }
+              } catch {
+                // Silently continue
+              }
+              return null;
+            }
+          );
+
+          const fallbackMappings = await Promise.all(fallbackPromises);
+          fallbackMappings.forEach((mapping) => {
+            if (mapping) {
+              mapping.driverNumbers.forEach((driverNumber: number) => {
+                if (driverNumber && !teamMap.has(driverNumber)) {
+                  teamMap.set(driverNumber, {
+                    name: mapping.teamName,
+                    logo: mapping.teamLogo,
+                  });
+                }
+              });
+            }
+          });
+
+          console.log(`Fallback mapped ${teamMap.size} drivers to teams`);
         }
-      });
+      } else {
+        console.warn(
+          `Teams endpoint failed: ${teamsResponse?.status || "no response"}, using fallback`
+        );
 
-      console.log(`Fallback mapped ${teamMap.size} drivers to teams`);
-    }
+        // Use fallback immediately if teams endpoint failed
+        const fallbackPromises = knownTeamNames.map(async (teamSlug) => {
+          try {
+            const [teamInfoResponse, teamDriversResponse] = await Promise.all([
+              fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
+                () => null
+              ),
+              fetch(
+                `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
+              ).catch(() => null),
+            ]);
 
-    // Return formatted driver data with team information
-    if (!Array.isArray(drivers) || drivers.length === 0) {
-      console.warn(
-        `No drivers found. Response data:`,
-        JSON.stringify(driversData).substring(0, 500)
-      );
-      return [];
-    }
+            let teamLogo: string | undefined;
+            let teamDisplayName = teamSlug
+              .replace(/-/g, " ")
+              .replace(/\b\w/g, (l) => l.toUpperCase());
 
-    return drivers
-      .map((driver) => {
-        // Handle different API response formats
-        const driverNumber =
-          driver.number || driver.driver_number || driver.driverNumber;
-        if (!driverNumber) {
+            if (teamInfoResponse && teamInfoResponse.ok) {
+              const teamInfo = (await teamInfoResponse.json()) as
+                | TeamData
+                | { team?: TeamData[] };
+              // Handle team info response format: { team: [{ teamName: "...", ... }] }
+              const teamData = (
+                Array.isArray(teamInfo)
+                  ? teamInfo[0]
+                  : "team" in teamInfo && Array.isArray(teamInfo.team)
+                    ? teamInfo.team[0]
+                    : teamInfo
+              ) as TeamData;
+              teamLogo = teamData.logo || (teamInfo as TeamData).logo;
+              teamDisplayName =
+                teamData.teamName ||
+                (teamInfo as TeamData).teamName ||
+                teamData.name ||
+                (teamInfo as TeamData).name ||
+                teamDisplayName;
+            }
+
+            if (teamDriversResponse && teamDriversResponse.ok) {
+              const teamDriversData = (await teamDriversResponse.json()) as
+                | TeamDriverItem[]
+                | { drivers?: TeamDriverItem[] };
+              // API returns { drivers: [{ driver: {...} }] }
+              let driversList: TeamDriverItem[] = [];
+              if (
+                !Array.isArray(teamDriversData) &&
+                "drivers" in teamDriversData &&
+                Array.isArray(teamDriversData.drivers)
+              ) {
+                driversList = teamDriversData.drivers;
+              } else if (Array.isArray(teamDriversData)) {
+                driversList = teamDriversData;
+              }
+
+              // Extract driver numbers from the drivers array
+              // Each item has format: { driver: { number: 44, ... } }
+              const driverNumbers = driversList
+                .map((item) => {
+                  const driver = item.driver || item;
+                  return (
+                    (driver as DriverData).number ||
+                    (driver as DriverData).driverNumber ||
+                    (driver as DriverData).driver_number
+                  );
+                })
+                .filter((n): n is number => typeof n === "number");
+
+              if (driverNumbers.length > 0) {
+                return {
+                  teamName: teamDisplayName,
+                  teamLogo,
+                  driverNumbers,
+                };
+              }
+            }
+          } catch {
+            // Silently continue
+          }
           return null;
-        }
-        const firstName = driver.name || driver.firstName || "";
-        const lastName =
-          driver.surname || driver.lastName || driver.last_name || "";
-        const fullName =
-          `${firstName} ${lastName}`.trim() ||
-          driver.shortName ||
-          `Driver ${driverNumber}`;
+        });
 
-        // Get team from API mapping
-        const teamInfo = teamMap.get(driverNumber);
-        const teamName = teamInfo?.name || "Unknown Team";
-        const teamLogo = teamInfo?.logo;
+        const fallbackMappings = await Promise.all(fallbackPromises);
+        fallbackMappings.forEach((mapping) => {
+          if (mapping) {
+            mapping.driverNumbers.forEach((driverNumber: number) => {
+              if (driverNumber) {
+                teamMap.set(driverNumber, {
+                  name: mapping.teamName,
+                  logo: mapping.teamLogo,
+                });
+              }
+            });
+          }
+        });
 
-        const countryCode =
-          driver.nationality || driver.country_code || driver.countryCode || "";
+        console.log(`Fallback mapped ${teamMap.size} drivers to teams`);
+      }
 
-        return {
-          driverNumber,
-          name: fullName,
-          teamName,
-          teamLogo,
-          countryCode,
-        };
-      })
-      .filter(
-        (driver): driver is NonNullable<typeof driver> => driver !== null
-      );
+      // Return formatted driver data with team information
+      if (!Array.isArray(drivers) || drivers.length === 0) {
+        console.warn(
+          `No drivers found. Response data:`,
+          JSON.stringify(driversData).substring(0, 500)
+        );
+        return [];
+      }
+
+      const result = drivers
+        .map((driver) => {
+          // Handle different API response formats
+          const driverNumber =
+            driver.number || driver.driver_number || driver.driverNumber;
+          if (!driverNumber) {
+            return null;
+          }
+          const firstName = driver.name || driver.firstName || "";
+          const lastName =
+            driver.surname || driver.lastName || driver.last_name || "";
+          const fullName =
+            `${firstName} ${lastName}`.trim() ||
+            driver.shortName ||
+            `Driver ${driverNumber}`;
+
+          // Get team from API mapping
+          const teamInfo = teamMap.get(driverNumber);
+          const teamName = teamInfo?.name || "Unknown Team";
+          const teamLogo = teamInfo?.logo;
+
+          const countryCode =
+            driver.nationality ||
+            driver.country_code ||
+            driver.countryCode ||
+            "";
+
+          return {
+            driverNumber,
+            name: fullName,
+            teamName,
+            teamLogo,
+            countryCode,
+          };
+        })
+        .filter(
+          (driver): driver is NonNullable<typeof driver> => driver !== null
+        );
+
+      if (result.length > 0) {
+        await ctx.runMutation(internal.driversCache.upsert, {
+          year,
+          drivers: result,
+          updatedAt: Date.now(),
+        });
+      }
+
+      return result;
+    } catch (err) {
+      if (cached) {
+        console.warn(
+          "getDriversForRace: API error, returning stale cache",
+          err
+        );
+        return cached.drivers;
+      }
+      throw err;
+    }
   },
 });
 
@@ -1018,7 +1063,7 @@ export const getDriverData = action({
 });
 
 /**
- * Extract session start/end times from OpenF1 session data
+ * Extract session start/end times from F1 Connect session payloads
  */
 function extractSessionTime(
   sessions: SessionData[],

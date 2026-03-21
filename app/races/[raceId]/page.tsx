@@ -6,8 +6,6 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Authenticated } from "convex/react";
 import { RaceDetails } from "@/components/race/race-details";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 
 export default function RacePage() {
@@ -15,7 +13,6 @@ export default function RacePage() {
   const raceId = params.raceId as Id<"races">;
 
   const race = useQuery(api.queries.races.getRaceById, { raceId });
-  // Get rooms for the season this race belongs to
   const rooms = useQuery(
     api.queries.rooms.getRoomsBySeason,
     race ? { seasonId: race.seasonId } : "skip"
@@ -23,8 +20,8 @@ export default function RacePage() {
 
   if (race === undefined || rooms === undefined) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-zinc-600 dark:text-zinc-400">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
           Loading...
         </div>
       </div>
@@ -33,8 +30,8 @@ export default function RacePage() {
 
   if (!race) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-zinc-600 dark:text-zinc-400">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
           Race not found
         </div>
       </div>
@@ -42,57 +39,53 @@ export default function RacePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link
-          href="/"
-          className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          ← Back to Dashboard
-        </Link>
-      </div>
+    <div className="container mx-auto max-w-5xl px-4 py-6">
+      <Link
+        href="/"
+        className="mb-6 inline-block font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan"
+      >
+        ← Dashboard
+      </Link>
 
       <RaceDetails race={race} />
 
       <div className="mt-8">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
-            Rooms for {race.seasonId ? "this Season" : "this Race"}
+          <h2 className="flex items-center gap-2 font-display text-lg font-bold italic uppercase tracking-tight text-paddock-on">
+            <span className="h-5 w-1 shrink-0 bg-paddock-cyan" aria-hidden />
+            Rooms for this Season
           </h2>
           <Authenticated>
-            <Link href="/rooms/create">
-              <Button>Create Room</Button>
+            <Link
+              href="/rooms/create"
+              className="rounded-sm bg-paddock-accent px-4 py-2 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90"
+            >
+              Create Room
             </Link>
           </Authenticated>
         </div>
 
         {rooms && rooms.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-              No rooms yet for this season. Create one to get started!
-            </CardContent>
-          </Card>
+          <div className="rounded-sm bg-paddock-surface-low p-8 text-center text-sm text-paddock-on-muted">
+            No rooms yet for this season. Create one to get started!
+          </div>
         ) : rooms ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {rooms.map((room) => (
               <Link key={room._id} href={`/rooms/${room._id}`}>
-                <Card className="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900">
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      {room.name || `${race.seasonId ? "Season" : "Race"} Room`}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-                      <div>
-                        <span className="font-medium">Join Code:</span>{" "}
-                        <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">
-                          {room.joinCode}
-                        </code>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="rounded-sm bg-paddock-surface-low px-5 py-4 transition-colors hover:bg-paddock-surface">
+                  <h4 className="font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+                    {room.name || "Season Room"}
+                  </h4>
+                  <div className="mt-2">
+                    <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                      Join code
+                    </span>
+                    <code className="mt-0.5 block font-mono text-sm font-bold tracking-[0.2em] text-paddock-on">
+                      {room.joinCode}
+                    </code>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>

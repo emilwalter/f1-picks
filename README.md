@@ -9,7 +9,7 @@ A real-time Formula 1 prediction platform where users can create rooms, make rac
 - **Real-Time Updates**: Live leaderboards and room updates powered by Convex
 - **Flexible Lockout System**: Configure when predictions lock (before sessions, custom time offsets)
 - **Custom Scoring**: Configurable scoring systems with position points, bonuses, and penalties
-- **Race Data Sync**: Automatic synchronization with OpenF1 API for race schedules and results
+- **Race Data Sync**: Automatic synchronization with the F1 Connect API for race schedules and results
 - **Dark Mode**: Beautiful dark theme optimized for F1 viewing
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 
@@ -22,7 +22,7 @@ A real-time Formula 1 prediction platform where users can create rooms, make rac
 - **Styling**: Tailwind CSS v4 with CSS variables
 - **Package Manager**: pnpm
 - **Language**: TypeScript (strict mode)
-- **Race Data**: OpenF1 API
+- **Race Data**: F1 Connect API (`convex/actions/f1Connect.ts`)
 
 ## Getting Started
 
@@ -101,8 +101,8 @@ convex/                 # Convex backend functions
 ├── schema.ts          # Data model definitions
 ├── queries/           # Read-only reactive queries
 ├── mutations/         # Write operations
-├── actions/           # External API calls (OpenF1)
-│   ├── openf1.ts      # OpenF1 API integration
+├── actions/           # External API calls (F1 Connect)
+│   ├── f1Connect.ts   # F1 Connect API integration
 │   └── raceSync.ts    # Race result synchronization
 ├── lib/               # Shared utilities
 │   ├── scoring.ts     # Scoring calculation logic

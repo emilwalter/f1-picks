@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +28,7 @@ export function ActiveRooms() {
 
   if (currentUser === undefined || activeRooms === undefined) {
     return (
-      <div className="text-center text-zinc-600 dark:text-zinc-400">
+      <div className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
         Loading...
       </div>
     );
@@ -38,22 +36,18 @@ export function ActiveRooms() {
 
   if (!currentUser) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-          Please sign in to view your active rooms.
-        </CardContent>
-      </Card>
+      <div className="rounded-sm bg-paddock-surface-low p-8 text-center text-sm text-paddock-on-muted">
+        Please sign in to view your active rooms.
+      </div>
     );
   }
 
   if (activeRooms.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-          You don&apos;t have any active rooms. Create or join a room to get
-          started!
-        </CardContent>
-      </Card>
+      <div className="rounded-sm bg-paddock-surface-low p-8 text-center text-sm text-paddock-on-muted">
+        You don&apos;t have any active rooms. Create or join a room to get
+        started!
+      </div>
     );
   }
 
@@ -83,42 +77,46 @@ export function ActiveRooms() {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
       {activeRooms.map(({ room, season }) => {
         if (!room || !season) return null;
         const isHost = room.hostId === currentUser._id;
         const isRemoving = removingRoomId === room._id;
 
         return (
-          <Card
+          <div
             key={room._id}
-            className="cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
+            className="group cursor-pointer rounded-sm bg-paddock-surface-low transition-colors hover:bg-paddock-surface"
             onClick={() => router.push(`/rooms/${room._id}`)}
           >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="line-clamp-2 text-base leading-tight">
+            <div className="border-l-4 border-transparent px-5 py-4 transition-colors group-hover:border-paddock-cyan">
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <h4 className="line-clamp-2 font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
                   {room.name || `${season.year} Season Room`}
-                </CardTitle>
+                </h4>
                 <div
-                  className="flex items-center gap-1 shrink-0"
+                  className="flex shrink-0 items-center gap-1"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Badge
-                    variant={room.status === "open" ? "default" : "outline"}
+                  <span
+                    className={cn(
+                      "rounded-sm px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-widest",
+                      room.status === "open"
+                        ? "bg-paddock-cyan/15 text-paddock-cyan"
+                        : "bg-paddock-surface-high text-paddock-on-muted"
+                    )}
                   >
                     {room.status}
-                  </Badge>
+                  </span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
+                      <button
+                        type="button"
+                        className="rounded-sm p-1 text-paddock-on-muted transition-colors hover:bg-paddock-surface-high hover:text-paddock-on"
                         disabled={isRemoving}
                       >
                         <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
@@ -141,32 +139,36 @@ export function ActiveRooms() {
                   </DropdownMenu>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-2.5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-600 dark:text-zinc-400">Season</span>
-                <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                  {season.year}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-600 dark:text-zinc-400">
-                  Total Races
-                </span>
-                <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                  {season.totalRaces}
-                </span>
-              </div>
-              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
-                <div className="mb-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                  Join Code
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                    Season
+                  </span>
+                  <span className="font-display text-sm font-bold tabular-nums text-paddock-on">
+                    {season.year}
+                  </span>
                 </div>
-                <code className="block rounded bg-zinc-100 px-2 py-1.5 font-mono text-sm font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50">
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                    Races
+                  </span>
+                  <span className="font-display text-sm font-bold tabular-nums text-paddock-on">
+                    {season.totalRaces}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-sm bg-paddock-surface-lowest/50 px-3 py-2">
+                <span className="font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-on-muted">
+                  Join code
+                </span>
+                <code className="mt-0.5 block font-mono text-sm font-bold tracking-[0.2em] text-paddock-on">
                   {room.joinCode}
                 </code>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         );
       })}
     </div>

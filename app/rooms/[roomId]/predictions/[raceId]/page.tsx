@@ -9,15 +9,14 @@ import { useRoom } from "@/hooks/use-room";
 import type { Id } from "@/convex/_generated/dataModel";
 import { PredictionForm } from "@/components/room/prediction-form";
 import { PredictionSummary } from "@/components/room/prediction-summary";
-import { SyncRaceResults } from "@/components/room/sync-race-results";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Countdown } from "@/components/ui/countdown";
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Lock, Calendar, Trophy } from "lucide-react";
+import { Lock, Trophy } from "lucide-react";
 import { useAction } from "convex/react";
+import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
+import { getRaceStartTimestamp } from "@/lib/race-time";
 
 export default function PredictionPage() {
   const params = useParams();
@@ -25,7 +24,6 @@ export default function PredictionPage() {
   const roomId = params.roomId as Id<"rooms">;
   const raceId = params.raceId as Id<"races">;
 
-  // Initialize current time using useState with lazy initializer to avoid calling Date.now() during render
   const [now] = useState(() => Date.now());
 
   const {
@@ -38,13 +36,11 @@ export default function PredictionPage() {
     isLoading,
   } = useRoom(roomId, raceId);
 
-  // Get lockout info for this race
   const lockoutInfo = useQuery(api.queries.lockout.getRoomLockoutInfo, {
     roomId,
     raceId,
   });
 
-  // Get all predictions for this race when locked
   const allPredictions = useQuery(
     api.queries.predictions.getRoomRacePredictions,
     room && raceId ? { roomId, raceId } : "skip"
@@ -53,8 +49,7 @@ export default function PredictionPage() {
   const isPast = selectedRace ? selectedRace.date < now : false;
   const isLocked = lockoutInfo?.locked || false;
 
-  // Fetch drivers for visualization
-  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<
     Array<{
       driverNumber: number;
@@ -66,7 +61,6 @@ export default function PredictionPage() {
   >([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
 
-  // Fetch drivers when race is locked
   useEffect(() => {
     const fetchDrivers = async () => {
       if (!selectedRace || !season || !isLocked) return;
@@ -86,8 +80,8 @@ export default function PredictionPage() {
 
   if (isLoading || lockoutInfo === undefined) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-zinc-600 dark:text-zinc-400">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
           Loading...
         </div>
       </div>
@@ -96,12 +90,10 @@ export default function PredictionPage() {
 
   if (!room || !season || !selectedRace) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-            Room or race not found
-          </CardContent>
-        </Card>
+      <div className="container mx-auto px-4 py-16">
+        <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+          Room or race not found
+        </div>
       </div>
     );
   }
@@ -109,125 +101,143 @@ export default function PredictionPage() {
   const isParticipant =
     currentUser && participants?.some((p) => p.userId === currentUser._id);
 
-  const hasPrediction = !!userPrediction;
+  const raceStartTime = getRaceStartTimestamp(selectedRace);
+  const showRaceCountdown = raceStartTime > now;
+
+  const f1Images = getF1RaceStaticImagePaths(season.year, selectedRace.round);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link
-          href={`/rooms/${roomId}`}
-          className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          ← Back to Room
-        </Link>
+    <div className="container mx-auto max-w-7xl px-4 py-6">
+      {/* Breadcrumb */}
+      <Link
+        href={`/rooms/${roomId}`}
+        className="mb-6 inline-block font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan"
+      >
+        ← Room
+      </Link>
+
+      {f1Images && (
+        <div className="relative mb-8 aspect-[21/9] w-full overflow-hidden rounded-sm bg-paddock-surface-highest">
+          <Image
+            src={f1Images.card}
+            alt=""
+            fill
+            className="object-cover object-center"
+            sizes="(max-width: 1280px) 100vw, 1280px"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-paddock-surface-low via-transparent to-transparent" />
+          <div
+            className="pointer-events-none absolute bottom-3 right-3 z-10 aspect-[5/3] w-[min(220px,46%)] sm:bottom-4 sm:right-4 sm:w-[min(280px,42%)]"
+            aria-hidden
+          >
+            <Image
+              src={f1Images.track}
+              alt=""
+              fill
+              className="object-contain object-right-bottom drop-shadow-[0_4px_16px_rgba(0,0,0,0.45)]"
+              sizes="280px"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Page header — telemetry row (DESIGN.md: label-sm clusters, Space Grotesk numerals) */}
+      <div className="mb-8">
+        <div className="mb-6 flex flex-wrap items-start gap-x-8 gap-y-6">
+          <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-paddock-accent" />
+            <span className="font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-paddock-on-muted">
+              {selectedRace.circuit} /{" "}
+              {selectedRace.name.replace(/Grand Prix/i, "GP")}
+            </span>
+          </div>
+          <div>
+            <span className="block font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+              Round
+            </span>
+            <p className="font-display text-sm font-bold tabular-nums text-paddock-on">
+              {String(selectedRace.round).padStart(2, "0")} /{" "}
+              {season.totalRaces}
+            </p>
+          </div>
+          {showRaceCountdown && (
+            <Countdown
+              targetTime={raceStartTime}
+              label="Race start"
+              expiredLabel="Started"
+              timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+              expiredClassName="font-display text-sm font-bold text-paddock-on-muted"
+            />
+          )}
+          {lockoutInfo?.lockoutTime && lockoutInfo.lockoutTime > now && (
+            <Countdown
+              targetTime={lockoutInfo.lockoutTime}
+              label="Picks lock"
+              expiredLabel="Locked"
+              timeClassName="font-display text-sm font-bold tabular-nums text-paddock-on"
+              expiredClassName="font-display text-sm font-bold text-paddock-accent"
+            />
+          )}
+        </div>
+
+        <h1 className="font-display text-4xl font-black uppercase tracking-tighter text-paddock-on md:text-5xl">
+          Predictions
+        </h1>
+        <p className="mt-3 max-w-lg text-sm text-paddock-on-muted">
+          Configure your technical strategy for the {selectedRace.name}. Point
+          multipliers are active for early submission.
+        </p>
       </div>
 
-      {/* Race Header */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <CardTitle className="mb-1 text-2xl leading-tight">
-                {selectedRace.name}
-              </CardTitle>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {format(selectedRace.date, "MMMM d, yyyy")} •{" "}
-                {selectedRace.circuit}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {season.year} Formula 1 World Championship
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              {hasPrediction && (
-                <Badge variant="default" className="text-sm">
-                  ✓ Prediction Submitted
-                </Badge>
-              )}
-              {isLocked && (
-                <Badge variant="destructive" className="text-sm">
-                  <Lock className="mr-1 h-3 w-3" />
-                  Locked
-                </Badge>
-              )}
-              {isPast && !isLocked && (
-                <Badge variant="outline" className="text-sm">
-                  <Calendar className="mr-1 h-3 w-3" />
-                  Past Race
-                </Badge>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Locked/Past Race Warning */}
+      {/* Locked/Past banner */}
       {(isLocked || isPast) && (
-        <Alert className="mb-6" variant={isLocked ? "destructive" : "default"}>
-          <Lock className="h-4 w-4" />
-          <AlertTitle>
-            {isPast
-              ? "This race has already happened"
-              : "Predictions are locked"}
-          </AlertTitle>
-          <AlertDescription>
-            {isPast
-              ? "You cannot submit predictions for races that have already occurred."
-              : lockoutInfo?.lockoutTime
-                ? `Predictions locked at ${format(
-                    lockoutInfo.lockoutTime,
-                    "PPp"
-                  )}`
-                : "The prediction deadline for this race has passed."}
-          </AlertDescription>
-        </Alert>
+        <div className="mb-6 flex items-center gap-3 rounded-sm border-l-4 border-paddock-accent bg-paddock-accent/[0.08] px-5 py-4">
+          <Lock className="h-4 w-4 shrink-0 text-paddock-accent" />
+          <div>
+            <p className="font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+              {isPast ? "Race complete" : "Predictions locked"}
+            </p>
+            <p className="text-xs text-paddock-on-muted">
+              {isPast
+                ? "This race has already happened."
+                : lockoutInfo?.lockoutTime
+                  ? `Locked at ${format(lockoutInfo.lockoutTime, "PPp")}`
+                  : "The prediction deadline has passed."}
+            </p>
+          </div>
+          {selectedRace.officialResults && (
+            <Link
+              href={`/rooms/${roomId}/results?raceId=${raceId}`}
+              className="ml-auto flex items-center gap-1.5 rounded-sm bg-paddock-accent px-3 py-2 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90"
+            >
+              <Trophy className="h-3.5 w-3.5" />
+              Results
+            </Link>
+          )}
+        </div>
       )}
 
-      {/* Sync Race Results - Host Only */}
-      {isParticipant && currentUser && currentUser._id === room.hostId && (
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <SyncRaceResults
-              room={room}
-              race={selectedRace}
-              currentUser={currentUser}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Show all predictions when locked */}
+      {/* Locked predictions summary */}
       {(isLocked || isPast) && allPredictions && allPredictions.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>All Predictions</CardTitle>
-              {selectedRace.officialResults && (
-                <Link href={`/rooms/${roomId}/results?raceId=${raceId}`}>
-                  <Button variant="outline" size="sm">
-                    <Trophy className="mr-2 h-4 w-4" />
-                    View Results
-                  </Button>
-                </Link>
-              )}
+        <div className="mb-6">
+          <h2 className="mb-4 border-l-4 border-paddock-cyan pl-3 font-display text-lg font-bold italic uppercase tracking-tight text-paddock-on">
+            All Predictions
+          </h2>
+          {isLoadingDrivers ? (
+            <div className="py-6 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+              Loading predictions...
             </div>
-          </CardHeader>
-          <CardContent>
-            {isLoadingDrivers ? (
-              <div className="py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
-                Loading predictions...
-              </div>
-            ) : (
-              <PredictionSummary
-                race={selectedRace}
-                predictions={allPredictions}
-                drivers={drivers}
-                participantCount={participants?.length || 0}
-                isPast={isPast}
-              />
-            )}
-          </CardContent>
-        </Card>
+          ) : (
+            <PredictionSummary
+              race={selectedRace}
+              predictions={allPredictions}
+              drivers={drivers}
+              participantCount={participants?.length || 0}
+              isPast={isPast}
+            />
+          )}
+        </div>
       )}
 
       {/* Prediction Form */}
@@ -239,22 +249,27 @@ export default function PredictionPage() {
             seasonYear={season.year}
             currentPrediction={userPrediction}
             isLocked={isLocked}
+            currentUser={currentUser}
           />
         ) : (
-          <Card>
-            <CardContent className="py-8 text-center text-zinc-600 dark:text-zinc-400">
-              <p className="mb-4">
-                You must join this room to submit predictions.
-              </p>
-              <p className="mb-4">
-                Join Code:{" "}
-                <strong className="font-mono">{room.joinCode}</strong>
-              </p>
-              <Button onClick={() => router.push(`/rooms/${roomId}`)}>
-                Go to Room
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="rounded-sm bg-paddock-surface-low p-8 text-center">
+            <p className="mb-3 text-sm text-paddock-on-muted">
+              You must join this room to submit predictions.
+            </p>
+            <p className="mb-5 text-sm text-paddock-on-muted">
+              Join Code:{" "}
+              <code className="font-mono font-bold tracking-wider text-paddock-on">
+                {room.joinCode}
+              </code>
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push(`/rooms/${roomId}`)}
+              className="rounded-sm bg-paddock-accent px-6 py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90"
+            >
+              Go to Room
+            </button>
+          </div>
         )}
       </Authenticated>
     </div>
