@@ -187,4 +187,47 @@
     );
     background-size: 12px 12px;
   }
+
+  /* Room overview — entrance (respects prefers-reduced-motion) */
+  @keyframes room-overview-enter {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .room-overview-enter {
+      animation: room-overview-enter 0.48s cubic-bezier(0.22, 1, 0.36, 1)
+        forwards;
+      opacity: 0;
+    }
+
+    .room-overview-enter-delay-1 {
+      animation-delay: 0.07s;
+    }
+    .room-overview-enter-delay-2 {
+      animation-delay: 0.14s;
+    }
+    .room-overview-enter-delay-3 {
+      animation-delay: 0.21s;
+    }
+    .room-overview-enter-delay-4 {
+      animation-delay: 0.28s;
+    }
+    .room-overview-enter-delay-5 {
+      animation-delay: 0.35s;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .room-overview-enter {
+      opacity: 1;
+      animation: none;
+    }
+  }
 }

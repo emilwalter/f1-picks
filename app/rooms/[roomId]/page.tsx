@@ -158,13 +158,13 @@ export default function RoomPage() {
       {/* Breadcrumb */}
       <Link
         href="/"
-        className="mb-6 inline-block font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan"
+        className="room-overview-enter mb-6 inline-block font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan"
       >
         ← Dashboard
       </Link>
 
       {/* Page header — room name + stats (matches league_dashboard) */}
-      <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+      <div className="room-overview-enter room-overview-enter-delay-1 mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <div className="mb-2 flex items-center gap-2">
             <span className="h-[2px] w-8 bg-paddock-accent" />
@@ -177,29 +177,29 @@ export default function RoomPage() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Participant count & actions */}
+        <div className="flex w-full items-stretch gap-2 sm:w-auto sm:justify-end">
+          {/* Participant count & actions — equal width for visual rhythm */}
           <Link
             href={`/rooms/${roomId}/participants`}
-            className="flex items-center gap-1.5 rounded-sm bg-paddock-surface-high px-3 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest"
+            className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-surface-high px-2 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest sm:w-[9.5rem] sm:flex-none"
           >
-            <Users className="h-3.5 w-3.5" />
-            {participants?.length || 0}
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            <span className="tabular-nums">{participants?.length || 0}</span>
           </Link>
           <Link
             href={`/rooms/${roomId}/results`}
-            className="flex items-center gap-1.5 rounded-sm bg-paddock-accent px-3 py-2 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90"
+            className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-accent px-2 py-2 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90 sm:w-[9.5rem] sm:flex-none"
           >
-            <Trophy className="h-3.5 w-3.5" />
+            <Trophy className="h-3.5 w-3.5 shrink-0" />
             Results
           </Link>
           {isHost && (
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="flex items-center gap-1.5 rounded-sm bg-paddock-surface-high px-3 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest"
+              className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-surface-high px-2 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on transition-colors hover:bg-paddock-surface-highest sm:w-[9.5rem] sm:flex-none"
             >
-              <Settings className="h-3.5 w-3.5" />
+              <Settings className="h-3.5 w-3.5 shrink-0" />
             </button>
           )}
           {!isHost && currentUser && (
@@ -218,9 +218,9 @@ export default function RoomPage() {
                   );
                 }
               }}
-              className="flex items-center gap-1.5 rounded-sm bg-paddock-surface-high px-3 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-accent transition-colors hover:bg-paddock-surface-highest"
+              className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-sm bg-paddock-surface-high px-2 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-accent transition-colors hover:bg-paddock-surface-highest sm:w-[9.5rem] sm:flex-none"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-3.5 w-3.5 shrink-0" />
             </button>
           )}
         </div>
@@ -234,7 +234,7 @@ export default function RoomPage() {
           {nextRace && (
             <Link
               href={`/rooms/${roomId}/predictions/${nextRace._id}`}
-              className="group block"
+              className="room-overview-enter room-overview-enter-delay-2 group block origin-center transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.008] motion-reduce:transition-none motion-reduce:hover:scale-100"
             >
               <div className="relative flex min-h-[360px] flex-col justify-end overflow-hidden rounded-sm bg-paddock-surface p-8 sm:min-h-[400px]">
                 {nextGpImages && (
@@ -311,7 +311,7 @@ export default function RoomPage() {
 
           {/* Upcoming Races carousel */}
           {sortedUnlockedRaces.length > 0 && (
-            <div>
+            <div className="room-overview-enter room-overview-enter-delay-3">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="font-display text-xl font-bold italic uppercase tracking-tighter text-paddock-on">
                   Upcoming Races
@@ -326,7 +326,7 @@ export default function RoomPage() {
                         )
                       }
                       disabled={upcomingRacesIndex === 0}
-                      className="rounded-sm bg-paddock-surface-high p-1.5 text-paddock-on transition-colors hover:bg-paddock-surface-highest disabled:opacity-30"
+                      className="rounded-sm bg-paddock-surface-high p-1.5 text-paddock-on transition-colors hover:bg-paddock-surface-highest active:scale-95 disabled:opacity-30 motion-reduce:active:scale-100"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -338,7 +338,7 @@ export default function RoomPage() {
                         )
                       }
                       disabled={upcomingRacesIndex >= maxUpcomingIndex}
-                      className="rounded-sm bg-paddock-surface-high p-1.5 text-paddock-on transition-colors hover:bg-paddock-surface-highest disabled:opacity-30"
+                      className="rounded-sm bg-paddock-surface-high p-1.5 text-paddock-on transition-colors hover:bg-paddock-surface-highest active:scale-95 disabled:opacity-30 motion-reduce:active:scale-100"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
@@ -362,9 +362,9 @@ export default function RoomPage() {
                     <Link
                       key={race._id}
                       href={`/rooms/${roomId}/predictions/${race._id}`}
-                      className="group block"
+                      className="group block origin-center transition-transform duration-300 ease-out hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:scale-100"
                     >
-                      <div className="rounded-sm border-b-4 border-transparent bg-paddock-surface-low transition-all group-hover:border-paddock-accent group-hover:bg-paddock-surface-high">
+                      <div className="rounded-sm border-b-4 border-transparent bg-paddock-surface-low transition-[border-color,background-color] duration-300 ease-out group-hover:border-paddock-accent group-hover:bg-paddock-surface-high">
                         {f1Images && (
                           <div className="relative aspect-[16/7] w-full overflow-hidden rounded-t-sm bg-paddock-surface-highest">
                             <Image
@@ -421,11 +421,11 @@ export default function RoomPage() {
 
           {/* Locked Races (collapsed by default) */}
           {lockedRaces.length > 0 && (
-            <div>
+            <div className="room-overview-enter room-overview-enter-delay-4">
               <button
                 type="button"
                 onClick={() => setShowLockedRaces(!showLockedRaces)}
-                className="mb-4 flex w-full items-center justify-between"
+                className="mb-4 flex w-full items-center justify-between transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <span className="h-[2px] w-6 bg-paddock-on-muted/40" />
@@ -469,7 +469,7 @@ export default function RoomPage() {
         </div>
 
         {/* Right sidebar */}
-        <div className="space-y-6">
+        <div className="room-overview-enter room-overview-enter-delay-2 space-y-6">
           {/* Prediction Status */}
           {nextRace && (
             <div className="rounded-sm bg-paddock-surface-low p-5">

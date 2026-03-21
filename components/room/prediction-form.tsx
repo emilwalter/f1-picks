@@ -199,8 +199,12 @@ export function PredictionForm({
   const filledCount = predictedPositions.filter(
     (p) => p.driverNumber !== 0
   ).length;
-  const totalPotential =
-    10 + (polePositionDriverId ? 1 : 0) + (fastestLapDriverId ? 1 : 0);
+
+  const positionPointsTable = room.scoringConfig.positionPoints;
+  const ptsForPosition = (position: number) =>
+    positionPointsTable[position - 1] ?? 0;
+  const polePts = room.scoringConfig.polePositionPoints;
+  const fastestPts = room.scoringConfig.fastestLapPoints;
 
   const getDriverLastName = (driverNumber: number) => {
     const d = drivers.find((d) => d.driverNumber === driverNumber);
@@ -227,7 +231,7 @@ export function PredictionForm({
               </h3>
             </div>
             <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
-              250 PTS
+              {ptsForPosition(1)} PTS
             </span>
           </div>
 
@@ -296,7 +300,6 @@ export function PredictionForm({
             const selectedDriver = posEntry?.driverNumber
               ? drivers.find((d) => d.driverNumber === posEntry.driverNumber)
               : null;
-            const pts = pos === 2 ? "180" : "150";
 
             return (
               <div key={pos} className="rounded-sm bg-paddock-surface-low p-5">
@@ -305,7 +308,7 @@ export function PredictionForm({
                     Podium P{pos}
                   </h3>
                   <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
-                    {pts} PTS
+                    {ptsForPosition(pos)} PTS
                   </span>
                 </div>
 
@@ -374,9 +377,14 @@ export function PredictionForm({
 
                 return (
                   <div key={pos.position} className="flex items-center gap-3">
-                    <span className="w-8 shrink-0 font-display text-lg font-black italic tabular-nums text-paddock-on-muted/30">
-                      {String(pos.position).padStart(2, "0")}
-                    </span>
+                    <div className="flex w-14 shrink-0 flex-col items-end leading-none">
+                      <span className="font-display text-lg font-black italic tabular-nums text-paddock-on-muted/30">
+                        {String(pos.position).padStart(2, "0")}
+                      </span>
+                      <span className="mt-0.5 font-display text-[8px] font-semibold tabular-nums text-paddock-on-muted/45">
+                        {ptsForPosition(pos.position)} pts
+                      </span>
+                    </div>
 
                     {selectedDriver ? (
                       <div className="flex min-w-0 flex-1 items-center gap-3 rounded-sm bg-paddock-surface px-3 py-2">
@@ -439,7 +447,7 @@ export function PredictionForm({
                 Pole Position
               </h3>
               <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
-                100 PTS
+                {polePts} PTS
               </span>
             </div>
             {(() => {
@@ -496,7 +504,7 @@ export function PredictionForm({
                 Fastest Lap
               </h3>
               <span className="rounded-full bg-paddock-surface-highest px-2.5 py-0.5 font-display text-[10px] font-semibold tabular-nums text-paddock-on">
-                100 PTS
+                {fastestPts} PTS
               </span>
             </div>
             {(() => {
