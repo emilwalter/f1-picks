@@ -31,7 +31,7 @@ export function SyncRacesButton() {
   const [selectedYear, setSelectedYear] = useState(() =>
     new Date().getFullYear()
   );
-  const syncSeason = useAction(api.actions.openf1.syncSeasonFromOpenF1);
+  const syncSeason = useAction(api.actions.f1Connect.syncSeasonFromF1Connect);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -44,7 +44,7 @@ export function SyncRacesButton() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to sync races from F1 API"
+          : "Failed to sync races from F1 Connect API"
       );
     } finally {
       setIsSyncing(false);

@@ -8,7 +8,7 @@
  * @module
  */
 
-import type * as actions_openf1 from "../actions/openf1.js";
+import type * as actions_f1Connect from "../actions/f1Connect.js";
 import type * as actions_raceSync from "../actions/raceSync.js";
 import type * as crons from "../crons.js";
 import type * as lib_lockout from "../lib/lockout.js";
@@ -37,7 +37,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  "actions/openf1": typeof actions_openf1;
+  "actions/f1Connect": typeof actions_f1Connect;
   "actions/raceSync": typeof actions_raceSync;
   crons: typeof crons;
   "lib/lockout": typeof lib_lockout;

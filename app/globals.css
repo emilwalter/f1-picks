@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* Paddock / Stitch palette — matches examples & DESIGN.md */
+  /* Paddock palette — single source for `bg-paddock-*` / `text-paddock-*` (see DESIGN.md). */
   --color-paddock-bg: #131315;
   --color-paddock-surface-lowest: #0e0e10;
   --color-paddock-surface-low: #1b1b1d;
@@ -97,17 +97,6 @@
 }
 
 .dark {
-  /* Paddock Engineering (DESIGN.md) — surfaces & accents */
-  --paddock-background: #131315;
-  --paddock-on-surface: #e5e1e4;
-  --paddock-surface-container: #201f21;
-  --paddock-surface-container-high: #2a2a2c;
-  --paddock-primary-container: #e10600;
-  --paddock-primary-soft: #ffb4a8;
-  --paddock-secondary: #bdf4ff;
-  --paddock-secondary-bright: #00daf3;
-  --paddock-tertiary: #cdcd00;
-
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);

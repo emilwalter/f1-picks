@@ -40,7 +40,7 @@ export function PredictionForm({
   const submitPrediction = useMutation(
     api.mutations.predictions.submitPrediction
   );
-  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [drivers, setDrivers] = useState<Driver[] | null>(null);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);

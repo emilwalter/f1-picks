@@ -20,7 +20,8 @@ export function UpcomingRaces() {
     return (
       <div className="rounded-sm bg-paddock-surface-low p-8 text-center">
         <p className="mb-4 text-sm text-paddock-on-muted">
-          No upcoming races found. Sync races from OpenF1 API to get started!
+          No upcoming races found. Sync races from the F1 Connect API to get
+          started!
         </p>
         <SyncRacesButton />
       </div>

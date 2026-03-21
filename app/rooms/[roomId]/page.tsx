@@ -76,7 +76,7 @@ export default function RoomPage() {
     room && nextRace ? { roomId, raceId: nextRace._id } : "skip"
   );
 
-  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
   const [showLockedRaces, setShowLockedRaces] = useState(false);

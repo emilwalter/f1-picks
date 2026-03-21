@@ -113,8 +113,8 @@ export function SyncRaceResults({
         {hasResults
           ? "Race results have been synced and scoring applied."
           : isPast
-            ? "Sync race results from the F1 API and score all predictions."
-            : "Sync race results and calculate scores. This will update results from the F1 API and recalculate all prediction scores."}
+            ? "Sync race results from the F1 Connect API and score all predictions."
+            : "Sync race results and calculate scores. This will update results from the F1 Connect API and recalculate all prediction scores."}
       </p>
 
       <button

@@ -48,7 +48,7 @@ export default function PredictionPage() {
   const isPast = selectedRace ? selectedRace.date < now : false;
   const isLocked = lockoutInfo?.locked || false;
 
-  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<
     Array<{
       driverNumber: number;

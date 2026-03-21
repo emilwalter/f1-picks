@@ -29,7 +29,7 @@ export default defineSchema({
     circuit: v.string(),
     location: v.string(),
     country: v.string(),
-    // Session times from OpenF1 API (for lockout calculations)
+    // Session times from F1 Connect API (for lockout calculations)
     sessionTimes: v.optional(
       v.object({
         fp1: v.optional(v.object({ start: v.number(), end: v.number() })),
@@ -48,7 +48,7 @@ export default defineSchema({
         humidity: v.number(),
       })
     ),
-    // Note: Driver/team info fetched from OpenF1 API on-demand
+    // Note: Driver/team info fetched from F1 Connect API on-demand
     // We only store official results for scoring and updates
     officialResults: v.optional(
       v.object({

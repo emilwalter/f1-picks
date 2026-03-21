@@ -5,9 +5,10 @@ import { v } from "convex/values";
 import { api } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 
+/** Base URL for F1 Connect–compatible HTTP API (schedules, drivers, results). */
 const F1API_BASE_URL = "https://f1api.dev/api";
 
-// Type definitions for F1 API responses
+// Type definitions for F1 Connect API responses
 interface RaceData {
   raceId?: string;
   raceName?: string;
@@ -67,7 +68,7 @@ interface SessionData {
 }
 
 /**
- * Get the next upcoming race from F1 API
+ * Get the next upcoming race from F1 Connect API
  * Uses /current/next endpoint for efficient fetching
  */
 export const getNextRace = action({
@@ -102,11 +103,11 @@ export const getNextRace = action({
 });
 
 /**
- * Sync season schedule from F1 API (f1api.dev)
+ * Sync season schedule from F1 Connect API
  * Fetches race schedule (dates, circuits, locations) for a given year
  * Note: Driver/team info is fetched on-demand when needed for predictions/results
  */
-export const syncSeasonFromOpenF1 = action({
+export const syncSeasonFromF1Connect = action({
   args: {
     year: v.number(),
   },
@@ -318,11 +319,11 @@ interface RaceResultsResponse {
 }
 
 /**
- * Update race results from Open F1 API
+ * Update race results from F1 Connect API
  * Uses the direct race endpoint: /api/{year}/{round}/race
  * This is much more reliable than trying to find sessions by date
  */
-export const updateRaceResultsFromOpenF1 = action({
+export const updateRaceResultsFromF1Connect = action({
   args: {
     raceId: v.id("races"),
   },
@@ -1018,7 +1019,7 @@ export const getDriverData = action({
 });
 
 /**
- * Extract session start/end times from OpenF1 session data
+ * Extract session start/end times from F1 Connect session payloads
  */
 function extractSessionTime(
   sessions: SessionData[],

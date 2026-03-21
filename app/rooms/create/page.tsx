@@ -35,7 +35,7 @@ function getAvailableYears() {
 export default function CreateRoomPage() {
   const router = useRouter();
   const createRoom = useMutation(api.mutations.rooms.createRoom);
-  const syncSeason = useAction(api.actions.openf1.syncSeasonFromOpenF1);
+  const syncSeason = useAction(api.actions.f1Connect.syncSeasonFromF1Connect);
 
   const seasons = useQuery(api.queries.seasons.listSeasons);
   const [selectedYear, setSelectedYear] = useState<number>(() =>
@@ -206,7 +206,7 @@ export default function CreateRoomPage() {
                 </Select>
                 {needsSync && isSyncing && (
                   <FieldDescription className="text-paddock-cyan">
-                    Fetching {selectedYear} season from F1 API...
+                    Fetching {selectedYear} season from F1 Connect API...
                   </FieldDescription>
                 )}
               </Field>

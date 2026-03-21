@@ -43,7 +43,7 @@ export default function RoomResultsPage() {
     room && raceId ? { roomId, raceId } : "skip"
   );
 
-  const getDriversForRace = useAction(api.actions.openf1.getDriversForRace);
+  const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
 
@@ -302,11 +302,8 @@ export default function RoomResultsPage() {
                 {/* Column headers */}
                 <div className="grid grid-cols-12 gap-4 border-b border-white/5 px-4 py-3 font-display text-[10px] uppercase tracking-[0.2em] text-paddock-on-muted">
                   <div className="col-span-1">Pos</div>
-                  <div className="col-span-7 md:col-span-8">Driver</div>
-                  <div className="col-span-2 hidden text-right md:block">
-                    Time/Gap
-                  </div>
-                  <div className="col-span-4 text-right md:col-span-1">Pts</div>
+                  <div className="col-span-8 md:col-span-9">Driver</div>
+                  <div className="col-span-3 text-right md:col-span-2">Pts</div>
                 </div>
 
                 {isLoadingDrivers ? (
@@ -353,7 +350,7 @@ export default function RoomResultsPage() {
                               </span>
                             </div>
 
-                            <div className="col-span-7 flex items-center gap-4 md:col-span-8">
+                            <div className="col-span-8 flex items-center gap-4 md:col-span-9">
                               <div
                                 className="h-8 w-1 shrink-0 rounded-full"
                                 style={{ backgroundColor: teamColor }}
@@ -371,15 +368,7 @@ export default function RoomResultsPage() {
                               </div>
                             </div>
 
-                            <div className="col-span-2 hidden text-right md:block">
-                              <span className="font-display text-sm text-paddock-on-muted/60">
-                                {result.position === 1
-                                  ? "—"
-                                  : `+${result.position * 2}.${String((result.position * 37) % 999).padStart(3, "0")}s`}
-                              </span>
-                            </div>
-
-                            <div className="col-span-4 text-right md:col-span-1">
+                            <div className="col-span-3 text-right md:col-span-2">
                               <span
                                 className={cn(
                                   "font-display text-lg font-black tabular-nums",
