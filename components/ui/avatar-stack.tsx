@@ -2,23 +2,13 @@
 
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { initialsFromUsername } from "@/components/ui/user-avatar";
 
 export type AvatarStackUser = {
   _id: string;
   username: string;
   avatarUrl?: string | null;
 };
-
-function initialsFromUsername(username: string): string {
-  return (
-    username
-      .split(/\s+/)
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2) || "?"
-  );
-}
 
 interface AvatarStackProps {
   users: Array<AvatarStackUser | null | undefined>;

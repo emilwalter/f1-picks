@@ -10,7 +10,7 @@ import { RoomLeaderboard } from "@/components/room/room-leaderboard";
 import { YourPicksBreakdown } from "@/components/room/your-picks-breakdown";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
 import { AvatarStack } from "@/components/ui/avatar-stack";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { getTeamColor, getCountryFlag } from "@/lib/f1-images";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -264,23 +264,12 @@ export default function RoomResultsPage() {
                     className="relative shrink-0 rounded-full ring-2 ring-paddock-bg"
                     title={currentUser.username}
                   >
-                    <Avatar className="h-12 w-12 border border-white/15">
-                      {currentUser.avatarUrl ? (
-                        <AvatarImage
-                          src={currentUser.avatarUrl}
-                          alt=""
-                          className="object-cover"
-                        />
-                      ) : null}
-                      <AvatarFallback className="bg-paddock-accent/30 font-display text-sm font-bold text-paddock-on">
-                        {currentUser.username
-                          .split(/\s+/)
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2) || "?"}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                      username={currentUser.username}
+                      avatarUrl={currentUser.avatarUrl}
+                      size="lg"
+                      fallbackTone="accent"
+                    />
                   </div>
                   <div className="min-w-0 text-right">
                     <p className="font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">

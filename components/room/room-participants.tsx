@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface ParticipantWithUser {
   _id: string;
@@ -22,12 +23,6 @@ export function RoomParticipants({ participants }: RoomParticipantsProps) {
       {participants.map((participant) => {
         const user = participant.user;
         const username = user?.username || "Unknown";
-        const initials = username
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2);
         const isHost = participant.role === "host";
 
         return (
@@ -40,16 +35,13 @@ export function RoomParticipants({ participants }: RoomParticipantsProps) {
               !isHost && "border-l-4 border-transparent"
             )}
           >
-            <div
-              className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-xs font-bold",
-                isHost
-                  ? "bg-paddock-accent/20 text-paddock-accent"
-                  : "bg-paddock-surface-high text-paddock-on-muted"
-              )}
-            >
-              {initials}
-            </div>
+            <UserAvatar
+              username={username}
+              avatarUrl={user?.avatarUrl}
+              size="md"
+              fallbackTone={isHost ? "accent" : "muted"}
+              className={cn(isHost && "ring-2 ring-paddock-accent/30")}
+            />
             <div className="min-w-0 flex-1">
               <span className="block truncate font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
                 {username}

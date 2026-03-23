@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface LeaderboardEntry {
   _id: string;
@@ -44,11 +45,12 @@ export function RoomLeaderboard({
         {leaderboard.slice(0, 5).map((entry, index) => {
           const rank = index + 1;
           const username = entry.user?.username || "Unknown";
+          const avatarUrl = entry.user?.avatarUrl;
           return (
             <div
               key={entry._id}
               className={cn(
-                "flex items-center gap-4 rounded-sm px-3 py-2.5",
+                "flex items-center gap-3 rounded-sm px-3 py-2.5",
                 rank === 1 && "bg-paddock-accent/10",
                 rank === 2 && "bg-paddock-surface-high/50"
               )}
@@ -61,6 +63,16 @@ export function RoomLeaderboard({
               >
                 {String(rank).padStart(2, "0")}
               </span>
+              <UserAvatar
+                username={username}
+                avatarUrl={avatarUrl}
+                size="sm"
+                fallbackTone={rank === 1 ? "accent" : "muted"}
+                className={cn(
+                  rank === 1 && "ring-2 ring-paddock-accent/35",
+                  rank === 2 && "ring-1 ring-white/15"
+                )}
+              />
               <div className="min-w-0 flex-1">
                 <span className="truncate text-sm font-medium text-paddock-on">
                   {username}
@@ -120,12 +132,7 @@ export function RoomLeaderboard({
         {leaderboard.map((entry, index) => {
           const rank = index + 1;
           const username = entry.user?.username || "Unknown";
-          const initials = username
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2);
+          const avatarUrl = entry.user?.avatarUrl;
 
           const isFirst = rank === 1;
           const isSecond = rank === 2;
@@ -155,16 +162,16 @@ export function RoomLeaderboard({
 
               {/* Avatar + name */}
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div
+                <UserAvatar
+                  username={username}
+                  avatarUrl={avatarUrl}
+                  size="md"
+                  fallbackTone={isFirst ? "accent" : "muted"}
                   className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-xs font-bold",
-                    isFirst
-                      ? "bg-paddock-accent/20 text-paddock-accent"
-                      : "bg-paddock-surface-high text-paddock-on-muted"
+                    isFirst && "ring-2 ring-paddock-accent/40",
+                    isSecond && "ring-1 ring-white/15"
                   )}
-                >
-                  {initials}
-                </div>
+                />
                 <div className="min-w-0">
                   <span className="block truncate font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
                     {username}
