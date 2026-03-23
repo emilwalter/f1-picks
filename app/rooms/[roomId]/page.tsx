@@ -7,11 +7,10 @@ import { useRoom } from "@/hooks/use-room";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { RoomLeaderboard } from "@/components/room/room-leaderboard";
-import { PredictionSummary } from "@/components/room/prediction-summary";
+import { RoomRaceCard } from "@/components/room/room-race-card";
 import { RoomSettingsDialog } from "@/components/room/room-settings-dialog";
 import { SyncAllRacesButton } from "@/components/room/sync-all-races-button";
 import { Countdown } from "@/components/ui/countdown";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
@@ -55,11 +54,6 @@ export default function RoomPage() {
     isLoading,
   } = useRoom(roomId);
 
-  const predictionsByRace = useQuery(
-    api.queries.predictions.getRoomPredictionsByRace,
-    room ? { roomId } : "skip"
-  );
-
   const now = Date.now();
   const oneDayAgo = now - 24 * 60 * 60 * 1000;
   const allUnlockedRaces =
@@ -79,9 +73,8 @@ export default function RoomPage() {
 
   const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
+  const [, setIsLoadingDrivers] = useState(true);
   const [showLockedRaces, setShowLockedRaces] = useState(false);
-  const [showRemainingRaces, setShowRemainingRaces] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [upcomingRacesIndex, setUpcomingRacesIndex] = useState(0);
 
@@ -138,12 +131,7 @@ export default function RoomPage() {
     upcomingRacesIndex,
     upcomingRacesIndex + RACES_PER_PAGE
   );
-  const remainingFutureRaces = sortedUnlockedRaces.slice(RACES_PER_PAGE);
   const lockedRaces = races?.filter((race) => race.date < oneDayAgo) || [];
-  const mostRecentLockedRaceId =
-    lockedRaces.length > 0
-      ? [...lockedRaces].sort((a, b) => b.date - a.date)[0]._id
-      : null;
 
   const roundNumber = nextRace
     ? (races?.findIndex((r) => r._id === nextRace._id) ?? 0) + 1
@@ -363,65 +351,18 @@ export default function RoomPage() {
                     (p) => p.raceId === race._id
                   );
                   const isLocked = race.date < now;
-                  const f1Images =
-                    season &&
-                    getF1RaceStaticImagePaths(season.year, race.round);
 
                   return (
-                    <Link
+                    <RoomRaceCard
                       key={race._id}
+                      race={race}
+                      seasonYear={season!.year}
+                      displayRound={raceRound}
                       href={`/rooms/${roomId}/predictions/${race._id}`}
-                      className="group block origin-center transition-transform duration-300 ease-out hover:scale-[1.02] motion-reduce:transition-none motion-reduce:hover:scale-100"
-                    >
-                      <div className="rounded-sm border-b-4 border-transparent bg-paddock-surface-low transition-[border-color,background-color] duration-300 ease-out group-hover:border-paddock-accent group-hover:bg-paddock-surface-high">
-                        {f1Images && (
-                          <div className="relative aspect-[16/7] w-full overflow-hidden rounded-t-sm bg-paddock-surface-highest">
-                            <Image
-                              src={f1Images.card}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              sizes="(max-width: 640px) 50vw, 25vw"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-paddock-surface-low to-transparent" />
-                          </div>
-                        )}
-                        <div className="p-5">
-                          <div className="mb-4 flex items-start justify-between">
-                            <span className="font-display text-[24px] font-black text-paddock-on/10">
-                              R{String(raceRound).padStart(2, "0")}
-                            </span>
-                            <span className="rounded-sm bg-paddock-surface-highest px-2 py-0.5 font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
-                              {format(race.date, "MMM dd")}
-                            </span>
-                          </div>
-                          <h4 className="mb-1 font-display text-lg font-bold uppercase tracking-tight text-paddock-on transition-colors group-hover:text-paddock-soft">
-                            {race.name.replace(/Grand Prix/i, "GP")}
-                          </h4>
-                          <p className="mb-6 font-display text-[10px] uppercase tracking-widest text-paddock-on-muted/40">
-                            {race.circuit}
-                          </p>
-                          <div className="flex items-center justify-between">
-                            {isLocked ? (
-                              <span className="font-display text-[10px] font-bold uppercase tracking-widest text-paddock-cyan">
-                                Locked
-                              </span>
-                            ) : hasPrediction ? (
-                              <span className="font-display text-[10px] font-bold uppercase tracking-widest text-paddock-cyan">
-                                Predicted
-                              </span>
-                            ) : (
-                              <span className="font-display text-[10px] font-bold uppercase tracking-widest text-paddock-warning">
-                                Open
-                              </span>
-                            )}
-                            {isLocked && (
-                              <Lock className="h-3.5 w-3.5 text-paddock-on-muted/20" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
+                      mode="upcoming"
+                      isLocked={isLocked}
+                      hasPrediction={hasPrediction}
+                    />
                   );
                 })}
               </div>
@@ -453,21 +394,21 @@ export default function RoomPage() {
               </button>
 
               {showLockedRaces && (
-                <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {lockedRaces
                     .sort((a, b) => b.date - a.date)
                     .map((race) => {
-                      const racePredictions =
-                        predictionsByRace?.[race._id] || [];
+                      const raceRound =
+                        (races?.findIndex((r) => r._id === race._id) ?? 0) + 1;
+
                       return (
-                        <PredictionSummary
+                        <RoomRaceCard
                           key={race._id}
                           race={race}
-                          predictions={racePredictions}
-                          drivers={drivers}
-                          participantCount={participants?.length || 0}
-                          isPast={true}
-                          defaultExpanded={race._id === mostRecentLockedRaceId}
+                          seasonYear={season!.year}
+                          displayRound={raceRound}
+                          href={`/rooms/${roomId}/results?raceId=${race._id}`}
+                          mode="past"
                         />
                       );
                     })}

@@ -12,7 +12,7 @@ import { Countdown } from "@/components/ui/countdown";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
-import { Lock, Trophy } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useAction } from "convex/react";
 import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
 import { getRaceStartTimestamp } from "@/lib/race-time";
@@ -75,6 +75,13 @@ export default function PredictionPage() {
 
   const isPast = selectedRace ? selectedRace.date < now : false;
   const isLocked = lockoutInfo?.locked || false;
+
+  /** Past races with synced results: hub is the results page (pit wall, standings, scoring). */
+  useEffect(() => {
+    if (!selectedRace || selectedRace === null) return;
+    if (!isPast || !selectedRace.officialResults) return;
+    router.replace(`/rooms/${roomId}/results?raceId=${raceId}`);
+  }, [selectedRace, isPast, roomId, raceId, router]);
 
   const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<
@@ -141,6 +148,16 @@ export default function PredictionPage() {
         <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
           Race not found
         </div>
+      </div>
+    );
+  }
+
+  if (isPast && selectedRace.officialResults) {
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-16">
+        <p className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
+          Opening race results…
+        </p>
       </div>
     );
   }
@@ -255,15 +272,6 @@ export default function PredictionPage() {
               </p>
             </div>
           </div>
-          {selectedRace.officialResults && (
-            <Link
-              href={`/rooms/${roomId}/results?raceId=${raceId}`}
-              className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-sm bg-paddock-accent px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-paddock-accent/90 active:bg-paddock-accent/80 sm:ml-auto sm:w-auto sm:justify-center"
-            >
-              <Trophy className="h-3.5 w-3.5" />
-              Results
-            </Link>
-          )}
         </div>
       )}
 

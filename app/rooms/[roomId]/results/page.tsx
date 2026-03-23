@@ -7,8 +7,10 @@ import { api } from "@/convex/_generated/api";
 import { useRoom } from "@/hooks/use-room";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { RoomLeaderboard } from "@/components/room/room-leaderboard";
+import { YourPicksBreakdown } from "@/components/room/your-picks-breakdown";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
 import { AvatarStack } from "@/components/ui/avatar-stack";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getTeamColor, getCountryFlag } from "@/lib/f1-images";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -69,11 +71,6 @@ export default function RoomResultsPage() {
     };
     fetchDrivers();
   }, [race, season, getDriversForRace]);
-
-  const getDriverName = (driverNumber: number): string => {
-    const driver = drivers.find((d) => d.driverNumber === driverNumber);
-    return driver?.name || `Driver #${driverNumber}`;
-  };
 
   const getDriverFirstName = (driverNumber: number): string => {
     const driver = drivers.find((d) => d.driverNumber === driverNumber);
@@ -214,6 +211,8 @@ export default function RoomResultsPage() {
   );
   const userPointsEarned = userRaceEntry?.points ?? null;
 
+  const showRoomColumn = roomRacePredictions !== undefined;
+
   // Split the GP name for the editorial typography
   const gpNameParts = race?.name?.match(/(.+?)\s*(Grand Prix)$/i);
   const locationPart = gpNameParts?.[1] || race?.name || "";
@@ -258,18 +257,59 @@ export default function RoomResultsPage() {
               </h1>
             </div>
 
-            {userPointsEarned !== null && (
-              <div className="text-right">
-                <p className="font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
-                  Points Earned
-                </p>
-                <div className="flex items-baseline justify-end gap-2">
-                  <span className="font-display text-5xl font-black tracking-tight text-paddock-cyan">
-                    +{userPointsEarned}
-                  </span>
-                  <span className="font-display text-sm text-paddock-cyan/60">
-                    PTS
-                  </span>
+            {currentUser && (
+              <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-end sm:gap-5">
+                <div className="flex items-center justify-end gap-3">
+                  <div
+                    className="relative shrink-0 rounded-full ring-2 ring-paddock-bg"
+                    title={currentUser.username}
+                  >
+                    <Avatar className="h-12 w-12 border border-white/15">
+                      {currentUser.avatarUrl ? (
+                        <AvatarImage
+                          src={currentUser.avatarUrl}
+                          alt=""
+                          className="object-cover"
+                        />
+                      ) : null}
+                      <AvatarFallback className="bg-paddock-accent/30 font-display text-sm font-bold text-paddock-on">
+                        {currentUser.username
+                          .split(/\s+/)
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2) || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="min-w-0 text-right">
+                    <p className="font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                      You
+                    </p>
+                    <p className="truncate font-display text-xs font-semibold uppercase tracking-wide text-paddock-on">
+                      {currentUser.username}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="hidden h-14 w-px shrink-0 bg-white/10 sm:block" />
+
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {userPointsEarned !== null && (
+                    <div className="text-right">
+                      <p className="font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
+                        Points Earned
+                      </p>
+                      <div className="flex items-baseline justify-end gap-2">
+                        <span className="font-display text-5xl font-black tracking-tight text-paddock-cyan">
+                          +{userPointsEarned}
+                        </span>
+                        <span className="font-display text-sm text-paddock-cyan/60">
+                          PTS
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -280,124 +320,192 @@ export default function RoomResultsPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* ── Left column ── */}
         <div className="space-y-8">
-          {/* ── League Performance bento (matches example) ── */}
-          {userPrediction &&
-            race?.officialResults &&
-            !isLoadingDrivers &&
-            roomRacePredictions !== undefined && (
-              <section>
-                <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold uppercase tracking-widest text-paddock-on">
-                  <span className="h-6 w-1 bg-paddock-cyan" />
-                  League Performance
-                </h2>
-                <LeaguePerformanceGrid
-                  prediction={userPrediction}
-                  officialResults={race.officialResults}
-                  getDriverLastName={getDriverLastName}
-                  getDriverTeam={getDriverTeam}
-                  roomPredictions={roomRacePredictions}
-                />
-              </section>
-            )}
-
           {/* ── Official Race Standings ── */}
           {race?.officialResults && (
-            <section>
-              <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold uppercase tracking-widest text-paddock-on">
+            <section id="room-picks-hub" className="scroll-mt-6">
+              <h2 className="mb-2 flex items-center gap-2 font-display text-xl font-bold uppercase tracking-widest text-paddock-on">
                 <span className="h-6 w-1 bg-paddock-accent" />
                 Official Race Standings
               </h2>
+              <p className="mb-4 text-sm text-paddock-on-muted">
+                <span className="font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-paddock-on/80">
+                  Room picks hub
+                </span>
+                <span className="mt-1 block">
+                  Official results, points, and pit wall for this race.
+                </span>
+              </p>
 
-              <div className="overflow-hidden rounded-sm bg-paddock-surface">
-                {/* Column headers */}
-                <div className="grid grid-cols-12 gap-4 border-b border-white/5 px-4 py-3 font-display text-[10px] uppercase tracking-[0.2em] text-paddock-on-muted">
-                  <div className="col-span-1">Pos</div>
-                  <div className="col-span-8 md:col-span-9">Driver</div>
-                  <div className="col-span-3 text-right md:col-span-2">Pts</div>
-                </div>
-
+              <div className="rounded-sm bg-paddock-surface overflow-x-auto">
                 {isLoadingDrivers ? (
                   <div className="py-6 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
                     Loading driver names...
                   </div>
                 ) : (
-                  <div>
-                    {race.officialResults.positions.map(
-                      (
-                        result: {
-                          position: number;
-                          driverNumber: number;
-                          points: number;
-                        },
-                        i: number
-                      ) => {
-                        const isTop3 = result.position <= 3;
-                        const teamName = getDriverTeam(result.driverNumber);
-                        const teamColor = teamName
-                          ? `#${getTeamColor(teamName)}`
-                          : "#6B7280";
-
-                        return (
-                          <div
-                            key={result.position}
-                            className={cn(
-                              "grid grid-cols-12 items-center gap-4 px-4 py-3.5 transition-colors hover:bg-paddock-surface-highest",
-                              i % 2 === 0 && "bg-paddock-surface-high/40"
-                            )}
+                  <table className="w-full min-w-[520px] border-collapse">
+                    <thead>
+                      <tr className="border-b border-white/5 font-display text-[10px] uppercase tracking-[0.2em] text-paddock-on-muted">
+                        <th
+                          scope="col"
+                          className="w-11 py-3 pl-4 pr-1 text-left align-middle font-medium"
+                        >
+                          Pos
+                        </th>
+                        <th
+                          scope="col"
+                          className="min-w-0 py-3 pr-3 text-left align-middle font-medium"
+                        >
+                          Driver
+                        </th>
+                        {showRoomColumn && (
+                          <th
+                            scope="col"
+                            className="min-w-[11rem] py-3 pr-3 text-left align-middle font-medium"
                           >
-                            <div className="col-span-1">
-                              <span
-                                className={cn(
-                                  "font-display text-xl font-black italic tabular-nums",
-                                  result.position === 1
-                                    ? "text-paddock-cyan"
-                                    : isTop3
+                            <span>Pit wall</span>
+                          </th>
+                        )}
+                        <th
+                          scope="col"
+                          className="w-[4.5rem] py-3 pr-4 text-right align-middle font-medium tabular-nums"
+                        >
+                          Pts
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {race.officialResults.positions.map(
+                        (
+                          result: {
+                            position: number;
+                            driverNumber: number;
+                            points: number;
+                          },
+                          i: number
+                        ) => {
+                          const isTop3 = result.position <= 3;
+                          const teamName = getDriverTeam(result.driverNumber);
+                          const teamColor = teamName
+                            ? `#${getTeamColor(teamName)}`
+                            : "#6B7280";
+
+                          const matchers = roomRacePredictions
+                            ? usersWhoMatchedSlot(
+                                roomRacePredictions,
+                                result.position,
+                                result.driverNumber
+                              )
+                            : [];
+
+                          return (
+                            <tr
+                              key={result.position}
+                              className={cn(
+                                "transition-colors hover:bg-paddock-surface-highest",
+                                i % 2 === 0 && "bg-paddock-surface-high/40"
+                              )}
+                            >
+                              <td className="py-3.5 pl-4 pr-1 align-middle">
+                                <span
+                                  className={cn(
+                                    "font-display text-xl font-black italic tabular-nums",
+                                    result.position === 1
+                                      ? "text-paddock-cyan"
+                                      : isTop3
+                                        ? "text-paddock-on"
+                                        : "text-paddock-on-muted/60"
+                                  )}
+                                >
+                                  {String(result.position).padStart(2, "0")}
+                                </span>
+                              </td>
+                              <td className="min-w-0 py-3.5 pr-3 align-middle">
+                                <div className="flex min-w-0 items-center gap-3 md:gap-4">
+                                  <div
+                                    className="h-8 w-1 shrink-0 rounded-full"
+                                    style={{ backgroundColor: teamColor }}
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="font-display font-bold text-paddock-on">
+                                      {getDriverFirstName(result.driverNumber)}{" "}
+                                      <span className="text-xl font-black">
+                                        {getDriverLastName(result.driverNumber)}
+                                      </span>
+                                    </p>
+                                    <p className="font-display text-[9px] uppercase tracking-widest text-paddock-on-muted">
+                                      {teamName}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              {showRoomColumn && (
+                                <td className="min-w-[11rem] py-3.5 pr-3 align-middle">
+                                  <div className="flex min-h-[2.75rem] flex-row flex-wrap items-center gap-x-1.5 gap-y-1">
+                                    {matchers.length > 0 ? (
+                                      <>
+                                        <AvatarStack
+                                          users={matchers.map((u) => ({
+                                            _id: u._id,
+                                            username: u.username,
+                                            avatarUrl: u.avatarUrl,
+                                          }))}
+                                          maxVisible={8}
+                                          size="sm"
+                                          layout="spread"
+                                          emphasizeUserId={currentUser?._id}
+                                          ariaLabel={
+                                            matchers.length === 1
+                                              ? `${matchers[0]!.username} called P${result.position} correctly`
+                                              : `${matchers.length} players called P${result.position} correctly`
+                                          }
+                                        />
+                                        {matchers.length > 1 && (
+                                          <span className="font-display text-[9px] font-bold tabular-nums tracking-widest text-paddock-on-muted">
+                                            ×{matchers.length}
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span
+                                        className="font-display text-[9px] uppercase tracking-widest text-paddock-on-muted/40"
+                                        title="No one in this room called this slot"
+                                      >
+                                        —
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              <td className="py-3.5 pr-4 text-right align-middle">
+                                <span
+                                  className={cn(
+                                    "font-display text-lg font-black tabular-nums",
+                                    isTop3
                                       ? "text-paddock-on"
-                                      : "text-paddock-on-muted/60"
-                                )}
-                              >
-                                {String(result.position).padStart(2, "0")}
-                              </span>
-                            </div>
-
-                            <div className="col-span-8 flex items-center gap-4 md:col-span-9">
-                              <div
-                                className="h-8 w-1 shrink-0 rounded-full"
-                                style={{ backgroundColor: teamColor }}
-                              />
-                              <div className="min-w-0">
-                                <p className="font-display font-bold text-paddock-on">
-                                  {getDriverFirstName(result.driverNumber)}{" "}
-                                  <span className="text-xl font-black">
-                                    {getDriverLastName(result.driverNumber)}
-                                  </span>
-                                </p>
-                                <p className="font-display text-[9px] uppercase tracking-widest text-paddock-on-muted">
-                                  {teamName}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="col-span-3 text-right md:col-span-2">
-                              <span
-                                className={cn(
-                                  "font-display text-lg font-black tabular-nums",
-                                  isTop3
-                                    ? "text-paddock-on"
-                                    : "text-paddock-on-muted"
-                                )}
-                              >
-                                {result.points}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      }
-                    )}
-                  </div>
+                                      : "text-paddock-on-muted"
+                                  )}
+                                >
+                                  {result.points}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }
+                      )}
+                    </tbody>
+                  </table>
                 )}
               </div>
             </section>
+          )}
+
+          {userPrediction && race?.officialResults && !isLoadingDrivers && (
+            <YourPicksBreakdown
+              prediction={userPrediction}
+              officialResults={race.officialResults}
+              getDriverLastName={getDriverLastName}
+              getDriverTeam={getDriverTeam}
+            />
           )}
 
           {/* ── Race Leaderboard ── */}
@@ -525,250 +633,19 @@ type PredictionWithUser = {
   user: Doc<"users"> | null;
 };
 
-function usersWhoPickedP1(
+/** Room members who placed this driver in this exact finishing position. */
+function usersWhoMatchedSlot(
   predictions: PredictionWithUser[],
-  driverNumber: number | undefined
+  slotPosition: number,
+  actualDriverNumber: number
 ): Doc<"users">[] {
-  if (driverNumber === undefined) return [];
   return predictions
-    .filter(
-      (p) =>
-        p.predictedPositions.find((x) => x.position === 1)?.driverNumber ===
-        driverNumber
-    )
+    .filter((p) => {
+      const pick = p.predictedPositions.find(
+        (x) => x.position === slotPosition
+      );
+      return pick?.driverNumber === actualDriverNumber;
+    })
     .map((p) => p.user)
     .filter((u): u is Doc<"users"> => u != null);
-}
-
-function usersWhoPickedFastestLap(
-  predictions: PredictionWithUser[],
-  driverNumber: number | undefined
-): Doc<"users">[] {
-  if (driverNumber === undefined) return [];
-  return predictions
-    .filter((p) => p.fastestLapDriverId === driverNumber)
-    .map((p) => p.user)
-    .filter((u): u is Doc<"users"> => u != null);
-}
-
-function usersWhoPickedPole(
-  predictions: PredictionWithUser[],
-  driverNumber: number | undefined
-): Doc<"users">[] {
-  if (driverNumber === undefined) return [];
-  return predictions
-    .filter((p) => p.polePositionDriverId === driverNumber)
-    .map((p) => p.user)
-    .filter((u): u is Doc<"users"> => u != null);
-}
-
-/* ── League Performance Bento Grid ── */
-function LeaguePerformanceGrid({
-  prediction,
-  officialResults,
-  getDriverLastName,
-  getDriverTeam,
-  roomPredictions,
-}: {
-  prediction: {
-    predictedPositions: Array<{ position: number; driverNumber: number }>;
-    fastestLapDriverId?: number;
-    polePositionDriverId?: number;
-    dnfDriverIds: number[];
-  };
-  officialResults: {
-    positions: Array<{
-      position: number;
-      driverNumber: number;
-      points: number;
-    }>;
-    fastestLapDriverId?: number;
-    polePositionDriverId?: number;
-    dnfDriverIds?: number[];
-  };
-  getDriverLastName: (n: number) => string;
-  getDriverTeam: (n: number) => string;
-  roomPredictions: PredictionWithUser[];
-}) {
-  const p1Predicted = prediction.predictedPositions.find(
-    (p) => p.position === 1
-  )?.driverNumber;
-  const p1Actual = officialResults.positions.find(
-    (p) => p.position === 1
-  )?.driverNumber;
-  const winnerHit = p1Predicted && p1Actual && p1Predicted === p1Actual;
-
-  const flHit =
-    prediction.fastestLapDriverId &&
-    officialResults.fastestLapDriverId &&
-    prediction.fastestLapDriverId === officialResults.fastestLapDriverId;
-
-  const poleHit =
-    prediction.polePositionDriverId &&
-    officialResults.polePositionDriverId &&
-    prediction.polePositionDriverId === officialResults.polePositionDriverId;
-
-  // Top-10 accuracy: how many of the user's top-10 picks are in the actual top-10
-  const actualTop10 = new Set(
-    officialResults.positions
-      .filter((p) => p.position <= 10)
-      .map((p) => p.driverNumber)
-  );
-  const predictedTop10 = prediction.predictedPositions
-    .filter((p) => p.position <= 10)
-    .map((p) => p.driverNumber);
-  const top10Hits = predictedTop10.filter((n) => actualTop10.has(n)).length;
-
-  const votersP1 = usersWhoPickedP1(roomPredictions, p1Predicted);
-  const votersFl = usersWhoPickedFastestLap(
-    roomPredictions,
-    prediction.fastestLapDriverId
-  );
-  const votersPole = usersWhoPickedPole(
-    roomPredictions,
-    prediction.polePositionDriverId
-  );
-
-  const cards = [
-    {
-      label: "Predicted Winner",
-      driver: p1Predicted
-        ? `${getDriverLastName(p1Predicted).split(" ").pop()?.charAt(0) || ""}. ${getDriverLastName(p1Predicted)}`
-        : "—",
-      voters: votersP1,
-      hit: winnerHit,
-      pts: winnerHit ? "+25" : "0",
-      note: winnerHit
-        ? "HIT"
-        : p1Actual
-          ? `Actual: ${getDriverLastName(p1Actual)}`
-          : "MISS",
-      borderColor: winnerHit
-        ? "border-paddock-warning"
-        : "border-paddock-accent",
-    },
-    {
-      label: "Fastest Lap",
-      driver: prediction.fastestLapDriverId
-        ? getDriverLastName(prediction.fastestLapDriverId)
-        : "—",
-      voters: votersFl,
-      hit: flHit,
-      pts: flHit ? "+10" : "0",
-      note: flHit ? "HIT" : "MISS",
-      borderColor: flHit ? "border-paddock-warning" : "border-paddock-accent",
-    },
-    {
-      label: "Pole Position",
-      driver: prediction.polePositionDriverId
-        ? getDriverLastName(prediction.polePositionDriverId)
-        : "—",
-      voters: votersPole,
-      hit: poleHit,
-      pts: poleHit ? "+10" : "0",
-      note: poleHit ? "HIT" : "MISS",
-      borderColor: poleHit ? "border-paddock-warning" : "border-paddock-accent",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className={cn(
-            "relative overflow-hidden rounded-sm border-l-4 bg-paddock-surface-highest p-5",
-            card.borderColor
-          )}
-        >
-          <p className="mb-3 font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
-            {card.label}
-          </p>
-          <div className="mb-1 flex items-start justify-between gap-3">
-            <h3 className="min-w-0 flex-1 font-display text-2xl font-bold text-paddock-on">
-              {card.driver}
-            </h3>
-            {card.voters.length > 0 && (
-              <AvatarStack users={card.voters} className="shrink-0 pt-1" />
-            )}
-          </div>
-          <p className="font-display text-xs font-bold">
-            <span
-              className={
-                card.hit ? "text-paddock-warning" : "text-paddock-accent"
-              }
-            >
-              {card.pts} PTS
-            </span>
-            <span className="ml-2 text-paddock-on-muted opacity-60">
-              {card.note}
-            </span>
-          </p>
-        </div>
-      ))}
-
-      {/* Precision Analysis bar */}
-      <div className="col-span-full overflow-hidden rounded-sm border border-white/5 bg-paddock-surface p-6">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex-1 space-y-4">
-            <p className="mb-4 font-display text-[10px] uppercase tracking-widest text-paddock-on-muted">
-              Precision Analysis
-            </p>
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="font-display text-xs uppercase tracking-wider text-paddock-on">
-                  Top 10 Accuracy
-                </span>
-                <span className="font-display font-bold text-paddock-cyan">
-                  {top10Hits}/10
-                </span>
-              </div>
-              <div className="h-1 w-full overflow-hidden rounded-full bg-paddock-surface-highest">
-                <div
-                  className="h-full bg-paddock-cyan transition-all"
-                  style={{ width: `${top10Hits * 10}%` }}
-                />
-              </div>
-            </div>
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="font-display text-xs uppercase tracking-wider text-paddock-on">
-                  Bonus Picks
-                </span>
-                <span className="font-display font-bold text-paddock-warning">
-                  {[winnerHit, flHit, poleHit].filter(Boolean).length}/3
-                </span>
-              </div>
-              <div className="h-1 w-full overflow-hidden rounded-full bg-paddock-surface-highest">
-                <div
-                  className="h-full bg-paddock-warning transition-all"
-                  style={{
-                    width: `${([winnerHit, flHit, poleHit].filter(Boolean).length / 3) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden h-32 w-px bg-white/10 lg:block" />
-
-          <div className="flex flex-col items-center justify-center px-8 text-center">
-            <span className="mb-2 text-4xl text-paddock-cyan">✦</span>
-            <h4 className="font-display text-xl font-bold text-paddock-on">
-              {top10Hits >= 8
-                ? "LEGENDARY"
-                : top10Hits >= 6
-                  ? "EXCELLENT"
-                  : top10Hits >= 4
-                    ? "GOOD"
-                    : "DEVELOPING"}
-            </h4>
-            <p className="font-display text-[9px] tracking-[0.2em] text-paddock-on-muted">
-              PICK QUALITY
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }

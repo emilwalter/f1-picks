@@ -5,7 +5,6 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTeamColor } from "@/lib/f1-images";
 import type { Doc } from "@/convex/_generated/dataModel";
-
 const SMALL_ROOM_THRESHOLD = 6;
 
 /** Telemetry-style fill: team color, slightly transparent at the leading edge (DESIGN.md). */
@@ -137,7 +136,7 @@ export function PredictionSummary({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3 pt-0.5">
+        <div className="flex shrink-0 items-center gap-2 pt-0.5 sm:gap-3">
           {isPast && (
             <span className="rounded-sm bg-paddock-surface-highest px-2 py-0.5 font-display text-[9px] font-semibold uppercase tracking-widest text-paddock-warning">
               Locked
