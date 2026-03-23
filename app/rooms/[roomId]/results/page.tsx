@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -9,8 +9,13 @@ import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { RoomLeaderboard } from "@/components/room/room-leaderboard";
 import { YourPicksBreakdown } from "@/components/room/your-picks-breakdown";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
-import { AvatarStack } from "@/components/ui/avatar-stack";
+import {
+  AvatarStack,
+  type AvatarStackUser,
+} from "@/components/ui/avatar-stack";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { getTeamColor, getCountryFlag } from "@/lib/f1-images";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -28,8 +33,15 @@ export default function RoomResultsPage() {
   const roomId = params.roomId as Id<"rooms">;
   const raceId = searchParams.get("raceId") as Id<"races"> | null;
 
-  const { room, season, leaderboard, currentUser, userPredictions, isLoading } =
-    useRoom(roomId, raceId || undefined);
+  const {
+    room,
+    season,
+    leaderboard,
+    currentUser,
+    userPredictions,
+    participants,
+    isLoading,
+  } = useRoom(roomId, raceId || undefined);
 
   const racesWithResults = useQuery(
     api.queries.races.getSeasonRacesWithOfficialResults,
@@ -71,6 +83,17 @@ export default function RoomResultsPage() {
     };
     fetchDrivers();
   }, [race, season, getDriversForRace]);
+
+  /** Pit wall: default “everyone” for small rooms; user can override. */
+  const [showAllPitWall, setShowAllPitWall] = useState(false);
+  const pitWallDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (participants === undefined || pitWallDefaultApplied.current) return;
+    pitWallDefaultApplied.current = true;
+    if (participants.length > 0 && participants.length <= 8) {
+      setShowAllPitWall(true);
+    }
+  }, [participants]);
 
   const getDriverFirstName = (driverNumber: number): string => {
     const driver = drivers.find((d) => d.driverNumber === driverNumber);
@@ -316,7 +339,7 @@ export default function RoomResultsPage() {
                 <span className="h-6 w-1 bg-paddock-accent" />
                 Official Race Standings
               </h2>
-              <p className="mb-4 text-sm text-paddock-on-muted">
+              <p className="mb-3 text-sm text-paddock-on-muted">
                 <span className="font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-paddock-on/80">
                   Room picks hub
                 </span>
@@ -324,6 +347,32 @@ export default function RoomResultsPage() {
                   Official results, points, and pit wall for this race.
                 </span>
               </p>
+
+              {showRoomColumn &&
+                roomRacePredictions &&
+                roomRacePredictions.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/[0.06] pt-3">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="pit-wall-show-all"
+                        checked={showAllPitWall}
+                        onCheckedChange={setShowAllPitWall}
+                        className="data-[state=checked]:bg-paddock-cyan"
+                      />
+                      <Label
+                        htmlFor="pit-wall-show-all"
+                        className="cursor-pointer font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on"
+                      >
+                        Show everyone
+                      </Label>
+                    </div>
+                    <span className="min-w-0 font-display text-[9px] leading-snug text-paddock-on-muted">
+                      {showAllPitWall
+                        ? "Dim = picked another driver for this position."
+                        : "Only players who matched this finishing slot."}
+                    </span>
+                  </div>
+                )}
 
               <div className="rounded-sm bg-paddock-surface overflow-x-auto">
                 {isLoadingDrivers ? (
@@ -385,6 +434,23 @@ export default function RoomResultsPage() {
                                 result.driverNumber
                               )
                             : [];
+                          const pitEntries = roomRacePredictions
+                            ? pitWallSlotEntries(
+                                roomRacePredictions,
+                                result.position,
+                                result.driverNumber
+                              )
+                            : [];
+                          const pitStackUsers = showAllPitWall
+                            ? pitEntries
+                            : matchers.map((u) => ({
+                                _id: u._id,
+                                username: u.username,
+                                avatarUrl: u.avatarUrl,
+                              }));
+                          const pitMatchedCount = pitEntries.filter(
+                            (e) => !e.dimmed
+                          ).length;
 
                           return (
                             <tr
@@ -430,29 +496,34 @@ export default function RoomResultsPage() {
                               {showRoomColumn && (
                                 <td className="min-w-[11rem] py-3.5 pr-3 align-middle">
                                   <div className="flex min-h-[2.75rem] flex-row flex-wrap items-center gap-x-1.5 gap-y-1">
-                                    {matchers.length > 0 ? (
+                                    {pitStackUsers.length > 0 ? (
                                       <>
                                         <AvatarStack
-                                          users={matchers.map((u) => ({
-                                            _id: u._id,
-                                            username: u.username,
-                                            avatarUrl: u.avatarUrl,
-                                          }))}
-                                          maxVisible={8}
+                                          users={pitStackUsers}
+                                          maxVisible={showAllPitWall ? 14 : 8}
                                           size="sm"
-                                          layout="spread"
                                           emphasizeUserId={currentUser?._id}
                                           ariaLabel={
-                                            matchers.length === 1
-                                              ? `${matchers[0]!.username} called P${result.position} correctly`
-                                              : `${matchers.length} players called P${result.position} correctly`
+                                            showAllPitWall
+                                              ? `${pitMatchedCount} matched this slot, ${pitStackUsers.length - pitMatchedCount} picked another driver for P${result.position}`
+                                              : pitStackUsers.length === 1
+                                                ? `${pitStackUsers[0]!.username} called P${result.position} correctly`
+                                                : `${pitStackUsers.length} players called P${result.position} correctly`
                                           }
                                         />
-                                        {matchers.length > 1 && (
-                                          <span className="font-display text-[9px] font-bold tabular-nums tracking-widest text-paddock-on-muted">
-                                            ×{matchers.length}
-                                          </span>
-                                        )}
+                                        {!showAllPitWall &&
+                                          pitStackUsers.length > 1 && (
+                                            <span className="font-display text-[9px] font-bold tabular-nums tracking-widest text-paddock-on-muted">
+                                              ×{pitStackUsers.length}
+                                            </span>
+                                          )}
+                                        {showAllPitWall &&
+                                          pitStackUsers.length > 1 && (
+                                            <span className="font-display text-[9px] tabular-nums tracking-widest text-paddock-on-muted">
+                                              {pitMatchedCount}/
+                                              {pitStackUsers.length}
+                                            </span>
+                                          )}
                                       </>
                                     ) : (
                                       <span
@@ -486,15 +557,6 @@ export default function RoomResultsPage() {
                 )}
               </div>
             </section>
-          )}
-
-          {userPrediction && race?.officialResults && !isLoadingDrivers && (
-            <YourPicksBreakdown
-              prediction={userPrediction}
-              officialResults={race.officialResults}
-              getDriverLastName={getDriverLastName}
-              getDriverTeam={getDriverTeam}
-            />
           )}
 
           {/* ── Race Leaderboard ── */}
@@ -608,6 +670,18 @@ export default function RoomResultsPage() {
               View full rankings
             </Link>
           </div>
+
+          {userPrediction && race?.officialResults && !isLoadingDrivers && (
+            <div className="min-w-0">
+              <YourPicksBreakdown
+                variant="sidebar"
+                prediction={userPrediction}
+                officialResults={race.officialResults}
+                getDriverLastName={getDriverLastName}
+                getDriverTeam={getDriverTeam}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -637,4 +711,33 @@ function usersWhoMatchedSlot(
     })
     .map((p) => p.user)
     .filter((u): u is Doc<"users"> => u != null);
+}
+
+/** Everyone who submitted a pick for this slot; `dimmed` = wrong driver for this position. */
+function pitWallSlotEntries(
+  predictions: PredictionWithUser[],
+  slotPosition: number,
+  actualDriverNumber: number
+): AvatarStackUser[] {
+  const rows: AvatarStackUser[] = [];
+  for (const p of predictions) {
+    const u = p.user;
+    if (!u) continue;
+    const pick = p.predictedPositions.find((x) => x.position === slotPosition);
+    if (!pick) continue;
+    const matched = pick.driverNumber === actualDriverNumber;
+    rows.push({
+      _id: u._id,
+      username: u.username,
+      avatarUrl: u.avatarUrl,
+      dimmed: !matched,
+    });
+  }
+  rows.sort((a, b) => {
+    const da = a.dimmed ? 1 : 0;
+    const db = b.dimmed ? 1 : 0;
+    if (da !== db) return da - db;
+    return a.username.localeCompare(b.username);
+  });
+  return rows;
 }

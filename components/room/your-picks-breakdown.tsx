@@ -16,6 +16,8 @@ interface YourPicksBreakdownProps {
   officialResults: NonNullable<Doc<"races">["officialResults"]>;
   getDriverLastName: (driverNumber: number) => string;
   getDriverTeam: (driverNumber: number) => string;
+  /** Narrow column: keep grids readable (e.g. results page sidebar). */
+  variant?: "default" | "sidebar";
 }
 
 /**
@@ -26,7 +28,9 @@ export function YourPicksBreakdown({
   officialResults,
   getDriverLastName,
   getDriverTeam,
+  variant = "default",
 }: YourPicksBreakdownProps) {
+  const sidebar = variant === "sidebar";
   const actualByPosition = new Map(
     officialResults.positions.map((p) => [p.position, p.driverNumber])
   );
@@ -41,30 +45,45 @@ export function YourPicksBreakdown({
   );
 
   return (
-    <section className="overflow-hidden rounded-sm bg-paddock-surface-low">
-      <div className="border-b border-white/5 px-5 py-4">
+    <section
+      className={cn(
+        "overflow-hidden rounded-sm bg-paddock-surface-low",
+        sidebar && "border border-white/5 bg-paddock-surface"
+      )}
+    >
+      <div
+        className={cn(
+          "border-b border-white/5 px-5 py-4",
+          sidebar && "px-4 py-4"
+        )}
+      >
         <div className="flex items-center gap-2">
           <span className="h-6 w-1 shrink-0 bg-paddock-cyan" aria-hidden />
-          <h2 className="font-display text-lg font-bold uppercase tracking-widest text-paddock-on">
-            Your picks
-          </h2>
+          {sidebar ? (
+            <h3 className="font-display text-base font-bold uppercase tracking-widest text-paddock-on">
+              Your picks
+            </h3>
+          ) : (
+            <h2 className="font-display text-lg font-bold uppercase tracking-widest text-paddock-on">
+              Your picks
+            </h2>
+          )}
         </div>
         <p className="mt-1 font-display text-[10px] uppercase tracking-[0.2em] text-paddock-on-muted">
           Your submission vs the timing sheet
         </p>
-        <a
-          href="#room-picks-hub"
-          className="mt-3 inline-block min-h-11 py-2 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-cyan transition-colors hover:text-paddock-cyan-soft"
-        >
-          ↑ Room picks & pit wall (standings above)
-        </a>
       </div>
 
-      <div className="p-5">
+      <div className={cn("p-5", sidebar && "px-4 pb-5 pt-4")}>
         <h3 className="mb-3 font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-paddock-on-muted">
           Top 10 grid
         </h3>
-        <div className="mb-8 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div
+          className={cn(
+            "mb-8 grid gap-2",
+            sidebar ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-5"
+          )}
+        >
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((position) => {
             const pred = sorted.find((p) => p.position === position);
             if (!pred) {
@@ -123,7 +142,12 @@ export function YourPicksBreakdown({
           })}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div
+          className={cn(
+            "grid gap-4",
+            sidebar ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"
+          )}
+        >
           {prediction.polePositionDriverId != null && (
             <BonusRow
               label="Pole"
