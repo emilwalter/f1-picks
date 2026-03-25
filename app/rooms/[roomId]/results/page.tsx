@@ -8,6 +8,7 @@ import { useRoom } from "@/hooks/use-room";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { RoomLeaderboard } from "@/components/room/room-leaderboard";
 import { YourPicksBreakdown } from "@/components/room/your-picks-breakdown";
+import { PickQualityPanel } from "@/components/room/pick-quality-panel";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
 import {
   AvatarStack,
@@ -229,6 +230,7 @@ export default function RoomResultsPage() {
 
   // Compute user prediction accuracy for this race
   const userPrediction = userPredictions?.find((p) => p.raceId === raceId);
+  const userPredictionsLoading = userPredictions === undefined;
   const userRaceEntry = raceLeaderboard?.find(
     (e) => e.userId === currentUser?._id
   );
@@ -327,6 +329,18 @@ export default function RoomResultsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {currentUser && race?.officialResults && (
+        <PickQualityPanel
+          className="mb-8"
+          isLoading={userPredictionsLoading}
+          prediction={
+            userPredictionsLoading ? undefined : (userPrediction ?? null)
+          }
+          officialResults={race.officialResults}
+          scoreBreakdown={userRaceEntry?.breakdown ?? null}
+        />
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
