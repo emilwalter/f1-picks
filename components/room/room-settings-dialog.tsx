@@ -44,8 +44,12 @@ export function RoomSettingsDialog({
 }: RoomSettingsDialogProps) {
   const updateRoom = useMutation(api.mutations.rooms.updateRoom);
   const archiveRoom = useMutation(api.mutations.rooms.archiveRoom);
+  const recalculateRoomScores = useMutation(
+    api.mutations.raceScoring.recalculateRoomScores
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   // Form state
   const [roomName, setRoomName] = useState(room.name || "");
@@ -89,6 +93,9 @@ export function RoomSettingsDialog({
   const [polePositionPoints, setPolePositionPoints] = useState(
     room.scoringConfig.polePositionPoints.toString()
   );
+  const [dnfCorrectMultiplier, setDnfCorrectMultiplier] = useState(
+    (room.scoringConfig.dnfCorrectMultiplier ?? 0).toString()
+  );
   const [dnfPenalty, setDnfPenalty] = useState(
     room.scoringConfig.dnfPenalty.toString()
   );
@@ -114,6 +121,9 @@ export function RoomSettingsDialog({
     setPositionPoints(room.scoringConfig.positionPoints.join(", "));
     setFastestLapPoints(room.scoringConfig.fastestLapPoints.toString());
     setPolePositionPoints(room.scoringConfig.polePositionPoints.toString());
+    setDnfCorrectMultiplier(
+      (room.scoringConfig.dnfCorrectMultiplier ?? 0).toString()
+    );
     setDnfPenalty(room.scoringConfig.dnfPenalty.toString());
   }, [room]);
 
@@ -162,6 +172,7 @@ export function RoomSettingsDialog({
         positionPoints: parsedPositionPoints,
         fastestLapPoints: parseFloat(fastestLapPoints) || 0,
         polePositionPoints: parseFloat(polePositionPoints) || 0,
+        dnfCorrectMultiplier: parseFloat(dnfCorrectMultiplier) || 0,
         dnfPenalty: parseFloat(dnfPenalty) || 0,
       };
 
@@ -379,19 +390,78 @@ export function RoomSettingsDialog({
                 </Field>
               </div>
 
-              <Field>
-                <FieldLabel htmlFor="dnf-penalty">DNF Penalty</FieldLabel>
-                <Input
-                  id="dnf-penalty"
-                  type="number"
-                  value={dnfPenalty}
-                  onChange={(e) => setDnfPenalty(e.target.value)}
-                />
-                <FieldDescription>
-                  Negative points for each incorrect DNF prediction.
-                </FieldDescription>
-              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="dnf-correct-multiplier">
+                    DNF multiplier (per correct)
+                  </FieldLabel>
+                  <Input
+                    id="dnf-correct-multiplier"
+                    type="number"
+                    min="0"
+                    step="0.05"
+                    value={dnfCorrectMultiplier}
+                    onChange={(e) => setDnfCorrectMultiplier(e.target.value)}
+                  />
+                  <FieldDescription>
+                    Each correct DNF adds this to your race multiplier (e.g. 0.1
+                    and 7 hits → ×1.7 on positions + fastest lap + pole).
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="dnf-penalty">DNF miss (each)</FieldLabel>
+                  <Input
+                    id="dnf-penalty"
+                    type="number"
+                    min="0"
+                    value={dnfPenalty}
+                    onChange={(e) => setDnfPenalty(e.target.value)}
+                  />
+                  <FieldDescription>
+                    Points subtracted for each predicted DNF who finishes.
+                  </FieldDescription>
+                </Field>
+              </div>
             </FieldGroup>
+          </FieldSet>
+
+          <FieldSet>
+            <FieldLegend>Leaderboard</FieldLegend>
+            <FieldDescription>
+              After changing scoring rules, recalculate so past races use the
+              new values.
+            </FieldDescription>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2"
+              disabled={isRecalculating || isSaving}
+              onClick={async () => {
+                setIsRecalculating(true);
+                try {
+                  const result = await recalculateRoomScores({
+                    roomId: room._id,
+                  });
+                  toast.success(
+                    `Recalculated ${result.racesProcessed} race(s). Updated ${result.scoresCreated + result.scoresUpdated} score row(s).`
+                  );
+                } catch (error) {
+                  console.error("Recalculate scores:", error);
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to recalculate scores"
+                  );
+                } finally {
+                  setIsRecalculating(false);
+                }
+              }}
+            >
+              {isRecalculating
+                ? "Recalculating…"
+                : "Recalculate leaderboard scores"}
+            </Button>
           </FieldSet>
 
           <FieldSet>
@@ -419,7 +489,7 @@ export function RoomSettingsDialog({
                   setIsArchiving(false);
                 }
               }}
-              disabled={isArchiving || isSaving}
+              disabled={isArchiving || isSaving || isRecalculating}
             >
               {isArchiving ? "Archiving..." : "Archive Room"}
             </Button>
@@ -431,11 +501,15 @@ export function RoomSettingsDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isSaving}
+            disabled={isSaving || isRecalculating}
           >
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} disabled={isSaving}>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || isRecalculating}
+          >
             {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>

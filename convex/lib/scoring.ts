@@ -21,6 +21,11 @@ export interface ScoringConfig {
   positionPoints: number[];
   fastestLapPoints: number;
   polePositionPoints: number;
+  /**
+   * Added to the multiplier per correct DNF: finalMultiplier = 1 + rate × correctDnfCount.
+   * Example: 0.1 and 7 correct DNFs → ×1.7 on (positions + FL + pole) for that race.
+   */
+  dnfCorrectMultiplier?: number;
   dnfPenalty: number;
 }
 
@@ -28,6 +33,10 @@ export interface ScoreBreakdown {
   positionPoints: number;
   fastestLapPoints: number;
   polePositionPoints: number;
+  /** Applied to (position + FL + pole), e.g. 1.7 */
+  dnfMultiplierApplied: number;
+  /** Extra points from multiplier: base × (multiplier − 1) */
+  dnfMultiplierBonus: number;
   dnfPenalty: number;
   total: number;
 }
@@ -50,37 +59,30 @@ export function calculateScore(
   let polePositionPoints = 0;
   let dnfPenalty = 0;
 
+  const rate = scoringConfig.dnfCorrectMultiplier ?? 0;
+
   // Calculate position points
-  // Create a map of predicted positions by driver number
   const predictedMap = new Map<number, number>();
   prediction.predictedPositions.forEach((pred) => {
     predictedMap.set(pred.driverNumber, pred.position);
   });
 
-  // Create a map of actual positions by driver number
   const actualMap = new Map<number, number>();
   officialResults.positions.forEach((result) => {
     actualMap.set(result.driverNumber, result.position);
   });
 
-  // Compare predictions with actual results
   prediction.predictedPositions.forEach((pred) => {
     const actualPosition = actualMap.get(pred.driverNumber);
     if (actualPosition !== undefined) {
       const positionDiff = Math.abs(pred.position - actualPosition);
-      // Award points based on how close the prediction was
-      // If exact match, award full points for that position
-      // If off by 1, award points for the position they predicted
-      // If off by more, award reduced points
       if (positionDiff === 0) {
-        // Exact match - award points for the position
         const pointsIndex = Math.min(
           pred.position - 1,
           scoringConfig.positionPoints.length - 1
         );
         positionPoints += scoringConfig.positionPoints[pointsIndex] || 0;
       } else if (positionDiff === 1) {
-        // Off by 1 - award half points
         const pointsIndex = Math.min(
           pred.position - 1,
           scoringConfig.positionPoints.length - 1
@@ -88,11 +90,9 @@ export function calculateScore(
         positionPoints +=
           (scoringConfig.positionPoints[pointsIndex] || 0) * 0.5;
       }
-      // Off by more than 1 - no points
     }
   });
 
-  // Check fastest lap
   if (
     prediction.fastestLapDriverId !== undefined &&
     prediction.fastestLapDriverId === officialResults.fastestLapDriverId
@@ -100,7 +100,6 @@ export function calculateScore(
     fastestLapPoints = scoringConfig.fastestLapPoints;
   }
 
-  // Check pole position
   if (
     prediction.polePositionDriverId !== undefined &&
     prediction.polePositionDriverId === officialResults.polePositionDriverId
@@ -108,11 +107,16 @@ export function calculateScore(
     polePositionPoints = scoringConfig.polePositionPoints;
   }
 
-  // Check DNF predictions
   const predictedDnfSet = new Set(prediction.dnfDriverIds);
   const actualDnfSet = new Set(officialResults.dnfDriverIds);
 
-  // Count incorrect DNF predictions (predicted but didn't DNF)
+  let correctDnfCount = 0;
+  predictedDnfSet.forEach((driverId) => {
+    if (actualDnfSet.has(driverId)) {
+      correctDnfCount++;
+    }
+  });
+
   let incorrectDnfCount = 0;
   predictedDnfSet.forEach((driverId) => {
     if (!actualDnfSet.has(driverId)) {
@@ -120,23 +124,25 @@ export function calculateScore(
     }
   });
 
-  // Apply DNF penalty for incorrect predictions
   dnfPenalty = incorrectDnfCount * scoringConfig.dnfPenalty;
 
-  const total =
-    positionPoints +
-    fastestLapPoints +
-    polePositionPoints -
-    Math.abs(dnfPenalty);
+  const baseSubtotal = positionPoints + fastestLapPoints + polePositionPoints;
+  const multiplier = 1 + rate * correctDnfCount;
+  const scaledSubtotal = baseSubtotal * multiplier;
+  const dnfMultiplierBonus = scaledSubtotal - baseSubtotal;
+
+  const total = Math.max(0, scaledSubtotal - Math.abs(dnfPenalty));
 
   return {
-    total: Math.max(0, total), // Ensure non-negative
+    total,
     breakdown: {
       positionPoints,
       fastestLapPoints,
       polePositionPoints,
-      dnfPenalty: -Math.abs(dnfPenalty), // Store as negative
-      total: Math.max(0, total),
+      dnfMultiplierApplied: multiplier,
+      dnfMultiplierBonus,
+      dnfPenalty: -Math.abs(dnfPenalty),
+      total,
     },
   };
 }

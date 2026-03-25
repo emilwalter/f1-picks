@@ -1,6 +1,6 @@
-import { internalMutation } from "../_generated/server";
+import { internalMutation, mutation } from "../_generated/server";
 import { v } from "convex/values";
-import { calculateScore } from "../lib/scoring";
+import { applyScoringForRoomRace } from "../lib/applyRoomRaceScoring";
 
 /**
  * Internal mutation to apply scoring for a room and race
@@ -12,91 +12,66 @@ export const applyScoringForRoom = internalMutation({
     raceId: v.id("races"),
   },
   handler: async (ctx, args) => {
-    // Get room and race
+    return applyScoringForRoomRace(ctx, args);
+  },
+});
+
+/**
+ * Re-run scoring for every race in this room that already has official results.
+ * Host-only. Use after changing scoring rules (e.g. DNF bonuses) so the leaderboard updates.
+ */
+export const recalculateRoomScores = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       throw new Error("Room not found");
     }
 
-    const race = await ctx.db.get(args.raceId);
-    if (!race) {
-      throw new Error("Race not found");
+    const authProviderId = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_provider_id", (q) =>
+        q.eq("authProviderId", authProviderId)
+      )
+      .first();
+
+    if (!user || user._id !== room.hostId) {
+      throw new Error("Only the host can recalculate scores");
     }
 
-    if (!race.officialResults) {
-      throw new Error("Race results not available");
-    }
+    const races = await ctx.db
+      .query("races")
+      .withIndex("by_season", (q) => q.eq("seasonId", room.seasonId))
+      .collect();
 
-    if (race.seasonId !== room.seasonId) {
-      throw new Error("Race does not belong to this room's season");
-    }
-
-    // Get all predictions for this room and race
-    const predictions = await ctx.db
-      .query("predictions")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect()
-      .then((preds) => preds.filter((p) => p.raceId === args.raceId));
-
-    // Calculate scores for each prediction
-    const now = Date.now();
+    const withResults = races.filter((r) => r.officialResults !== undefined);
+    let racesProcessed = 0;
     let scoresCreated = 0;
     let scoresUpdated = 0;
 
-    // Ensure officialResults has required fields (dnfDriverIds must be an array, not optional)
-    const officialResults = {
-      positions: race.officialResults!.positions,
-      fastestLapDriverId: race.officialResults!.fastestLapDriverId,
-      polePositionDriverId: race.officialResults!.polePositionDriverId,
-      dnfDriverIds: race.officialResults!.dnfDriverIds ?? [],
-    };
-
-    for (const prediction of predictions) {
-      const score = calculateScore(
-        prediction,
-        officialResults,
-        room.scoringConfig
-      );
-
-      // Check if score already exists for this race
-      const existingScore = await ctx.db
-        .query("scores")
-        .withIndex("by_room_race_user", (q) =>
-          q
-            .eq("roomId", args.roomId)
-            .eq("raceId", args.raceId)
-            .eq("userId", prediction.userId)
-        )
-        .first();
-
-      if (existingScore) {
-        // Update existing score
-        await ctx.db.patch(existingScore._id, {
-          points: score.total,
-          breakdown: score.breakdown,
-          calculatedAt: now,
-        });
-        scoresUpdated++;
-      } else {
-        // Create new score for this race
-        await ctx.db.insert("scores", {
-          roomId: args.roomId,
-          raceId: args.raceId,
-          userId: prediction.userId,
-          points: score.total,
-          breakdown: score.breakdown,
-          calculatedAt: now,
-        });
-        scoresCreated++;
-      }
+    for (const race of withResults) {
+      const result = await applyScoringForRoomRace(ctx, {
+        roomId: args.roomId,
+        raceId: race._id,
+      });
+      racesProcessed++;
+      scoresCreated += result.scoresCreated;
+      scoresUpdated += result.scoresUpdated;
     }
 
     return {
       roomId: args.roomId,
-      raceId: args.raceId,
+      racesProcessed,
       scoresCreated,
       scoresUpdated,
-      totalPredictions: predictions.length,
     };
   },
 });

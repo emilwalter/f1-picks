@@ -13,6 +13,8 @@ interface LeaderboardEntry {
     positionPoints: number;
     fastestLapPoints: number;
     polePositionPoints: number;
+    dnfMultiplierApplied?: number;
+    dnfMultiplierBonus?: number;
     dnfPenalty: number;
     total: number;
   };
@@ -118,7 +120,10 @@ export function RoomLeaderboard({
               Pole
             </span>
             <span className="hidden w-16 text-right font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted sm:block">
-              DNF
+              DNF ×
+            </span>
+            <span className="hidden w-14 text-right font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted sm:block">
+              DNF−
             </span>
           </>
         )}
@@ -191,7 +196,12 @@ export function RoomLeaderboard({
                   <span className="hidden w-16 text-right font-mono text-sm tabular-nums text-paddock-on sm:block">
                     {entry.breakdown.polePositionPoints}
                   </span>
-                  <span className="hidden w-16 text-right font-mono text-sm tabular-nums text-paddock-accent sm:block">
+                  <span className="hidden w-16 text-right font-mono text-sm tabular-nums text-paddock-on sm:block">
+                    {(entry.breakdown.dnfMultiplierApplied ?? 1) === 1
+                      ? "—"
+                      : `${(entry.breakdown.dnfMultiplierApplied ?? 1).toFixed(2)}×`}
+                  </span>
+                  <span className="hidden w-14 text-right font-mono text-sm tabular-nums text-paddock-accent sm:block">
                     {entry.breakdown.dnfPenalty}
                   </span>
                 </>

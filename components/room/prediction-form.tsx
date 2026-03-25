@@ -219,6 +219,8 @@ export function PredictionForm({
     positionPointsTable[position - 1] ?? 0;
   const polePts = room.scoringConfig.polePositionPoints;
   const fastestPts = room.scoringConfig.fastestLapPoints;
+  const dnfMultRate = room.scoringConfig.dnfCorrectMultiplier ?? 0;
+  const dnfMissPts = room.scoringConfig.dnfPenalty;
 
   const getDriverLastName = (driverNumber: number) => {
     const d = drivers.find((d) => d.driverNumber === driverNumber);
@@ -580,7 +582,18 @@ export function PredictionForm({
             DNF (Did Not Finish)
           </h3>
           <p className="mb-4 text-xs text-paddock-on-muted">
-            Select drivers who won&apos;t finish the race (optional)
+            Select drivers who won&apos;t finish the race (optional). Scoring:{" "}
+            {dnfMultRate > 0 ? (
+              <>
+                (positions + fastest lap + pole) × (1 + {dnfMultRate} × correct
+                DNFs)
+                {dnfMissPts > 0 ? `; −${dnfMissPts} per miss` : ""}.
+              </>
+            ) : dnfMissPts > 0 ? (
+              <>−{dnfMissPts} pts per predicted DNF who finishes.</>
+            ) : (
+              <>No DNF multiplier or penalty configured.</>
+            )}
           </p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
             {drivers.map((driver) => {

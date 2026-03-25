@@ -38,6 +38,7 @@ export const createRoom = mutation({
       positionPoints: v.array(v.number()),
       fastestLapPoints: v.number(),
       polePositionPoints: v.number(),
+      dnfCorrectMultiplier: v.optional(v.number()),
       dnfPenalty: v.number(),
     }),
   },
@@ -186,6 +187,7 @@ export const updateRoom = mutation({
         positionPoints: v.array(v.number()),
         fastestLapPoints: v.number(),
         polePositionPoints: v.number(),
+        dnfCorrectMultiplier: v.optional(v.number()),
         dnfPenalty: v.number(),
       })
     ),

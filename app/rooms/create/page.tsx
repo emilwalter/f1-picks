@@ -90,6 +90,7 @@ export default function CreateRoomPage() {
     positionPoints: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
     fastestLapPoints: 1,
     polePositionPoints: 2,
+    dnfCorrectMultiplier: 0,
     dnfPenalty: 1,
   };
 
@@ -328,7 +329,11 @@ export default function CreateRoomPage() {
                 <span className="font-mono text-paddock-on">+2 points</span>
               </div>
               <div className="flex justify-between">
-                <span>DNF penalty</span>
+                <span>DNF multiplier (per correct)</span>
+                <span className="font-mono text-paddock-on">0 (no bonus)</span>
+              </div>
+              <div className="flex justify-between">
+                <span>DNF miss (each)</span>
                 <span className="font-mono text-paddock-accent">-1 point</span>
               </div>
             </div>

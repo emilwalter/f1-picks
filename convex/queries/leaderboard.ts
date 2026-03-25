@@ -52,6 +52,8 @@ export const getRoomLeaderboard = query({
               positionPoints: 0,
               fastestLapPoints: 0,
               polePositionPoints: 0,
+              dnfMultiplierApplied: 1,
+              dnfMultiplierBonus: 0,
               dnfPenalty: 0,
               total: entry.totalPoints,
             },

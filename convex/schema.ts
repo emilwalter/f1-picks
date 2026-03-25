@@ -109,7 +109,11 @@ export default defineSchema({
       positionPoints: v.array(v.number()), // Points for each position (index = position - 1)
       fastestLapPoints: v.number(),
       polePositionPoints: v.number(),
-      dnfPenalty: v.number(), // Negative points for incorrect DNF predictions
+      /** @deprecated Ignored; use dnfCorrectMultiplier */
+      dnfCorrectPoints: v.optional(v.number()),
+      /** Per correct DNF: multiplier += this (e.g. 0.1 → 7 correct → ×1.7 on position+FL+pole) */
+      dnfCorrectMultiplier: v.optional(v.number()),
+      dnfPenalty: v.number(), // Points subtracted per incorrect DNF prediction
     }),
     status: v.union(
       v.literal("open"), // Room is active, accepting predictions
@@ -165,6 +169,10 @@ export default defineSchema({
       positionPoints: v.number(),
       fastestLapPoints: v.number(),
       polePositionPoints: v.number(),
+      /** @deprecated Legacy flat DNF bonus; prefer dnfMultiplier* */
+      dnfCorrectPoints: v.optional(v.number()),
+      dnfMultiplierApplied: v.optional(v.number()),
+      dnfMultiplierBonus: v.optional(v.number()),
       dnfPenalty: v.number(),
       total: v.number(),
     }),
