@@ -1,31 +1,34 @@
 /**
  * Local static assets from public/f1-2026-images (scraped from formula1.com).
- * Maps championship round → folder slug for the 2026 calendar order.
+ * Round numbers must match the schedule returned by f1api.dev (used in Convex sync),
+ * not necessarily the order shown on formula1.com (which omits Bahrain/Saudi as
+ * separate rounds in the public 2026 list).
  */
-
 export const F1_2026_ROUND_SLUG: Record<number, string> = {
   1: "australia",
   2: "china",
   3: "japan",
-  4: "miami",
-  5: "canada",
-  6: "monaco",
-  7: "barcelona-catalunya",
-  8: "austria",
-  9: "great-britain",
-  10: "belgium",
-  11: "hungary",
-  12: "netherlands",
-  13: "italy",
-  14: "spain",
-  15: "azerbaijan",
-  16: "singapore",
-  17: "united-states",
-  18: "mexico",
-  19: "brazil",
-  20: "las-vegas",
-  21: "qatar",
-  22: "united-arab-emirates",
+  4: "bahrain",
+  5: "saudi-arabia",
+  6: "miami",
+  7: "canada",
+  8: "monaco",
+  9: "barcelona-catalunya",
+  10: "austria",
+  11: "great-britain",
+  12: "belgium",
+  13: "hungary",
+  14: "netherlands",
+  15: "italy",
+  16: "spain",
+  17: "azerbaijan",
+  18: "singapore",
+  19: "united-states",
+  20: "mexico",
+  21: "brazil",
+  22: "las-vegas",
+  23: "qatar",
+  24: "united-arab-emirates",
 };
 
 export type F1RaceStaticImages = {
