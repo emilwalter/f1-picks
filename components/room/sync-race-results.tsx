@@ -36,8 +36,8 @@ export function SyncRaceResults({
     setIsSyncing(true);
     try {
       const result = await syncRaceResults({ raceId: race._id });
-      if (result.success && "roomsScored" in result) {
-        toast.success(`Synced results and scored ${result.roomsScored} rooms!`);
+      if (result.success) {
+        toast.success(result.message || "Synced results and applied scoring.");
       } else {
         toast.error(result.message || "Failed to sync race results");
       }

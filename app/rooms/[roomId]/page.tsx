@@ -132,6 +132,9 @@ export default function RoomPage() {
     upcomingRacesIndex + RACES_PER_PAGE
   );
   const lockedRaces = races?.filter((race) => race.date < oneDayAgo) || [];
+  /** Past by clock time — includes "today"; used for host result sync (not the 24h carousel split). */
+  const completedRacesForHostSync =
+    races?.filter((race) => race.date < now) || [];
 
   const roundNumber = nextRace
     ? (races?.findIndex((r) => r._id === nextRace._id) ?? 0) + 1
@@ -539,12 +542,12 @@ export default function RoomPage() {
           </div>
 
           {/* Host tools */}
-          {isHost && lockedRaces.length > 0 && (
+          {isHost && completedRacesForHostSync.length > 0 && (
             <div className="rounded-sm bg-paddock-surface-low p-5">
               <h3 className="mb-3 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-on-muted">
                 Host Tools
               </h3>
-              <SyncAllRacesButton races={lockedRaces} />
+              <SyncAllRacesButton races={completedRacesForHostSync} />
             </div>
           )}
         </div>

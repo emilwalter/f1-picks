@@ -199,6 +199,8 @@ export const syncCompletedRaces = internalAction({
     const results = {
       racesProcessed: 0,
       racesSynced: 0,
+      /** Races that have no results yet but are inside the post-race API cooldown window */
+      racesSkippedCooldown: 0,
       scoresRecalculated: 0,
       errors: [] as string[],
     };
@@ -206,11 +208,12 @@ export const syncCompletedRaces = internalAction({
     // Process races without results first
     for (const race of completedRaces) {
       try {
-        // Only sync races that completed at least 1 hour ago (give API time to update)
-        const raceEndTime = race.date + 2 * 60 * 60 * 1000; // Assume race ends 2 hours after start
+        // Wait until ~3h after scheduled start (assume ~2h race + 1h for results API).
+        // Otherwise f1api.dev often returns empty/404 right after the flag.
+        const raceEndTime = race.date + 2 * 60 * 60 * 1000;
         const now = Date.now();
         if (now < raceEndTime + 60 * 60 * 1000) {
-          // Race finished less than 1 hour ago, skip for now
+          results.racesSkippedCooldown++;
           continue;
         }
 
@@ -296,9 +299,14 @@ export const syncCompletedRaces = internalAction({
       }
     }
 
+    const cooldownNote =
+      results.racesSkippedCooldown > 0
+        ? ` (${results.racesSkippedCooldown} recent race(s) skipped — waiting for results API; try again later or sync manually from the room)`
+        : "";
+
     return {
       success: true,
-      message: `Processed ${results.racesProcessed} races, synced ${results.racesSynced}, recalculated scores for ${results.scoresRecalculated} room-race combinations`,
+      message: `Processed ${results.racesProcessed} races, synced ${results.racesSynced}, recalculated scores for ${results.scoresRecalculated} room-race combinations${cooldownNote}`,
       ...results,
     };
   },
