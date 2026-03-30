@@ -116,7 +116,8 @@ export function calculateScore(
   const scaledSubtotal = baseSubtotal * multiplier;
   const dnfMultiplierBonus = scaledSubtotal - baseSubtotal;
 
-  const total = Math.max(0, scaledSubtotal - Math.abs(dnfPenalty));
+  // Net can be negative when wrong DNF picks exceed (scaled) position/FL/pole points.
+  const total = scaledSubtotal - Math.abs(dnfPenalty);
 
   return {
     total,
