@@ -127,37 +127,12 @@ export const syncRaceResultsAndScore = action({
       errors: [] as string[],
     };
 
-    // Apply scoring for each room
+    // Apply scoring for each room (always recalculate — no skip).
+    // Skipping when "every predictor already has a score" was wrong after we fixed officialResults:
+    // stale rows from the empty-positions bug still counted, so re-sync never rewrote scores and
+    // the race leaderboard stayed at 0 while standings showed the real grid.
     for (const room of rooms) {
       try {
-        // Check if scores already exist (to avoid duplicate scoring)
-        const existingScores = await ctx.runQuery(
-          api.queries.leaderboard.getRoomRaceLeaderboard,
-          {
-            roomId: room._id,
-            raceId: args.raceId,
-          }
-        );
-
-        // If scores already exist for all participants, skip
-        const predictions = await ctx.runQuery(
-          api.queries.predictions.getRoomRacePredictions,
-          {
-            roomId: room._id,
-            raceId: args.raceId,
-          }
-        );
-
-        if (
-          existingScores &&
-          existingScores.length > 0 &&
-          existingScores.length >= predictions.length
-        ) {
-          results.roomsProcessed++;
-          continue;
-        }
-
-        // Apply scoring using internal mutation
         await ctx.runMutation(
           internal.mutations.raceScoring.applyScoringForRoom,
           {
