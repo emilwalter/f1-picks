@@ -61,12 +61,7 @@ export function calculateScore(
 
   const rate = scoringConfig.dnfCorrectMultiplier ?? 0;
 
-  // Calculate position points
-  const predictedMap = new Map<number, number>();
-  prediction.predictedPositions.forEach((pred) => {
-    predictedMap.set(pred.driverNumber, pred.position);
-  });
-
+  // Position points: exact slot only (no partial credit for one place off).
   const actualMap = new Map<number, number>();
   officialResults.positions.forEach((result) => {
     actualMap.set(result.driverNumber, result.position);
@@ -74,23 +69,13 @@ export function calculateScore(
 
   prediction.predictedPositions.forEach((pred) => {
     const actualPosition = actualMap.get(pred.driverNumber);
-    if (actualPosition !== undefined) {
-      const positionDiff = Math.abs(pred.position - actualPosition);
-      if (positionDiff === 0) {
-        const pointsIndex = Math.min(
-          pred.position - 1,
-          scoringConfig.positionPoints.length - 1
-        );
-        positionPoints += scoringConfig.positionPoints[pointsIndex] || 0;
-      } else if (positionDiff === 1) {
-        const pointsIndex = Math.min(
-          pred.position - 1,
-          scoringConfig.positionPoints.length - 1
-        );
-        positionPoints +=
-          (scoringConfig.positionPoints[pointsIndex] || 0) * 0.5;
-      }
-    }
+    if (actualPosition === undefined) return;
+    if (pred.position !== actualPosition) return;
+    const pointsIndex = Math.min(
+      pred.position - 1,
+      scoringConfig.positionPoints.length - 1
+    );
+    positionPoints += scoringConfig.positionPoints[pointsIndex] || 0;
   });
 
   if (

@@ -48,18 +48,24 @@ export function RoomLeaderboard({
           const rank = index + 1;
           const username = entry.user?.username || "Unknown";
           const avatarUrl = entry.user?.avatarUrl;
+          const pts =
+            Math.abs(entry.points) >= 100
+              ? entry.points.toFixed(1)
+              : entry.points.toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                });
           return (
             <div
               key={entry._id}
               className={cn(
-                "flex items-center gap-3 rounded-sm px-3 py-2.5",
+                "flex min-w-0 items-center gap-2 rounded-sm px-2 py-2.5 sm:gap-3 sm:px-3",
                 rank === 1 && "bg-paddock-accent/10",
                 rank === 2 && "bg-paddock-surface-high/50"
               )}
             >
               <span
                 className={cn(
-                  "w-8 font-display text-lg font-black italic tabular-nums",
+                  "w-7 shrink-0 font-display text-base font-black italic tabular-nums sm:w-8 sm:text-lg",
                   rank === 1 ? "text-paddock-accent" : "text-paddock-on-muted"
                 )}
               >
@@ -71,26 +77,30 @@ export function RoomLeaderboard({
                 size="sm"
                 fallbackTone={rank === 1 ? "accent" : "muted"}
                 className={cn(
+                  "shrink-0",
                   rank === 1 && "ring-2 ring-paddock-accent/35",
                   rank === 2 && "ring-1 ring-white/15"
                 )}
               />
-              <div className="min-w-0 flex-1">
-                <span className="truncate text-sm font-medium text-paddock-on">
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <span className="block truncate text-sm font-medium text-paddock-on">
                   {username}
                 </span>
               </div>
-              <span
-                className={cn(
-                  "font-display text-lg font-bold tabular-nums",
-                  rank === 1 ? "text-paddock-accent" : "text-paddock-on"
-                )}
-              >
-                {entry.points.toLocaleString()}
-              </span>
-              <span className="font-display text-[9px] font-medium uppercase tracking-widest text-paddock-on-muted">
-                pts
-              </span>
+              <div className="flex shrink-0 flex-col items-end leading-none">
+                <span
+                  className={cn(
+                    "max-w-[5rem] truncate text-right font-display text-sm font-bold tabular-nums sm:max-w-none sm:text-base",
+                    rank === 1 ? "text-paddock-accent" : "text-paddock-on"
+                  )}
+                  title={String(entry.points)}
+                >
+                  {pts}
+                </span>
+                <span className="mt-0.5 font-display text-[8px] font-medium uppercase tracking-widest text-paddock-on-muted">
+                  pts
+                </span>
+              </div>
             </div>
           );
         })}

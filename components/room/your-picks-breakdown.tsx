@@ -35,7 +35,7 @@ export function YourPicksBreakdown({
     officialResults.positions.map((p) => [p.position, p.driverNumber])
   );
 
-  const slotHit = (pos: number, predicted?: number) => {
+  const slotHitExact = (pos: number, predicted?: number) => {
     if (predicted === undefined) return false;
     return actualByPosition.get(pos) === predicted;
   };
@@ -75,9 +75,15 @@ export function YourPicksBreakdown({
       </div>
 
       <div className={cn("p-5", sidebar && "px-4 pb-5 pt-4")}>
-        <h3 className="mb-3 font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-paddock-on-muted">
-          Top 10 grid
-        </h3>
+        <div className="mb-3 space-y-1">
+          <h3 className="font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-paddock-on-muted">
+            Top 10 grid
+          </h3>
+          <p className="font-display text-[9px] leading-snug text-paddock-on-muted/80">
+            Only an exact finishing slot earns grid points (same as scoring).
+            P11–P20 are scored the same way but not listed here.
+          </p>
+        </div>
         <div
           className={cn(
             "mb-8 grid gap-2",
@@ -97,7 +103,7 @@ export function YourPicksBreakdown({
               );
             }
 
-            const hit = slotHit(position, pred.driverNumber);
+            const hit = slotHitExact(position, pred.driverNumber);
             const team = getDriverTeam(pred.driverNumber);
             const teamColor = team ? getTeamColor(team) : "6B7280";
             const fullName = getDriverLastName(pred.driverNumber);
@@ -124,13 +130,13 @@ export function YourPicksBreakdown({
                     <Check
                       className="h-3.5 w-3.5 shrink-0 text-paddock-cyan"
                       strokeWidth={2.75}
-                      aria-hidden
+                      aria-label="Exact position — points earned"
                     />
                   ) : (
                     <X
                       className="h-3.5 w-3.5 shrink-0 text-paddock-accent"
                       strokeWidth={2.75}
-                      aria-hidden
+                      aria-label="No points for this slot"
                     />
                   )}
                 </div>
