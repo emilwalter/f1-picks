@@ -27,7 +27,10 @@ export function SyncRaceResults({
   );
 
   const isHost = currentUser && currentUser._id === room.hostId;
-  const hasResults = !!race.officialResults;
+  /** Standings rows exist — not just a stale officialResults object with empty positions */
+  const hasResults =
+    Array.isArray(race.officialResults?.positions) &&
+    race.officialResults.positions.length > 0;
   const isPast = race.date < Date.now();
 
   if (!isHost) return null;

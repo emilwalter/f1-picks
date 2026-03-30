@@ -318,6 +318,9 @@ function parseFinishPosition(position: number | string): number | "NC" | null {
   if (typeof position === "string") {
     const trimmed = position.trim();
     if (trimmed.toUpperCase() === "NC") return "NC";
+    // f1api.dev 2026+ uses "-" for DNFs (see japanese_2026 race results)
+    if (trimmed === "-" || trimmed === "—" || trimmed === "–") return "NC";
+    if (/^dnf\b/i.test(trimmed)) return "NC";
     const n = parseInt(trimmed, 10);
     if (!Number.isNaN(n)) return n;
   }

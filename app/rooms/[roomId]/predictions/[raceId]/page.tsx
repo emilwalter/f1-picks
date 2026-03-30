@@ -76,12 +76,17 @@ export default function PredictionPage() {
   const isPast = selectedRace ? selectedRace.date < now : false;
   const isLocked = lockoutInfo?.locked || false;
 
-  /** Past races with synced results: hub is the results page (pit wall, standings, scoring). */
+  const raceHasSyncedStandings =
+    selectedRace != null &&
+    Array.isArray(selectedRace.officialResults?.positions) &&
+    selectedRace.officialResults.positions.length > 0;
+
+  /** Past races with real standings: hub is the results page. */
   useEffect(() => {
     if (!selectedRace || selectedRace === null) return;
-    if (!isPast || !selectedRace.officialResults) return;
+    if (!isPast || !raceHasSyncedStandings) return;
     router.replace(`/rooms/${roomId}/results?raceId=${raceId}`);
-  }, [selectedRace, isPast, roomId, raceId, router]);
+  }, [selectedRace, isPast, raceHasSyncedStandings, roomId, raceId, router]);
 
   const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [drivers, setDrivers] = useState<
@@ -152,7 +157,7 @@ export default function PredictionPage() {
     );
   }
 
-  if (isPast && selectedRace.officialResults) {
+  if (isPast && raceHasSyncedStandings) {
     return (
       <div className="container mx-auto max-w-7xl px-4 py-16">
         <p className="text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">

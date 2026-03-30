@@ -43,8 +43,16 @@ export const syncRaceResultsAndScore = action({
     // Check if race has actually completed
     const now = Date.now();
 
-    // If results don't exist, sync them from F1 Connect API
-    if (!race.officialResults) {
+    // Pull from API when we have no results, or stored results are unusable (e.g. legacy bug:
+    // f1api.dev sent position/grid as strings → empty positions[] while officialResults was still set).
+    // Otherwise "Re-sync" would never refetch and scoring would stay at 0 with bogus DNF penalties.
+    const stored = race.officialResults;
+    const needsApiSync =
+      !stored ||
+      !Array.isArray(stored.positions) ||
+      stored.positions.length === 0;
+
+    if (needsApiSync) {
       // Only try to sync if race has completed (race date has passed)
       // The direct race endpoint should have results available immediately after race finishes
       if (now < race.date) {

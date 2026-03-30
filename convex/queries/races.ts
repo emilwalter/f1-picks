@@ -10,6 +10,12 @@ async function raceWithSeasonYear(
   return { ...race, seasonYear: season?.year ?? 0 };
 }
 
+/** True when we have at least one classified finisher (excludes legacy empty officialResults). */
+function hasOfficialStandings(race: Doc<"races">): boolean {
+  const p = race.officialResults?.positions;
+  return Array.isArray(p) && p.length > 0;
+}
+
 /**
  * Get upcoming races (races with date >= current time)
  * Ordered by date ascending
@@ -94,8 +100,8 @@ export const getCompletedRacesWithoutResults = query({
       .withIndex("by_date", (q) => q.lt("date", now))
       .collect();
 
-    // Filter to only races without results
-    return races.filter((race) => !race.officialResults);
+    // Missing results, or corrupt / legacy sync (officialResults set but empty positions[])
+    return races.filter((race) => !hasOfficialStandings(race));
   },
 });
 
@@ -113,8 +119,7 @@ export const getCompletedRacesWithResults = query({
       .withIndex("by_date", (q) => q.lt("date", now))
       .collect();
 
-    // Filter to only races with results
-    return races.filter((race) => !!race.officialResults);
+    return races.filter((race) => hasOfficialStandings(race));
   },
 });
 
@@ -133,7 +138,7 @@ export const getSeasonRacesWithOfficialResults = query({
       .collect();
 
     return races
-      .filter((r) => r.officialResults !== undefined)
+      .filter((r) => hasOfficialStandings(r))
       .sort((a, b) => b.date - a.date);
   },
 });
@@ -174,7 +179,7 @@ export const getDashboardLatestCompletedRace = query({
         .collect();
 
       for (const race of races) {
-        if (!race.officialResults) continue;
+        if (!hasOfficialStandings(race)) continue;
         if (!best || race.date > best.date) {
           best = {
             date: race.date,
