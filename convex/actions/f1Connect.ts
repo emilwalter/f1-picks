@@ -288,9 +288,11 @@ export const syncSeasonFromF1Connect = action({
 
 // Type definitions for race results API response
 interface RaceResultData {
-  position: number | "NC";
+  /** f1api.dev often sends numeric places as strings (e.g. "1", "2") */
+  position: number | string;
   points: number;
-  grid: number | "not available";
+  /** Grid slot is often a string in JSON */
+  grid: number | string | "not available";
   time: string;
   fastLap: string | null;
   retired: string | null;
@@ -305,6 +307,31 @@ interface RaceResultData {
     teamId: string;
     teamName: string;
   };
+}
+
+/** Parse finishing position: numeric place, NC, or null if unknown. */
+function parseFinishPosition(position: number | string): number | "NC" | null {
+  if (position === "NC" || position === "nc") return "NC";
+  if (typeof position === "number" && Number.isFinite(position)) {
+    return position;
+  }
+  if (typeof position === "string") {
+    const trimmed = position.trim();
+    if (trimmed.toUpperCase() === "NC") return "NC";
+    const n = parseInt(trimmed, 10);
+    if (!Number.isNaN(n)) return n;
+  }
+  return null;
+}
+
+function parseGridSlot(grid: number | string | "not available"): number | null {
+  if (grid === "not available") return null;
+  if (typeof grid === "number" && Number.isFinite(grid)) return grid;
+  if (typeof grid === "string") {
+    const n = parseInt(grid.trim(), 10);
+    if (!Number.isNaN(n)) return n;
+  }
+  return null;
 }
 
 interface RaceResultsResponse {
@@ -403,15 +430,29 @@ export const updateRaceResultsFromF1Connect = action({
 
     const results = raceResultsData.races.results;
 
-    // Extract positions (filter out DNF/NC positions for sorted list)
-    const sortedPositions = results
-      .filter((r) => typeof r.position === "number")
-      .sort((a, b) => (a.position as number) - (b.position as number))
-      .map((r) => ({
-        position: r.position as number,
-        driverNumber: r.driver.number,
-        points: r.points,
+    const withParsed = results.map((r) => ({
+      row: r,
+      finish: parseFinishPosition(r.position),
+      gridSlot: parseGridSlot(r.grid),
+    }));
+
+    // Classified finishers only (numeric position — API may send "1" not 1)
+    const sortedPositions = withParsed
+      .filter(
+        (x): x is typeof x & { finish: number } => typeof x.finish === "number"
+      )
+      .sort((a, b) => a.finish - b.finish)
+      .map((x) => ({
+        position: x.finish,
+        driverNumber: x.row.driver.number,
+        points: Number(x.row.points) || 0,
       }));
+
+    if (sortedPositions.length === 0) {
+      throw new Error(
+        "No classified finishers parsed from API results (check position format)."
+      );
+    }
 
     // Find fastest lap driver (from fastLap field - driver with fastest lap time)
     let fastestLapDriverId: number | undefined;
@@ -432,23 +473,24 @@ export const updateRaceResultsFromF1Connect = action({
       }
     });
 
-    // Find pole position (driver with grid position 1)
+    // Pole: grid slot 1 (API may send grid as string "1")
     let polePositionDriverId: number | undefined;
-    const poleDriver = results.find((r) => r.grid === 1);
-    if (poleDriver) {
-      polePositionDriverId = poleDriver.driver.number;
+    const poleEntry = withParsed.find((x) => x.gridSlot === 1);
+    if (poleEntry) {
+      polePositionDriverId = poleEntry.row.driver.number;
     }
 
-    // Find DNF drivers (position is "NC" or retired is not null)
-    const dnfDriverIds: number[] = results
-      .filter(
-        (r) =>
-          r.position === "NC" ||
-          (typeof r.position === "string" &&
-            r.position !== "NC" &&
-            r.retired !== null)
-      )
-      .map((r) => r.driver.number);
+    // DNF / not classified: NC, or explicit retirement string from API
+    const dnfDriverIds: number[] = withParsed
+      .filter((x) => {
+        if (x.finish === "NC") return true;
+        if (typeof x.finish === "number" && x.row.retired !== null) {
+          const msg = String(x.row.retired).trim();
+          return msg.length > 0;
+        }
+        return false;
+      })
+      .map((x) => x.row.driver.number);
 
     // Verify we're updating the correct race by checking the race name in the API response
     if (raceResultsData.races?.raceName) {
