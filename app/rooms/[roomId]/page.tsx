@@ -61,9 +61,12 @@ export default function RoomPage() {
   const sortedUnlockedRaces = [...allUnlockedRaces].sort(
     (a, b) => a.date - b.date
   );
+  const activeUnlockedRaces = sortedUnlockedRaces.filter(
+    (race) => race.status !== "cancelled"
+  );
   const nextRace =
-    sortedUnlockedRaces.find((race) => race.date >= now) ||
-    sortedUnlockedRaces[0] ||
+    activeUnlockedRaces.find((race) => race.date >= now) ||
+    activeUnlockedRaces[0] ||
     null;
 
   const lockoutInfo = useQuery(
@@ -134,7 +137,8 @@ export default function RoomPage() {
   const lockedRaces = races?.filter((race) => race.date < oneDayAgo) || [];
   /** Past by clock time — includes "today"; used for host result sync (not the 24h carousel split). */
   const completedRacesForHostSync =
-    races?.filter((race) => race.date < now) || [];
+    races?.filter((race) => race.date < now && race.status !== "cancelled") ||
+    [];
 
   const roundNumber = nextRace
     ? (races?.findIndex((r) => r._id === nextRace._id) ?? 0) + 1
