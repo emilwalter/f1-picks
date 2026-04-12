@@ -12,7 +12,7 @@ import { Countdown } from "@/components/ui/countdown";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
-import { Lock, LockOpen } from "lucide-react";
+import { Lock, LockOpen, Ban } from "lucide-react";
 import { useAction } from "convex/react";
 import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
 import { getRaceStartTimestamp } from "@/lib/race-time";
@@ -152,6 +152,31 @@ export default function PredictionPage() {
       <div className="container mx-auto px-4 py-16">
         <div className="rounded-sm bg-paddock-surface-low p-8 text-center font-display text-sm uppercase tracking-widest text-paddock-on-muted">
           Race not found
+        </div>
+      </div>
+    );
+  }
+
+  const isCancelled = selectedRace.status === "cancelled";
+
+  if (isCancelled) {
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-6">
+        <Link
+          href={`/rooms/${roomId}`}
+          className="mb-6 inline-flex min-h-11 items-center font-display text-[11px] font-semibold uppercase tracking-widest text-paddock-on-muted transition-colors hover:text-paddock-cyan active:text-paddock-cyan"
+        >
+          ← Room
+        </Link>
+        <div className="mt-4 flex flex-col items-center gap-4 rounded-sm bg-paddock-surface-low p-12 text-center">
+          <Ban className="h-8 w-8 text-paddock-accent/60" />
+          <h1 className="font-display text-2xl font-black uppercase tracking-tighter text-paddock-on">
+            Race Cancelled
+          </h1>
+          <p className="max-w-md text-sm leading-relaxed text-paddock-on-muted">
+            The {selectedRace.name} has been cancelled and predictions are
+            closed.
+          </p>
         </div>
       </div>
     );

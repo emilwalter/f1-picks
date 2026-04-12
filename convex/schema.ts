@@ -64,6 +64,7 @@ export default defineSchema({
         dnfDriverIds: v.optional(v.array(v.number())),
       })
     ),
+    status: v.optional(v.union(v.literal("scheduled"), v.literal("cancelled"))),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

@@ -365,6 +365,8 @@ export default function RoomPage() {
                       mode="upcoming"
                       isLocked={isLocked}
                       hasPrediction={hasPrediction}
+                      isHost={!!isHost}
+                      roomId={roomId}
                     />
                   );
                 })}
@@ -412,6 +414,8 @@ export default function RoomPage() {
                           displayRound={raceRound}
                           href={`/rooms/${roomId}/results?raceId=${race._id}`}
                           mode="past"
+                          isHost={!!isHost}
+                          roomId={roomId}
                         />
                       );
                     })}

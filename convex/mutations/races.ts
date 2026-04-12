@@ -66,6 +66,56 @@ export const updateSessionTimes = mutation({
 });
 
 /**
+ * Mark a race as cancelled or reinstate it. Host-only: caller must be the host
+ * of the room specified by roomId (which also validates the race belongs to
+ * the same season).
+ */
+export const setRaceStatus = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    raceId: v.id("races"),
+    status: v.union(v.literal("scheduled"), v.literal("cancelled")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    const authProviderId = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_provider_id", (q) =>
+        q.eq("authProviderId", authProviderId)
+      )
+      .first();
+
+    if (!user || user._id !== room.hostId) {
+      throw new Error("Only the host can cancel or reinstate races");
+    }
+
+    const race = await ctx.db.get(args.raceId);
+    if (!race) {
+      throw new Error("Race not found");
+    }
+    if (race.seasonId !== room.seasonId) {
+      throw new Error("Race does not belong to this room's season");
+    }
+
+    await ctx.db.patch(args.raceId, {
+      status: args.status,
+      updatedAt: Date.now(),
+    });
+    return args.raceId;
+  },
+});
+
+/**
  * Update race results
  */
 export const updateRaceResults = mutation({

@@ -279,7 +279,7 @@ export const syncSeasonFromF1Connect = action({
     await ctx.runMutation(api.mutations.seasons.updateSeason, {
       seasonId: season._id,
       totalRaces: races.length,
-      currentRound: 1, // Could be calculated based on current date
+      currentRound: 1,
     });
 
     return { seasonId: season._id, racesSynced: races.length };

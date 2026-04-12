@@ -65,6 +65,10 @@ export function isLocked(
     return false;
   }
 
+  if (race.status === "cancelled") {
+    return true;
+  }
+
   if (hasActiveUnlockOverride(room, race._id)) {
     return false;
   }
