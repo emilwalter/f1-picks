@@ -115,6 +115,13 @@ export default defineSchema({
       dnfCorrectMultiplier: v.optional(v.number()),
       dnfPenalty: v.number(), // Points subtracted per incorrect DNF prediction
     }),
+    unlockOverride: v.optional(
+      v.object({
+        raceId: v.id("races"),
+        expiresAt: v.number(),
+        unlockedBy: v.id("users"),
+      })
+    ),
     status: v.union(
       v.literal("open"), // Room is active, accepting predictions
       v.literal("archived") // Season ended, room archived

@@ -10,6 +10,7 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { getDriverImageUrl } from "@/lib/f1-images";
 import { DriverCombobox } from "@/components/room/driver-combobox";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
+import { UnlockPredictions } from "@/components/room/unlock-predictions";
 import { X } from "lucide-react";
 
 interface Driver {
@@ -29,6 +30,10 @@ interface PredictionFormProps {
   currentUser?: Doc<"users"> | null;
   /** When the parent already loads drivers (e.g. locked race + summary), skip duplicate fetch */
   prefetchedDrivers?: Driver[] | null;
+  lockoutInfo?: {
+    locked: boolean;
+    unlockOverride: { expiresAt: number; remainingMs: number } | null;
+  } | null;
 }
 
 export function PredictionForm({
@@ -39,6 +44,7 @@ export function PredictionForm({
   isLocked: isLockedProp,
   currentUser,
   prefetchedDrivers,
+  lockoutInfo,
 }: PredictionFormProps) {
   const submitPrediction = useMutation(
     api.mutations.predictions.submitPrediction
@@ -714,14 +720,21 @@ export function PredictionForm({
           </button>
         </div>
 
-        {/* Host sync tool — compact */}
+        {/* Host tools */}
         {currentUser && currentUser._id === room.hostId && (
-          <SyncRaceResults
-            room={room}
-            race={race}
-            currentUser={currentUser}
-            compact
-          />
+          <>
+            <UnlockPredictions
+              room={room}
+              race={race}
+              lockoutInfo={lockoutInfo}
+            />
+            <SyncRaceResults
+              room={room}
+              race={race}
+              currentUser={currentUser}
+              compact
+            />
+          </>
         )}
       </div>
     </div>

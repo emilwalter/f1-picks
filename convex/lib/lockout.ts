@@ -57,7 +57,6 @@ export function isLocked(
   room: Doc<"rooms">,
   race: Doc<"races"> | null
 ): boolean {
-  // If room is archived, it's locked
   if (room.status === "archived") {
     return true;
   }
@@ -66,21 +65,33 @@ export function isLocked(
     return false;
   }
 
-  // Lock predictions for races that have already happened (race date has passed)
+  if (hasActiveUnlockOverride(room, race._id)) {
+    return false;
+  }
+
   const now = Date.now();
   if (race.date < now) {
     return true;
   }
 
-  // Calculate lockout time
   const lockoutTime = calculateLockoutTime(room, race);
   if (lockoutTime === null) {
-    // If we can't calculate lockout time, allow predictions (graceful degradation)
     return false;
   }
 
-  // Check if lockout time has passed
   return now >= lockoutTime;
+}
+
+/**
+ * Check if the room has an active (non-expired) unlock override for a specific race
+ */
+export function hasActiveUnlockOverride(
+  room: Doc<"rooms">,
+  raceId: Doc<"races">["_id"]
+): boolean {
+  const override = room.unlockOverride;
+  if (!override) return false;
+  return override.raceId === raceId && override.expiresAt > Date.now();
 }
 
 /**

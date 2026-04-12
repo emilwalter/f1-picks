@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import {
   calculateLockoutTime,
   getTimeUntilLockout,
+  hasActiveUnlockOverride,
   isLocked,
 } from "../lib/lockout";
 
@@ -35,12 +36,20 @@ export const getRoomLockoutInfo = query({
     const timeUntilLockout = getTimeUntilLockout(room, race);
     const locked = isLocked(room, race);
 
+    const unlockOverrideActive = hasActiveUnlockOverride(room, race._id);
+
     return {
       lockoutTime,
       timeUntilLockout,
       locked,
       lockoutConfig: room.lockoutConfig,
       roomStatus: room.status,
+      unlockOverride: unlockOverrideActive
+        ? {
+            expiresAt: room.unlockOverride!.expiresAt,
+            remainingMs: room.unlockOverride!.expiresAt - Date.now(),
+          }
+        : null,
     };
   },
 });

@@ -344,6 +344,122 @@ export const leaveRoom = mutation({
   },
 });
 
+const DEFAULT_UNLOCK_MINUTES = 15;
+const MAX_UNLOCK_MINUTES = 120;
+
+/**
+ * Temporarily unlock predictions for a specific race so late participants can submit.
+ * Host-only. The override auto-expires after `durationMinutes` (default 15, max 120).
+ */
+export const unlockPredictions = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    raceId: v.id("races"),
+    durationMinutes: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    const authProviderId = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_provider_id", (q) =>
+        q.eq("authProviderId", authProviderId)
+      )
+      .first();
+
+    if (!user || user._id !== room.hostId) {
+      throw new Error("Only the host can unlock predictions");
+    }
+
+    if (room.status !== "open") {
+      throw new Error("Cannot unlock predictions for an archived room");
+    }
+
+    const race = await ctx.db.get(args.raceId);
+    if (!race) {
+      throw new Error("Race not found");
+    }
+    if (race.seasonId !== room.seasonId) {
+      throw new Error("Race does not belong to this room's season");
+    }
+
+    if (race.officialResults) {
+      throw new Error(
+        "Cannot unlock predictions after official results have been submitted"
+      );
+    }
+
+    const minutes = Math.min(
+      Math.max(1, args.durationMinutes ?? DEFAULT_UNLOCK_MINUTES),
+      MAX_UNLOCK_MINUTES
+    );
+
+    await ctx.db.patch(args.roomId, {
+      unlockOverride: {
+        raceId: args.raceId,
+        expiresAt: Date.now() + minutes * 60 * 1000,
+        unlockedBy: user._id,
+      },
+      updatedAt: Date.now(),
+    });
+
+    return args.roomId;
+  },
+});
+
+/**
+ * Immediately re-lock predictions that were temporarily unlocked.
+ * Host-only.
+ */
+export const lockPredictions = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    const authProviderId = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_auth_provider_id", (q) =>
+        q.eq("authProviderId", authProviderId)
+      )
+      .first();
+
+    if (!user || user._id !== room.hostId) {
+      throw new Error("Only the host can lock predictions");
+    }
+
+    if (!room.unlockOverride) {
+      throw new Error("Predictions are not currently unlocked");
+    }
+
+    await ctx.db.patch(args.roomId, {
+      unlockOverride: undefined,
+      updatedAt: Date.now(),
+    });
+
+    return args.roomId;
+  },
+});
+
 /**
  * Generate a random 6-character alphanumeric join code
  */

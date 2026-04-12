@@ -12,7 +12,7 @@ import { Countdown } from "@/components/ui/countdown";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
-import { Lock } from "lucide-react";
+import { Lock, LockOpen } from "lucide-react";
 import { useAction } from "convex/react";
 import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
 import { getRaceStartTimestamp } from "@/lib/race-time";
@@ -259,8 +259,31 @@ export default function PredictionPage() {
         </p>
       </div>
 
+      {/* Override-active banner */}
+      {lockoutInfo?.unlockOverride && (
+        <div className="mb-6 flex flex-col gap-3 rounded-sm border-l-4 border-paddock-cyan bg-paddock-cyan/[0.08] px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <LockOpen className="mt-0.5 h-4 w-4 shrink-0 text-paddock-cyan" />
+            <div className="min-w-0">
+              <p className="font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+                Predictions temporarily unlocked
+              </p>
+              <p className="mt-0.5 text-xs leading-snug text-paddock-on-muted">
+                The host has opened a window for late submissions.
+              </p>
+            </div>
+          </div>
+          <Countdown
+            targetTime={lockoutInfo.unlockOverride.expiresAt}
+            expiredLabel="Expired"
+            timeClassName="font-display text-sm font-bold tabular-nums text-paddock-cyan"
+            expiredClassName="font-display text-sm font-bold text-paddock-accent"
+          />
+        </div>
+      )}
+
       {/* Locked/Past banner */}
-      {(isLocked || isPast) && (
+      {(isLocked || isPast) && !lockoutInfo?.unlockOverride && (
         <div className="mb-6 flex flex-col gap-3 rounded-sm border-l-4 border-paddock-accent bg-paddock-accent/[0.08] px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <Lock className="mt-0.5 h-4 w-4 shrink-0 text-paddock-accent" />
@@ -319,6 +342,7 @@ export default function PredictionPage() {
                   : drivers
                 : undefined
             }
+            lockoutInfo={lockoutInfo}
           />
         ) : (
           <div className="rounded-sm bg-paddock-surface-low p-8 text-center">
