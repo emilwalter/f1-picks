@@ -18,7 +18,7 @@ const DURATION_OPTIONS = [
 interface UnlockPredictionsProps {
   room: Doc<"rooms">;
   race: Doc<"races">;
-  lockoutInfo: {
+  lockoutInfo?: {
     locked: boolean;
     unlockOverride: { expiresAt: number; remainingMs: number } | null;
   } | null;
