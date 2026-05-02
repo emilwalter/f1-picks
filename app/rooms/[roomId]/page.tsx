@@ -54,7 +54,7 @@ export default function RoomPage() {
     isLoading,
   } = useRoom(roomId);
 
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
   const oneDayAgo = now - 24 * 60 * 60 * 1000;
   const allUnlockedRaces =
     races?.filter((race) => race.date >= oneDayAgo) || [];
@@ -102,11 +102,9 @@ export default function RoomPage() {
   const totalUpcomingRaces = sortedUnlockedRaces.length;
   const maxUpcomingIndex = Math.max(0, totalUpcomingRaces - RACES_PER_PAGE);
 
-  useEffect(() => {
-    if (totalUpcomingRaces > 0 && upcomingRacesIndex > maxUpcomingIndex) {
-      setUpcomingRacesIndex(Math.max(0, maxUpcomingIndex));
-    }
-  }, [upcomingRacesIndex, maxUpcomingIndex, totalUpcomingRaces]);
+  if (totalUpcomingRaces > 0 && upcomingRacesIndex > maxUpcomingIndex) {
+    setUpcomingRacesIndex(Math.max(0, maxUpcomingIndex));
+  }
 
   if (isLoading) {
     return (

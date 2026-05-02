@@ -51,35 +51,34 @@ export function PredictionForm({
   );
   const getDriversForRace = useAction(api.actions.f1Connect.getDriversForRace);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [drivers, setDrivers] = useState<Driver[] | null>(null);
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState(
-    () => prefetchedDrivers === undefined || prefetchedDrivers === null
-  );
+  const [renderTime] = useState(() => Date.now());
+  const [fetchedDrivers, setFetchedDrivers] = useState<Driver[] | null>(null);
+
+  const drivers: Driver[] | null =
+    prefetchedDrivers !== undefined && prefetchedDrivers !== null
+      ? prefetchedDrivers
+      : fetchedDrivers;
+  const isLoadingDrivers = drivers === null;
 
   useEffect(() => {
-    if (prefetchedDrivers !== undefined) {
-      if (prefetchedDrivers === null) {
-        setIsLoadingDrivers(true);
-        return;
-      }
-      setDrivers(prefetchedDrivers);
-      setIsLoadingDrivers(false);
-      return;
-    }
+    if (prefetchedDrivers !== undefined) return;
+    let cancelled = false;
     const fetchDrivers = async () => {
-      setIsLoadingDrivers(true);
       try {
         const driversData = await getDriversForRace({ year: seasonYear });
-        setDrivers(driversData);
+        if (!cancelled) setFetchedDrivers(driversData);
       } catch (error) {
-        console.error("Failed to fetch drivers:", error);
-        toast.error("Failed to load drivers. Please try again.");
-        setDrivers([]);
-      } finally {
-        setIsLoadingDrivers(false);
+        if (!cancelled) {
+          console.error("Failed to fetch drivers:", error);
+          toast.error("Failed to load drivers. Please try again.");
+          setFetchedDrivers([]);
+        }
       }
     };
     fetchDrivers();
+    return () => {
+      cancelled = true;
+    };
   }, [seasonYear, getDriversForRace, prefetchedDrivers]);
 
   const [predictedPositions, setPredictedPositions] = useState<
@@ -100,8 +99,10 @@ export function PredictionForm({
   const [dnfDriverIds, setDnfDriverIds] = useState<number[]>(
     currentPrediction?.dnfDriverIds || []
   );
+  const [syncedPrediction, setSyncedPrediction] = useState(currentPrediction);
 
-  useEffect(() => {
+  if (currentPrediction !== syncedPrediction) {
+    setSyncedPrediction(currentPrediction);
     if (currentPrediction) {
       setPredictedPositions(
         currentPrediction.predictedPositions.length > 0
@@ -115,7 +116,7 @@ export function PredictionForm({
       setFastestLapDriverId(currentPrediction.fastestLapDriverId);
       setDnfDriverIds(currentPrediction.dnfDriverIds);
     }
-  }, [currentPrediction]);
+  }
 
   const handlePositionChange = (position: number, driverNumber: number) => {
     setPredictedPositions((prev) => {
@@ -136,7 +137,7 @@ export function PredictionForm({
     );
   };
 
-  const isPast = race.date < Date.now();
+  const isPast = race.date < renderTime;
   const isLocked =
     isLockedProp !== undefined
       ? isLockedProp
