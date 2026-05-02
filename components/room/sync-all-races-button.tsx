@@ -14,11 +14,12 @@ interface SyncAllRacesButtonProps {
 
 export function SyncAllRacesButton({ races }: SyncAllRacesButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [renderTime] = useState(() => Date.now());
   const syncRaceResults = useAction(
     api.actions.raceSync.syncRaceResultsAndScore
   );
 
-  const pastRaces = races.filter((race) => race.date < Date.now());
+  const pastRaces = races.filter((race) => race.date < renderTime);
   if (pastRaces.length === 0) return null;
 
   const handleSyncAll = async () => {

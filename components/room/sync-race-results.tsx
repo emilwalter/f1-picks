@@ -22,6 +22,7 @@ export function SyncRaceResults({
   compact = false,
 }: SyncRaceResultsProps) {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [renderTime] = useState(() => Date.now());
   const syncRaceResults = useAction(
     api.actions.raceSync.syncRaceResultsAndScore
   );
@@ -31,7 +32,7 @@ export function SyncRaceResults({
   const hasResults =
     Array.isArray(race.officialResults?.positions) &&
     race.officialResults.positions.length > 0;
-  const isPast = race.date < Date.now();
+  const isPast = race.date < renderTime;
 
   if (!isHost) return null;
 

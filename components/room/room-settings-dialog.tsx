@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
@@ -72,11 +72,9 @@ export function RoomSettingsDialog({
   );
 
   // Reset session if it's invalid for the current lockout type
-  useEffect(() => {
-    if (lockoutType === "before_session_end" && lockoutSession === "race") {
-      setLockoutSession("qualifying");
-    }
-  }, [lockoutType, lockoutSession]);
+  if (lockoutType === "before_session_end" && lockoutSession === "race") {
+    setLockoutSession("qualifying");
+  }
   const [customHours, setCustomHours] = useState(
     room.lockoutConfig.type === "custom"
       ? room.lockoutConfig.hoursBeforeRace.toString()
@@ -101,7 +99,9 @@ export function RoomSettingsDialog({
   );
 
   // Reset form when room changes
-  useEffect(() => {
+  const [syncedRoom, setSyncedRoom] = useState(room);
+  if (room !== syncedRoom) {
+    setSyncedRoom(room);
     setRoomName(room.name || "");
     setLockoutType(
       room.lockoutConfig.type === "before_session"
@@ -125,7 +125,7 @@ export function RoomSettingsDialog({
       (room.scoringConfig.dnfCorrectMultiplier ?? 0).toString()
     );
     setDnfPenalty(room.scoringConfig.dnfPenalty.toString());
-  }, [room]);
+  }
 
   const handleSave = async () => {
     setIsSaving(true);

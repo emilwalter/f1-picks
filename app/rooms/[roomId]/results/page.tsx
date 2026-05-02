@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -87,14 +87,13 @@ export default function RoomResultsPage() {
 
   /** Pit wall: default “everyone” for small rooms; user can override. */
   const [showAllPitWall, setShowAllPitWall] = useState(false);
-  const pitWallDefaultApplied = useRef(false);
-  useEffect(() => {
-    if (participants === undefined || pitWallDefaultApplied.current) return;
-    pitWallDefaultApplied.current = true;
+  const [pitWallDefaultApplied, setPitWallDefaultApplied] = useState(false);
+  if (participants !== undefined && !pitWallDefaultApplied) {
+    setPitWallDefaultApplied(true);
     if (participants.length > 0 && participants.length <= 8) {
       setShowAllPitWall(true);
     }
-  }, [participants]);
+  }
 
   const getDriverFirstName = (driverNumber: number): string => {
     const driver = drivers.find((d) => d.driverNumber === driverNumber);

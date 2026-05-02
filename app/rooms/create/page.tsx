@@ -51,6 +51,7 @@ export default function CreateRoomPage() {
       return;
 
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- need to flag in-flight sync immediately to keep the early-return guard above accurate; cleared inside the .finally() callback
     setIsSyncing(true);
 
     syncSeason({ year: selectedYear })
