@@ -12,6 +12,11 @@
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
 
+    /* TypeScript 6 no longer auto-includes @types/node here, and this
+     * project excludes the next-env.d.ts that pulls it in at the root,
+     * so auth.config.ts needs it declared explicitly for process.env. */
+    "types": ["node"],
+
     /* These compiler options are required by Convex */
     "target": "ESNext",
     "lib": ["ES2021", "dom"],
