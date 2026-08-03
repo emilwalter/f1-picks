@@ -242,9 +242,7 @@ export function RoomSettingsDialog({
                   onValueChange={(value) =>
                     setLockoutType(
                       value as
-                        | "before_session"
-                        | "before_session_end"
-                        | "custom"
+                        "before_session" | "before_session_end" | "custom"
                     )
                   }
                 >
