@@ -156,8 +156,7 @@ export const syncSeasonFromF1Connect = action({
     }
 
     const racesData = (await racesResponse.json()) as
-      | { races?: RaceData[]; message?: string }
-      | RaceData[];
+      { races?: RaceData[]; message?: string } | RaceData[];
 
     // f1api.dev /current endpoint returns an object with races array
     let races: RaceData[] = [];
@@ -590,8 +589,7 @@ export const getDriversForRace = action({
       }
 
       const driversData = (await driversResponse.json()) as
-        | DriverData[]
-        | { drivers?: DriverData[]; driver?: DriverData[] };
+        DriverData[] | { drivers?: DriverData[]; driver?: DriverData[] };
 
       // Handle response format: {drivers: [...]} or {driver: [...]}
       let drivers: DriverData[] = [];
@@ -628,8 +626,7 @@ export const getDriversForRace = action({
 
       if (teamsResponse && teamsResponse.ok) {
         const teamsData = (await teamsResponse.json()) as
-          | TeamData[]
-          | { teams?: TeamData[]; team?: TeamData[] };
+          TeamData[] | { teams?: TeamData[]; team?: TeamData[] };
         // Handle both array and object with teams array
         let teams: TeamData[] = [];
         if (Array.isArray(teamsData)) {
@@ -675,8 +672,7 @@ export const getDriversForRace = action({
             let teamLogo: string | undefined = team.logo;
             if (teamInfoResponse && teamInfoResponse.ok) {
               const teamInfo = (await teamInfoResponse.json()) as
-                | TeamData
-                | { team?: TeamData[] };
+                TeamData | { team?: TeamData[] };
               // Handle team info response format: { team: [{ teamName: "...", ... }] }
               const teamData = (
                 Array.isArray(teamInfo)
@@ -699,8 +695,7 @@ export const getDriversForRace = action({
             let driversList: TeamDriverItem[] = [];
             if (teamDriversResponse && teamDriversResponse.ok) {
               const teamDriversData = (await teamDriversResponse.json()) as
-                | TeamDriverItem[]
-                | { drivers?: TeamDriverItem[] };
+                TeamDriverItem[] | { drivers?: TeamDriverItem[] };
               // API returns { drivers: [{ driver: {...} }] }
               if (
                 !Array.isArray(teamDriversData) &&
@@ -802,8 +797,7 @@ export const getDriversForRace = action({
 
                 if (teamInfoResponse && teamInfoResponse.ok) {
                   const teamInfo = (await teamInfoResponse.json()) as
-                    | TeamData
-                    | { team?: TeamData[] };
+                    TeamData | { team?: TeamData[] };
                   // Handle team info response format: { team: [{ teamName: "...", ... }] }
                   const teamData = (
                     Array.isArray(teamInfo)
@@ -823,8 +817,7 @@ export const getDriversForRace = action({
 
                 if (teamDriversResponse && teamDriversResponse.ok) {
                   const teamDriversData = (await teamDriversResponse.json()) as
-                    | TeamDriverItem[]
-                    | { drivers?: TeamDriverItem[] };
+                    TeamDriverItem[] | { drivers?: TeamDriverItem[] };
                   // API returns { drivers: [{ driver: {...} }] }
                   let driversList: TeamDriverItem[] = [];
                   if (
@@ -905,8 +898,7 @@ export const getDriversForRace = action({
 
             if (teamInfoResponse && teamInfoResponse.ok) {
               const teamInfo = (await teamInfoResponse.json()) as
-                | TeamData
-                | { team?: TeamData[] };
+                TeamData | { team?: TeamData[] };
               // Handle team info response format: { team: [{ teamName: "...", ... }] }
               const teamData = (
                 Array.isArray(teamInfo)
@@ -926,8 +918,7 @@ export const getDriversForRace = action({
 
             if (teamDriversResponse && teamDriversResponse.ok) {
               const teamDriversData = (await teamDriversResponse.json()) as
-                | TeamDriverItem[]
-                | { drivers?: TeamDriverItem[] };
+                TeamDriverItem[] | { drivers?: TeamDriverItem[] };
               // API returns { drivers: [{ driver: {...} }] }
               let driversList: TeamDriverItem[] = [];
               if (
