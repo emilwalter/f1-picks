@@ -24,6 +24,14 @@ export default defineSchema({
   races: defineTable({
     seasonId: v.id("seasons"),
     round: v.number(),
+    /**
+     * Stable race identifier from f1api.dev (e.g. "hungarian_2026").
+     * `round` is NOT stable: f1api.dev renumbers rounds when its calendar
+     * changes (mid-2026 it dropped Bahrain + Saudi Arabia, shifting every
+     * later round down by 2), which silently broke results sync. Address the
+     * API by identity, not by our stored round.
+     */
+    apiRaceId: v.optional(v.string()),
     name: v.string(),
     date: v.number(), // Unix timestamp (race date)
     circuit: v.string(),

@@ -1,6 +1,14 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 
+const sessionTimesValidator = v.object({
+  fp1: v.optional(v.object({ start: v.number(), end: v.number() })),
+  fp2: v.optional(v.object({ start: v.number(), end: v.number() })),
+  fp3: v.optional(v.object({ start: v.number(), end: v.number() })),
+  qualifying: v.optional(v.object({ start: v.number(), end: v.number() })),
+  race: v.optional(v.object({ start: v.number(), end: v.number() })),
+});
+
 /**
  * Create a new race
  */
@@ -8,28 +16,20 @@ export const createRace = mutation({
   args: {
     seasonId: v.id("seasons"),
     round: v.number(),
+    apiRaceId: v.optional(v.string()),
     name: v.string(),
     date: v.number(),
     circuit: v.string(),
     location: v.string(),
     country: v.string(),
-    sessionTimes: v.optional(
-      v.object({
-        fp1: v.optional(v.object({ start: v.number(), end: v.number() })),
-        fp2: v.optional(v.object({ start: v.number(), end: v.number() })),
-        fp3: v.optional(v.object({ start: v.number(), end: v.number() })),
-        qualifying: v.optional(
-          v.object({ start: v.number(), end: v.number() })
-        ),
-        race: v.optional(v.object({ start: v.number(), end: v.number() })),
-      })
-    ),
+    sessionTimes: v.optional(sessionTimesValidator),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     return await ctx.db.insert("races", {
       seasonId: args.seasonId,
       round: args.round,
+      apiRaceId: args.apiRaceId,
       name: args.name,
       date: args.date,
       circuit: args.circuit,
@@ -48,13 +48,7 @@ export const createRace = mutation({
 export const updateSessionTimes = mutation({
   args: {
     raceId: v.id("races"),
-    sessionTimes: v.object({
-      fp1: v.optional(v.object({ start: v.number(), end: v.number() })),
-      fp2: v.optional(v.object({ start: v.number(), end: v.number() })),
-      fp3: v.optional(v.object({ start: v.number(), end: v.number() })),
-      qualifying: v.optional(v.object({ start: v.number(), end: v.number() })),
-      race: v.optional(v.object({ start: v.number(), end: v.number() })),
-    }),
+    sessionTimes: sessionTimesValidator,
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.raceId, {
@@ -62,6 +56,40 @@ export const updateSessionTimes = mutation({
       updatedAt: Date.now(),
     });
     return args.raceId;
+  },
+});
+
+/**
+ * Patch schedule metadata on an existing race from the upstream calendar.
+ *
+ * The season sync used to be insert-only, so when f1api.dev changed a race
+ * (renumbered rounds, moved a date, added a title sponsor) our row went stale
+ * forever. Only the fields passed here are written, so callers send just the
+ * drift they detected.
+ */
+export const updateRaceFromSchedule = mutation({
+  args: {
+    raceId: v.id("races"),
+    apiRaceId: v.optional(v.string()),
+    name: v.optional(v.string()),
+    date: v.optional(v.number()),
+    circuit: v.optional(v.string()),
+    location: v.optional(v.string()),
+    country: v.optional(v.string()),
+    sessionTimes: v.optional(sessionTimesValidator),
+  },
+  handler: async (ctx, args) => {
+    const { raceId, ...fields } = args;
+    const patch = Object.fromEntries(
+      Object.entries(fields).filter(([, value]) => value !== undefined)
+    );
+
+    if (Object.keys(patch).length === 0) {
+      return raceId;
+    }
+
+    await ctx.db.patch(raceId, { ...patch, updatedAt: Date.now() });
+    return raceId;
   },
 });
 

@@ -30,6 +30,158 @@ interface RaceData {
   country?: string;
 }
 
+/** Normalized session block we persist for lockout calculations. */
+type SessionTimes = {
+  fp1?: { start: number; end: number };
+  fp2?: { start: number; end: number };
+  fp3?: { start: number; end: number };
+  qualifying?: { start: number; end: number };
+  race?: { start: number; end: number };
+};
+
+/** Race start timestamp for a schedule entry, or null when the API omits the date. */
+function scheduleRaceStart(entry: RaceData): number | null {
+  const date = entry.schedule?.race?.date;
+  if (!date) return null;
+  const time = entry.schedule?.race?.time || "12:00:00Z";
+  const ts = new Date(`${date}T${time}`).getTime();
+  return Number.isNaN(ts) ? null : ts;
+}
+
+function scheduleCircuit(entry: RaceData): string {
+  return entry.circuit?.circuitName || entry.circuitName || "Unknown";
+}
+
+function scheduleRound(entry: RaceData): number {
+  return Number(entry.round) || 0;
+}
+
+/**
+ * Case/diacritic/punctuation-insensitive circuit key.
+ * Circuit names are unique within a season and stable across API calendar
+ * changes, which makes them a reliable identity for matching stored races.
+ */
+function circuitKey(circuit: string): string {
+  // NFD splits accented letters into base + combining mark, and the
+  // [^a-z0-9] filter then drops the mark: "Autódromo" and "Autodromo"
+  // both collapse to "autodromo".
+  return circuit
+    .normalize("NFD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function scheduleSessionTimes(entry: RaceData): SessionTimes | undefined {
+  const schedule = entry.schedule;
+  if (!schedule) return undefined;
+
+  const parseSessionTime = (session?: { date?: string; time?: string }) => {
+    if (!session || !session.date || !session.time) return undefined;
+    const start = new Date(`${session.date}T${session.time}`).getTime();
+    if (Number.isNaN(start)) return undefined;
+    // Estimate end time as 2 hours after start (adjust as needed)
+    return { start, end: start + 2 * 60 * 60 * 1000 };
+  };
+
+  return {
+    fp1: parseSessionTime(schedule.fp1),
+    fp2: parseSessionTime(schedule.fp2),
+    fp3: parseSessionTime(schedule.fp3),
+    qualifying: parseSessionTime(schedule.qualy),
+    race: parseSessionTime(schedule.race),
+  };
+}
+
+function sessionTimesEqual(a?: SessionTimes, b?: SessionTimes): boolean {
+  const keys = ["fp1", "fp2", "fp3", "qualifying", "race"] as const;
+  return keys.every(
+    (key) =>
+      (a?.[key]?.start ?? null) === (b?.[key]?.start ?? null) &&
+      (a?.[key]?.end ?? null) === (b?.[key]?.end ?? null)
+  );
+}
+
+/** Fetch the season calendar from f1api.dev, normalizing its response shapes. */
+async function fetchSeasonSchedule(year: number): Promise<RaceData[]> {
+  const response = await fetch(`${F1API_BASE_URL}/${year}`);
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(
+      `Failed to fetch races: ${response.statusText}. Response: ${errorText.substring(0, 200)}`
+    );
+  }
+
+  const data = (await response.json()) as
+    { races?: RaceData[]; message?: string } | RaceData[];
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if ("races" in data && Array.isArray(data.races)) {
+    return data.races;
+  }
+  if (data.message) {
+    throw new Error(`API Error: ${data.message}`);
+  }
+  throw new Error(
+    `Unexpected API response format. Got: ${JSON.stringify(data).substring(0, 200)}`
+  );
+}
+
+/**
+ * Identity of a stored race, as far as the upstream API is concerned.
+ *
+ * Neither matcher below falls back to `round`. f1api.dev renumbers rounds when
+ * its calendar changes (in 2026 it dropped Bahrain + Saudi Arabia, shifting
+ * every later round down by 2), so a round-based match happily pairs a stored
+ * race with a completely different grand prix.
+ */
+type RaceIdentity = {
+  apiRaceId?: string;
+  circuit: string;
+  date: number;
+};
+
+/** Find the schedule entry that a stored race refers to. */
+function matchScheduleEntry(
+  race: RaceIdentity,
+  schedule: RaceData[]
+): RaceData | null {
+  if (race.apiRaceId) {
+    const byId = schedule.find((entry) => entry.raceId === race.apiRaceId);
+    if (byId) return byId;
+  }
+
+  const key = circuitKey(race.circuit);
+  const byCircuit = schedule.find(
+    (entry) => circuitKey(scheduleCircuit(entry)) === key
+  );
+  if (byCircuit) return byCircuit;
+
+  return (
+    schedule.find((entry) => scheduleRaceStart(entry) === race.date) ?? null
+  );
+}
+
+/** Inverse of {@link matchScheduleEntry}: find the stored race for a schedule entry. */
+function matchStoredRace<T extends RaceIdentity>(
+  entry: RaceData,
+  raceStart: number,
+  races: T[]
+): T | null {
+  if (entry.raceId) {
+    const byId = races.find((race) => race.apiRaceId === entry.raceId);
+    if (byId) return byId;
+  }
+
+  const key = circuitKey(scheduleCircuit(entry));
+  const byCircuit = races.find((race) => circuitKey(race.circuit) === key);
+  if (byCircuit) return byCircuit;
+
+  return races.find((race) => race.date === raceStart) ?? null;
+}
+
 interface DriverData {
   number?: number;
   driver_number?: number;
@@ -114,7 +266,13 @@ export const syncSeasonFromF1Connect = action({
   handler: async (
     ctx,
     args
-  ): Promise<{ seasonId: Id<"seasons">; racesSynced: number }> => {
+  ): Promise<{
+    seasonId: Id<"seasons">;
+    racesSynced: number;
+    racesCreated: number;
+    racesUpdated: number;
+    orphanedRaces: { raceId: Id<"races">; round: number; name: string }[];
+  }> => {
     // Get or create season
     let season: Doc<"seasons"> | null = await ctx.runQuery(
       api.queries.seasons.getSeasonByYear,
@@ -146,116 +304,52 @@ export const syncSeasonFromF1Connect = action({
       throw new Error(`Year must be between ${minYear} and ${maxYear}.`);
     }
 
-    const racesResponse = await fetch(`${F1API_BASE_URL}/${args.year}`);
-
-    if (!racesResponse.ok) {
-      const errorText = await racesResponse.text();
-      throw new Error(
-        `Failed to fetch races: ${racesResponse.statusText}. Response: ${errorText.substring(0, 200)}`
-      );
-    }
-
-    const racesData = (await racesResponse.json()) as
-      { races?: RaceData[]; message?: string } | RaceData[];
-
-    // f1api.dev /current endpoint returns an object with races array
-    let races: RaceData[] = [];
-    if (Array.isArray(racesData)) {
-      races = racesData;
-    } else if (!Array.isArray(racesData) && "races" in racesData) {
-      if (racesData.races && Array.isArray(racesData.races)) {
-        races = racesData.races;
-      } else if (racesData.message) {
-        // API returned an error message
-        throw new Error(`API Error: ${racesData.message}`);
-      } else {
-        throw new Error(
-          `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`
-        );
-      }
-    } else {
-      throw new Error(
-        `Unexpected API response format. Got: ${JSON.stringify(racesData).substring(0, 200)}`
-      );
-    }
+    const races = await fetchSeasonSchedule(args.year);
 
     if (races.length === 0) {
       throw new Error(`No races found for year ${args.year}`);
     }
 
-    // Process each race
+    // Reconcile against what we already store instead of keying on round:
+    // f1api.dev renumbers rounds mid-season, and matching on round both misses
+    // existing races (creating duplicates) and pairs rows with the wrong race.
+    const existingRaces = await ctx.runQuery(
+      api.queries.races.getRacesBySeason,
+      { seasonId: season._id }
+    );
+    const claimed = new Set<string>();
+
+    let racesCreated = 0;
+    let racesUpdated = 0;
+
     for (const raceData of races) {
-      // Extract race date from schedule
-      const raceSchedule = raceData.schedule?.race;
-      if (!raceSchedule || !raceSchedule.date) {
+      const raceDate = scheduleRaceStart(raceData);
+      if (raceDate === null) {
         console.warn(
           `Skipping race ${raceData.raceName || raceData.raceId}: no race date`
         );
         continue;
       }
 
-      // Parse race date (format: "2025-03-02")
-      const raceDateStr = raceSchedule.date;
-      const raceTimeStr = raceSchedule.time || "12:00:00Z";
-      const raceDateTime = new Date(`${raceDateStr}T${raceTimeStr}`);
-      const raceDate = raceDateTime.getTime();
-
-      // Get circuit and location info
-      const circuit =
-        raceData.circuit?.circuitName || raceData.circuitName || "Unknown";
+      const round = scheduleRound(raceData) || 1;
+      const raceName = raceData.raceName || `Race ${round}`;
+      const circuit = scheduleCircuit(raceData);
       const location = raceData.circuit?.city || raceData.location || "Unknown";
       const country =
         raceData.circuit?.country || raceData.country || "Unknown";
+      const sessionTimes = scheduleSessionTimes(raceData);
 
-      // Extract session times from schedule
-      let sessionTimes:
-        | {
-            fp1?: { start: number; end: number };
-            fp2?: { start: number; end: number };
-            fp3?: { start: number; end: number };
-            qualifying?: { start: number; end: number };
-            race?: { start: number; end: number };
-          }
-        | undefined = undefined;
-      const schedule = raceData.schedule;
-      if (schedule) {
-        const parseSessionTime = (session?: {
-          date?: string;
-          time?: string;
-        }) => {
-          if (!session || !session.date || !session.time) return undefined;
-          const start = new Date(`${session.date}T${session.time}`).getTime();
-          // Estimate end time as 2 hours after start (adjust as needed)
-          const end = start + 2 * 60 * 60 * 1000;
-          return { start, end };
-        };
-
-        sessionTimes = {
-          fp1: parseSessionTime(schedule.fp1),
-          fp2: parseSessionTime(schedule.fp2),
-          fp3: parseSessionTime(schedule.fp3),
-          qualifying: parseSessionTime(schedule.qualy),
-          race: parseSessionTime(schedule.race),
-        };
-      }
-
-      const round = raceData.round || 1;
-      const raceName = raceData.raceName || `Race ${round}`;
-
-      // Check if race already exists
-      const existingRace = await ctx.runQuery(
-        api.queries.seasons.getRaceBySeasonRound,
-        {
-          seasonId: season._id,
-          round,
-        }
+      const existingRace = matchStoredRace(
+        raceData,
+        raceDate,
+        existingRaces.filter((r) => !claimed.has(r._id))
       );
 
       if (!existingRace) {
-        // Create race
         await ctx.runMutation(api.mutations.races.createRace, {
           seasonId: season._id,
           round,
+          apiRaceId: raceData.raceId,
           name: raceName,
           date: raceDate,
           circuit,
@@ -263,16 +357,57 @@ export const syncSeasonFromF1Connect = action({
           country,
           sessionTimes,
         });
-      } else {
-        // Update existing race with session times if not already set
-        if (sessionTimes && !existingRace.sessionTimes) {
-          await ctx.runMutation(api.mutations.races.updateSessionTimes, {
-            raceId: existingRace._id,
-            sessionTimes,
-          });
-        }
+        racesCreated++;
+        continue;
+      }
+
+      claimed.add(existingRace._id);
+
+      // Bring the stored row back in step with upstream. `round` is deliberately
+      // left alone: upstream renumbering shouldn't reshuffle the rounds users
+      // already see, and nothing addresses the API by our stored round any more.
+      const patch = {
+        raceId: existingRace._id,
+        apiRaceId:
+          raceData.raceId && existingRace.apiRaceId !== raceData.raceId
+            ? raceData.raceId
+            : undefined,
+        name: existingRace.name !== raceName ? raceName : undefined,
+        date: existingRace.date !== raceDate ? raceDate : undefined,
+        circuit: existingRace.circuit !== circuit ? circuit : undefined,
+        location: existingRace.location !== location ? location : undefined,
+        country: existingRace.country !== country ? country : undefined,
+        sessionTimes:
+          sessionTimes &&
+          !sessionTimesEqual(existingRace.sessionTimes, sessionTimes)
+            ? sessionTimes
+            : undefined,
+      };
+
+      const hasDrift = Object.entries(patch).some(
+        ([key, value]) => key !== "raceId" && value !== undefined
+      );
+
+      if (hasDrift) {
+        await ctx.runMutation(
+          api.mutations.races.updateRaceFromSchedule,
+          patch
+        );
+        racesUpdated++;
       }
     }
+
+    // Races we store that upstream no longer lists (f1api.dev dropped Bahrain
+    // and Saudi Arabia from its 2026 calendar, for example). Surfaced rather
+    // than auto-cancelled — a transient API omission shouldn't delete a race
+    // people have predicted on.
+    const orphanedRaces = existingRaces
+      .filter((race) => !claimed.has(race._id))
+      .map((race) => ({
+        raceId: race._id,
+        round: race.round,
+        name: race.name,
+      }));
 
     // Update season with total races
     await ctx.runMutation(api.mutations.seasons.updateSeason, {
@@ -281,7 +416,13 @@ export const syncSeasonFromF1Connect = action({
       currentRound: 1,
     });
 
-    return { seasonId: season._id, racesSynced: races.length };
+    return {
+      seasonId: season._id,
+      racesSynced: races.length,
+      racesCreated,
+      racesUpdated,
+      orphanedRaces,
+    };
   },
 });
 
@@ -375,8 +516,49 @@ export const updateRaceResultsFromF1Connect = action({
       throw new Error("Season not found for race");
     }
 
-    // Check if round number exists
-    if (!race.round || race.round <= 0) {
+    // The results endpoint is addressed by round, but f1api.dev's round numbers
+    // are not stable — when it dropped Bahrain and Saudi Arabia from the 2026
+    // calendar every later round shifted down by 2, so our stored rounds pointed
+    // at future races and every sync 404'd. Resolve the round the API is using
+    // *now* by matching this race's identity against the live schedule.
+    let schedule: RaceData[] | null = null;
+    try {
+      schedule = await fetchSeasonSchedule(season.year);
+    } catch (error) {
+      // Schedule endpoint unavailable: fall back to the stored round. The race
+      // name check below still guards against writing another race's results.
+      console.warn(
+        `Could not fetch ${season.year} schedule, falling back to stored round ${race.round}`,
+        error
+      );
+    }
+
+    let apiRound = race.round;
+
+    if (schedule) {
+      const scheduleEntry = matchScheduleEntry(race, schedule);
+
+      if (!scheduleEntry) {
+        throw new Error(
+          `${race.name} is not on f1api.dev's ${season.year} calendar ` +
+            `(stored round ${race.round}, circuit "${race.circuit}"). ` +
+            `Upstream dropped or renamed this race, so there are no results to sync. ` +
+            `Re-sync the season schedule, or cancel the race in the room.`
+        );
+      }
+
+      apiRound = scheduleRound(scheduleEntry) || race.round;
+
+      if (scheduleEntry.raceId && race.apiRaceId !== scheduleEntry.raceId) {
+        // Remember the stable identifier so later syncs skip the circuit match.
+        await ctx.runMutation(api.mutations.races.updateRaceFromSchedule, {
+          raceId: race._id,
+          apiRaceId: scheduleEntry.raceId,
+        });
+      }
+    }
+
+    if (!apiRound || apiRound <= 0) {
       throw new Error(
         `Race does not have a valid round number. Race: ${race.name}, Round: ${race.round}. ` +
           `Please ensure races are synced from the season schedule first.`
@@ -384,12 +566,12 @@ export const updateRaceResultsFromF1Connect = action({
     }
 
     // Use the direct race endpoint: /api/{year}/{round}/race
-    // Only use the stored round number - no fallbacks to avoid syncing wrong race data
-    const raceResultsUrl = `${F1API_BASE_URL}/${season.year}/${race.round}/race`;
+    const raceResultsUrl = `${F1API_BASE_URL}/${season.year}/${apiRound}/race`;
 
     console.log(`Fetching race results from: ${raceResultsUrl}`);
     console.log(
-      `Race details: ${race.name}, Round: ${race.round}, Year: ${season.year}`
+      `Race details: ${race.name}, stored round: ${race.round}, ` +
+        `API round: ${apiRound}, Year: ${season.year}`
     );
 
     const raceResultsResponse = await fetch(raceResultsUrl);
@@ -410,7 +592,7 @@ export const updateRaceResultsFromF1Connect = action({
         throw new Error(
           `Race results not found at ${raceResultsUrl}.${errorDetails} ` +
             `The race may not have happened yet or results are not available in the API yet. ` +
-            `Race: ${race.name}, Round: ${race.round}, Year: ${season.year}. ` +
+            `Race: ${race.name}, API round: ${apiRound} (stored round ${race.round}), Year: ${season.year}. ` +
             `Please wait for the race to complete and results to become available.`
         );
       }

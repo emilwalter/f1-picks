@@ -100,8 +100,12 @@ export const getCompletedRacesWithoutResults = query({
       .withIndex("by_date", (q) => q.lt("date", now))
       .collect();
 
-    // Missing results, or corrupt / legacy sync (officialResults set but empty positions[])
-    return races.filter((race) => !hasOfficialStandings(race));
+    // Missing results, or corrupt / legacy sync (officialResults set but empty positions[]).
+    // Cancelled races are excluded: they will never have results, so retrying
+    // them every hour only fills the sync report with errors.
+    return races.filter(
+      (race) => race.status !== "cancelled" && !hasOfficialStandings(race)
+    );
   },
 });
 
