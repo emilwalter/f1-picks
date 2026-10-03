@@ -73,6 +73,14 @@ export default defineSchema({
       })
     ),
     status: v.optional(v.union(v.literal("scheduled"), v.literal("cancelled"))),
+    /**
+     * Who last set `status`. The scheduled calendar sync only reinstates
+     * races it cancelled itself, and never cancels a race a host reinstated.
+     * Unset on races whose status predates this field.
+     */
+    statusSource: v.optional(v.union(v.literal("host"), v.literal("schedule"))),
+    /** When the calendar sync first found this race missing from f1api.dev. */
+    missingFromScheduleSince: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

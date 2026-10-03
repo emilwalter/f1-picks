@@ -14,6 +14,7 @@ import type * as crons from "../crons.js";
 import type * as driversCache from "../driversCache.js";
 import type * as lib_applyRoomRaceScoring from "../lib/applyRoomRaceScoring.js";
 import type * as lib_lockout from "../lib/lockout.js";
+import type * as lib_scheduleSync from "../lib/scheduleSync.js";
 import type * as lib_scoring from "../lib/scoring.js";
 import type * as lib_userHelpers from "../lib/userHelpers.js";
 import type * as mutations_auth from "../mutations/auth.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   driversCache: typeof driversCache;
   "lib/applyRoomRaceScoring": typeof lib_applyRoomRaceScoring;
   "lib/lockout": typeof lib_lockout;
+  "lib/scheduleSync": typeof lib_scheduleSync;
   "lib/scoring": typeof lib_scoring;
   "lib/userHelpers": typeof lib_userHelpers;
   "mutations/auth": typeof mutations_auth;
