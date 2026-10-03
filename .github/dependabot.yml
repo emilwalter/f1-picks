@@ -13,19 +13,16 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
-    # Group updates to reduce PR noise
+    # Group by update type, not dependency type. Dependabot labels a group by
+    # its largest bump, so mixing patch and minor would stop patch groups from
+    # auto-merging (see .github/workflows/dependabot-auto-merge.yml).
     groups:
-      # Group all patch and minor updates for non-critical dependencies
-      production-dependencies:
-        dependency-type: "production"
+      patch-updates:
+        update-types:
+          - "patch"
+      minor-updates:
         update-types:
           - "minor"
-          - "patch"
-      dev-dependencies:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
     # Ignore major version updates for critical packages (review manually)
     ignore:
       - dependency-name: "next"
