@@ -83,13 +83,29 @@ function scheduleSessionTimes(entry: RaceData): SessionTimes | undefined {
     return { start, end: start + 2 * 60 * 60 * 1000 };
   };
 
-  return {
+  const sessionTimes: SessionTimes = {
     fp1: parseSessionTime(schedule.fp1),
     fp2: parseSessionTime(schedule.fp2),
     fp3: parseSessionTime(schedule.fp3),
     qualifying: parseSessionTime(schedule.qualy),
     race: parseSessionTime(schedule.race),
   };
+
+  // f1api.dev lists late additions (the 2026 Bahrain GP in Malaysia) with
+  // dates but null times. No parsed sessions means "unknown", not "none", so
+  // return undefined and leave any session times we already store alone.
+  return Object.values(sessionTimes).some(Boolean) ? sessionTimes : undefined;
+}
+
+/**
+ * True when upstream gives a race date without a start time and the stored
+ * race is on the same UTC day. {@link scheduleRaceStart} then falls back to a
+ * 12:00Z placeholder, which must not overwrite a real start time.
+ */
+function isPlaceholderForSameDay(entry: RaceData, storedDate: number): boolean {
+  if (entry.schedule?.race?.time) return false;
+  const day = (ts: number) => new Date(ts).toISOString().slice(0, 10);
+  return entry.schedule?.race?.date === day(storedDate);
 }
 
 function sessionTimesEqual(a?: SessionTimes, b?: SessionTimes): boolean {
@@ -318,6 +334,12 @@ export const syncSeasonFromF1Connect = action({
       { seasonId: season._id }
     );
     const claimed = new Set<string>();
+    // Stored rounds keep the numbering users already see. A race upstream adds
+    // mid-season (Bahrain moved to Sepang in 2026 came back as upstream round
+    // 16, which we already use for the Spanish GP) goes after the last round
+    // instead of sharing a number, since `round` picks the race's images and
+    // getRaceBySeasonRound expects it to be unique.
+    const usedRounds = new Set(existingRaces.map((r) => r.round));
 
     let racesCreated = 0;
     let racesUpdated = 0;
@@ -346,9 +368,13 @@ export const syncSeasonFromF1Connect = action({
       );
 
       if (!existingRace) {
+        const newRound = usedRounds.has(round)
+          ? Math.max(...usedRounds) + 1
+          : round;
+        usedRounds.add(newRound);
         await ctx.runMutation(api.mutations.races.createRace, {
           seasonId: season._id,
-          round,
+          round: newRound,
           apiRaceId: raceData.raceId,
           name: raceName,
           date: raceDate,
@@ -373,7 +399,11 @@ export const syncSeasonFromF1Connect = action({
             ? raceData.raceId
             : undefined,
         name: existingRace.name !== raceName ? raceName : undefined,
-        date: existingRace.date !== raceDate ? raceDate : undefined,
+        date:
+          existingRace.date !== raceDate &&
+          !isPlaceholderForSameDay(raceData, existingRace.date)
+            ? raceDate
+            : undefined,
         circuit: existingRace.circuit !== circuit ? circuit : undefined,
         location: existingRace.location !== location ? location : undefined,
         country: existingRace.country !== country ? country : undefined,

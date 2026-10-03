@@ -29,6 +29,10 @@ export const F1_2026_ROUND_SLUG: Record<number, string> = {
   22: "las-vegas",
   23: "qatar",
   24: "united-arab-emirates",
+  // Bahrain GP moved to Sepang, added after the original calendar (see
+  // syncSeasonFromF1Connect). formula1.com still calls it "bahrain", so its
+  // images live in their own folder to keep round 4's Sakhir images intact.
+  25: "malaysia",
 };
 
 export type F1RaceStaticImages = {
