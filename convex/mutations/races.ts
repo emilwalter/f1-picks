@@ -1,5 +1,6 @@
-import { mutation } from "../_generated/server";
+import { internalMutation, mutation } from "../_generated/server";
 import { v } from "convex/values";
+import type { Doc } from "../_generated/dataModel";
 
 const sessionTimesValidator = v.object({
   fp1: v.optional(v.object({ start: v.number(), end: v.number() })),
@@ -137,8 +138,37 @@ export const setRaceStatus = mutation({
 
     await ctx.db.patch(args.raceId, {
       status: args.status,
+      statusSource: "host",
       updatedAt: Date.now(),
     });
+    return args.raceId;
+  },
+});
+
+/**
+ * Apply the calendar sync's decisions: cancel a race that dropped off
+ * f1api.dev, reinstate one that came back, and track how long a race has
+ * been missing. Internal so clients can't cancel races through it.
+ */
+export const updateScheduleState = internalMutation({
+  args: {
+    raceId: v.id("races"),
+    status: v.optional(v.union(v.literal("scheduled"), v.literal("cancelled"))),
+    /** A timestamp starts the grace period; null clears it. */
+    missingFromScheduleSince: v.optional(v.union(v.number(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const patch: Partial<Doc<"races">> = { updatedAt: Date.now() };
+    if (args.status !== undefined) {
+      patch.status = args.status;
+      patch.statusSource = "schedule";
+    }
+    if (args.missingFromScheduleSince !== undefined) {
+      // Patching a field to undefined removes it from the document.
+      patch.missingFromScheduleSince =
+        args.missingFromScheduleSince ?? undefined;
+    }
+    await ctx.db.patch(args.raceId, patch);
     return args.raceId;
   },
 });

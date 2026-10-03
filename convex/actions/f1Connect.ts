@@ -1,121 +1,18 @@
 "use node";
 
-import { action } from "../_generated/server";
+import { action, internalAction, type ActionCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import {
+  matchScheduleEntry,
+  planScheduleSync,
+  scheduleRound,
+  type RaceData,
+} from "../lib/scheduleSync";
 
 /** Base URL for F1 Connect–compatible HTTP API (schedules, drivers, results). */
 const F1API_BASE_URL = "https://f1api.dev/api";
-
-// Type definitions for F1 Connect API responses
-interface RaceData {
-  raceId?: string;
-  raceName?: string;
-  round?: number;
-  schedule?: {
-    fp1?: { date?: string; time?: string };
-    fp2?: { date?: string; time?: string };
-    fp3?: { date?: string; time?: string };
-    qualy?: { date?: string; time?: string };
-    race?: { date?: string; time?: string };
-  };
-  circuit?: {
-    circuitName?: string;
-    city?: string;
-    country?: string;
-  };
-  circuitName?: string;
-  location?: string;
-  country?: string;
-}
-
-/** Normalized session block we persist for lockout calculations. */
-type SessionTimes = {
-  fp1?: { start: number; end: number };
-  fp2?: { start: number; end: number };
-  fp3?: { start: number; end: number };
-  qualifying?: { start: number; end: number };
-  race?: { start: number; end: number };
-};
-
-/** Race start timestamp for a schedule entry, or null when the API omits the date. */
-function scheduleRaceStart(entry: RaceData): number | null {
-  const date = entry.schedule?.race?.date;
-  if (!date) return null;
-  const time = entry.schedule?.race?.time || "12:00:00Z";
-  const ts = new Date(`${date}T${time}`).getTime();
-  return Number.isNaN(ts) ? null : ts;
-}
-
-function scheduleCircuit(entry: RaceData): string {
-  return entry.circuit?.circuitName || entry.circuitName || "Unknown";
-}
-
-function scheduleRound(entry: RaceData): number {
-  return Number(entry.round) || 0;
-}
-
-/**
- * Case/diacritic/punctuation-insensitive circuit key.
- * Circuit names are unique within a season and stable across API calendar
- * changes, which makes them a reliable identity for matching stored races.
- */
-function circuitKey(circuit: string): string {
-  // NFD splits accented letters into base + combining mark, and the
-  // [^a-z0-9] filter then drops the mark: "Autódromo" and "Autodromo"
-  // both collapse to "autodromo".
-  return circuit
-    .normalize("NFD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
-}
-
-function scheduleSessionTimes(entry: RaceData): SessionTimes | undefined {
-  const schedule = entry.schedule;
-  if (!schedule) return undefined;
-
-  const parseSessionTime = (session?: { date?: string; time?: string }) => {
-    if (!session || !session.date || !session.time) return undefined;
-    const start = new Date(`${session.date}T${session.time}`).getTime();
-    if (Number.isNaN(start)) return undefined;
-    // Estimate end time as 2 hours after start (adjust as needed)
-    return { start, end: start + 2 * 60 * 60 * 1000 };
-  };
-
-  const sessionTimes: SessionTimes = {
-    fp1: parseSessionTime(schedule.fp1),
-    fp2: parseSessionTime(schedule.fp2),
-    fp3: parseSessionTime(schedule.fp3),
-    qualifying: parseSessionTime(schedule.qualy),
-    race: parseSessionTime(schedule.race),
-  };
-
-  // f1api.dev lists late additions (the 2026 Bahrain GP in Malaysia) with
-  // dates but null times. No parsed sessions means "unknown", not "none", so
-  // return undefined and leave any session times we already store alone.
-  return Object.values(sessionTimes).some(Boolean) ? sessionTimes : undefined;
-}
-
-/**
- * True when upstream gives a race date without a start time and the stored
- * race is on the same UTC day. {@link scheduleRaceStart} then falls back to a
- * 12:00Z placeholder, which must not overwrite a real start time.
- */
-function isPlaceholderForSameDay(entry: RaceData, storedDate: number): boolean {
-  if (entry.schedule?.race?.time) return false;
-  const day = (ts: number) => new Date(ts).toISOString().slice(0, 10);
-  return entry.schedule?.race?.date === day(storedDate);
-}
-
-function sessionTimesEqual(a?: SessionTimes, b?: SessionTimes): boolean {
-  const keys = ["fp1", "fp2", "fp3", "qualifying", "race"] as const;
-  return keys.every(
-    (key) =>
-      (a?.[key]?.start ?? null) === (b?.[key]?.start ?? null) &&
-      (a?.[key]?.end ?? null) === (b?.[key]?.end ?? null)
-  );
-}
 
 /** Fetch the season calendar from f1api.dev, normalizing its response shapes. */
 async function fetchSeasonSchedule(year: number): Promise<RaceData[]> {
@@ -143,59 +40,6 @@ async function fetchSeasonSchedule(year: number): Promise<RaceData[]> {
   throw new Error(
     `Unexpected API response format. Got: ${JSON.stringify(data).substring(0, 200)}`
   );
-}
-
-/**
- * Identity of a stored race, as far as the upstream API is concerned.
- *
- * Neither matcher below falls back to `round`. f1api.dev renumbers rounds when
- * its calendar changes (in 2026 it dropped Bahrain + Saudi Arabia, shifting
- * every later round down by 2), so a round-based match happily pairs a stored
- * race with a completely different grand prix.
- */
-type RaceIdentity = {
-  apiRaceId?: string;
-  circuit: string;
-  date: number;
-};
-
-/** Find the schedule entry that a stored race refers to. */
-function matchScheduleEntry(
-  race: RaceIdentity,
-  schedule: RaceData[]
-): RaceData | null {
-  if (race.apiRaceId) {
-    const byId = schedule.find((entry) => entry.raceId === race.apiRaceId);
-    if (byId) return byId;
-  }
-
-  const key = circuitKey(race.circuit);
-  const byCircuit = schedule.find(
-    (entry) => circuitKey(scheduleCircuit(entry)) === key
-  );
-  if (byCircuit) return byCircuit;
-
-  return (
-    schedule.find((entry) => scheduleRaceStart(entry) === race.date) ?? null
-  );
-}
-
-/** Inverse of {@link matchScheduleEntry}: find the stored race for a schedule entry. */
-function matchStoredRace<T extends RaceIdentity>(
-  entry: RaceData,
-  raceStart: number,
-  races: T[]
-): T | null {
-  if (entry.raceId) {
-    const byId = races.find((race) => race.apiRaceId === entry.raceId);
-    if (byId) return byId;
-  }
-
-  const key = circuitKey(scheduleCircuit(entry));
-  const byCircuit = races.find((race) => circuitKey(race.circuit) === key);
-  if (byCircuit) return byCircuit;
-
-  return races.find((race) => race.date === raceStart) ?? null;
 }
 
 interface DriverData {
@@ -270,6 +114,171 @@ export const getNextRace = action({
   },
 });
 
+type SeasonSyncResult = {
+  seasonId: Id<"seasons">;
+  racesSynced: number;
+  racesCreated: number;
+  racesUpdated: number;
+  racesCancelled: number;
+  racesReinstated: number;
+  /** Missing upstream but not cancelled yet (grace period or truncated response). */
+  orphanedRaces: { raceId: Id<"races">; round: number; name: string }[];
+};
+
+/**
+ * Bring a season's races in line with f1api.dev's calendar: create races it
+ * added, update moved or renamed ones, and cancel races it dropped once they
+ * have been missing for MISSING_RACE_GRACE_MS (24h). The rules live in
+ * lib/scheduleSync so they can be tested; this function only does the I/O.
+ */
+async function syncSeason(
+  ctx: ActionCtx,
+  year: number
+): Promise<SeasonSyncResult> {
+  // Validate year range (F1 started 1950, allow future seasons)
+  const minYear = 1950;
+  const maxYear = 2030;
+  if (year < minYear || year > maxYear) {
+    throw new Error(`Year must be between ${minYear} and ${maxYear}.`);
+  }
+
+  // Fetch before touching the database, so a year upstream doesn't have yet
+  // doesn't leave an empty season behind.
+  const races = await fetchSeasonSchedule(year);
+
+  if (races.length === 0) {
+    throw new Error(`No races found for year ${year}`);
+  }
+
+  let season: Doc<"seasons"> | null = await ctx.runQuery(
+    api.queries.seasons.getSeasonByYear,
+    { year }
+  );
+
+  if (!season) {
+    await ctx.runMutation(api.mutations.seasons.createSeason, {
+      year,
+      totalRaces: 0, // Will be updated after fetching races
+      currentRound: 0,
+    });
+    season = await ctx.runQuery(api.queries.seasons.getSeasonByYear, {
+      year,
+    });
+    if (!season) {
+      throw new Error("Failed to create season");
+    }
+  }
+
+  const existingRaces = await ctx.runQuery(api.queries.races.getRacesBySeason, {
+    seasonId: season._id,
+  });
+
+  const plan = planScheduleSync(
+    existingRaces.map((race) => ({
+      ...race,
+      hasResults: (race.officialResults?.positions.length ?? 0) > 0,
+    })),
+    races,
+    Date.now()
+  );
+
+  for (const name of plan.skipped) {
+    console.warn(`Skipping race ${name}: no race date`);
+  }
+
+  for (const race of plan.creates) {
+    await ctx.runMutation(api.mutations.races.createRace, {
+      seasonId: season._id,
+      ...race,
+    });
+  }
+
+  for (const patch of plan.updates) {
+    await ctx.runMutation(api.mutations.races.updateRaceFromSchedule, patch);
+  }
+
+  const scheduleState = async (
+    raceId: Id<"races">,
+    state: {
+      status?: "scheduled" | "cancelled";
+      missingFromScheduleSince?: number | null;
+    }
+  ) =>
+    ctx.runMutation(internal.mutations.races.updateScheduleState, {
+      raceId,
+      ...state,
+    });
+
+  const now = Date.now();
+  for (const raceId of plan.markMissing) {
+    await scheduleState(raceId, { missingFromScheduleSince: now });
+  }
+  for (const raceId of plan.clearMissing) {
+    await scheduleState(raceId, { missingFromScheduleSince: null });
+  }
+  for (const raceId of plan.cancels) {
+    await scheduleState(raceId, { status: "cancelled" });
+  }
+  for (const raceId of plan.reinstates) {
+    await scheduleState(raceId, { status: "scheduled" });
+  }
+
+  const byId = new Map(existingRaces.map((race) => [race._id, race]));
+  const describe = (ids: Id<"races">[]) =>
+    ids.map((id) => byId.get(id)?.name ?? id).join(", ");
+
+  if (!plan.scheduleLooksComplete) {
+    console.warn(
+      `${year} calendar returned ${races.length} races, under half of the ` +
+        `season's active races. Not cancelling anything this run.`
+    );
+  }
+  if (
+    plan.creates.length ||
+    plan.updates.length ||
+    plan.cancels.length ||
+    plan.reinstates.length ||
+    plan.markMissing.length
+  ) {
+    console.log(
+      `${year} calendar sync: ` +
+        [
+          plan.creates.length &&
+            `added ${plan.creates.map((r) => r.name).join(", ")}`,
+          plan.updates.length &&
+            `updated ${describe(plan.updates.map((p) => p.raceId))}`,
+          plan.cancels.length && `cancelled ${describe(plan.cancels)}`,
+          plan.reinstates.length && `reinstated ${describe(plan.reinstates)}`,
+          plan.markMissing.length &&
+            `missing upstream ${describe(plan.markMissing)}`,
+        ]
+          .filter(Boolean)
+          .join("; ")
+    );
+  }
+
+  // Update season with total races
+  await ctx.runMutation(api.mutations.seasons.updateSeason, {
+    seasonId: season._id,
+    totalRaces: races.length,
+    currentRound: 1,
+  });
+
+  return {
+    seasonId: season._id,
+    racesSynced: races.length,
+    racesCreated: plan.creates.length,
+    racesUpdated: plan.updates.length,
+    racesCancelled: plan.cancels.length,
+    racesReinstated: plan.reinstates.length,
+    orphanedRaces: plan.stillMissing.map((raceId) => ({
+      raceId,
+      round: byId.get(raceId)?.round ?? 0,
+      name: byId.get(raceId)?.name ?? raceId,
+    })),
+  };
+}
+
 /**
  * Sync season schedule from F1 Connect API
  * Fetches race schedule (dates, circuits, locations) for a given year
@@ -279,181 +288,19 @@ export const syncSeasonFromF1Connect = action({
   args: {
     year: v.number(),
   },
-  handler: async (
-    ctx,
-    args
-  ): Promise<{
-    seasonId: Id<"seasons">;
-    racesSynced: number;
-    racesCreated: number;
-    racesUpdated: number;
-    orphanedRaces: { raceId: Id<"races">; round: number; name: string }[];
-  }> => {
-    // Get or create season
-    let season: Doc<"seasons"> | null = await ctx.runQuery(
-      api.queries.seasons.getSeasonByYear,
-      {
-        year: args.year,
-      }
-    );
+  handler: async (ctx, args): Promise<SeasonSyncResult> =>
+    syncSeason(ctx, args.year),
+});
 
-    if (!season) {
-      // Create season via mutation
-      await ctx.runMutation(api.mutations.seasons.createSeason, {
-        year: args.year,
-        totalRaces: 0, // Will be updated after fetching races
-        currentRound: 0,
-      });
-      // Fetch the created season
-      season = await ctx.runQuery(api.queries.seasons.getSeasonByYear, {
-        year: args.year,
-      });
-      if (!season) {
-        throw new Error("Failed to create season");
-      }
-    }
-
-    // Validate year range (F1 started 1950, allow future seasons)
-    const minYear = 1950;
-    const maxYear = 2030;
-    if (args.year < minYear || args.year > maxYear) {
-      throw new Error(`Year must be between ${minYear} and ${maxYear}.`);
-    }
-
-    const races = await fetchSeasonSchedule(args.year);
-
-    if (races.length === 0) {
-      throw new Error(`No races found for year ${args.year}`);
-    }
-
-    // Reconcile against what we already store instead of keying on round:
-    // f1api.dev renumbers rounds mid-season, and matching on round both misses
-    // existing races (creating duplicates) and pairs rows with the wrong race.
-    const existingRaces = await ctx.runQuery(
-      api.queries.races.getRacesBySeason,
-      { seasonId: season._id }
-    );
-    const claimed = new Set<string>();
-    // Stored rounds keep the numbering users already see. A race upstream adds
-    // mid-season (Bahrain moved to Sepang in 2026 came back as upstream round
-    // 16, which we already use for the Spanish GP) goes after the last round
-    // instead of sharing a number, since `round` picks the race's images and
-    // getRaceBySeasonRound expects it to be unique.
-    const usedRounds = new Set(existingRaces.map((r) => r.round));
-
-    let racesCreated = 0;
-    let racesUpdated = 0;
-
-    for (const raceData of races) {
-      const raceDate = scheduleRaceStart(raceData);
-      if (raceDate === null) {
-        console.warn(
-          `Skipping race ${raceData.raceName || raceData.raceId}: no race date`
-        );
-        continue;
-      }
-
-      const round = scheduleRound(raceData) || 1;
-      const raceName = raceData.raceName || `Race ${round}`;
-      const circuit = scheduleCircuit(raceData);
-      const location = raceData.circuit?.city || raceData.location || "Unknown";
-      const country =
-        raceData.circuit?.country || raceData.country || "Unknown";
-      const sessionTimes = scheduleSessionTimes(raceData);
-
-      const existingRace = matchStoredRace(
-        raceData,
-        raceDate,
-        existingRaces.filter((r) => !claimed.has(r._id))
-      );
-
-      if (!existingRace) {
-        const newRound = usedRounds.has(round)
-          ? Math.max(...usedRounds) + 1
-          : round;
-        usedRounds.add(newRound);
-        await ctx.runMutation(api.mutations.races.createRace, {
-          seasonId: season._id,
-          round: newRound,
-          apiRaceId: raceData.raceId,
-          name: raceName,
-          date: raceDate,
-          circuit,
-          location,
-          country,
-          sessionTimes,
-        });
-        racesCreated++;
-        continue;
-      }
-
-      claimed.add(existingRace._id);
-
-      // Bring the stored row back in step with upstream. `round` is deliberately
-      // left alone: upstream renumbering shouldn't reshuffle the rounds users
-      // already see, and nothing addresses the API by our stored round any more.
-      const patch = {
-        raceId: existingRace._id,
-        apiRaceId:
-          raceData.raceId && existingRace.apiRaceId !== raceData.raceId
-            ? raceData.raceId
-            : undefined,
-        name: existingRace.name !== raceName ? raceName : undefined,
-        date:
-          existingRace.date !== raceDate &&
-          !isPlaceholderForSameDay(raceData, existingRace.date)
-            ? raceDate
-            : undefined,
-        circuit: existingRace.circuit !== circuit ? circuit : undefined,
-        location: existingRace.location !== location ? location : undefined,
-        country: existingRace.country !== country ? country : undefined,
-        sessionTimes:
-          sessionTimes &&
-          !sessionTimesEqual(existingRace.sessionTimes, sessionTimes)
-            ? sessionTimes
-            : undefined,
-      };
-
-      const hasDrift = Object.entries(patch).some(
-        ([key, value]) => key !== "raceId" && value !== undefined
-      );
-
-      if (hasDrift) {
-        await ctx.runMutation(
-          api.mutations.races.updateRaceFromSchedule,
-          patch
-        );
-        racesUpdated++;
-      }
-    }
-
-    // Races we store that upstream no longer lists (f1api.dev dropped Bahrain
-    // and Saudi Arabia from its 2026 calendar, for example). Surfaced rather
-    // than auto-cancelled — a transient API omission shouldn't delete a race
-    // people have predicted on.
-    const orphanedRaces = existingRaces
-      .filter((race) => !claimed.has(race._id))
-      .map((race) => ({
-        raceId: race._id,
-        round: race.round,
-        name: race.name,
-      }));
-
-    // Update season with total races
-    await ctx.runMutation(api.mutations.seasons.updateSeason, {
-      seasonId: season._id,
-      totalRaces: races.length,
-      currentRound: 1,
-    });
-
-    return {
-      seasonId: season._id,
-      racesSynced: races.length,
-      racesCreated,
-      racesUpdated,
-      orphanedRaces,
-    };
-  },
+/**
+ * Cron entry point (see crons.js). Keeps the current season in step with
+ * f1api.dev without anyone pressing Sync, so races added, moved or dropped
+ * mid-season show up on their own.
+ */
+export const syncCurrentSeasonSchedule = internalAction({
+  args: {},
+  handler: async (ctx): Promise<SeasonSyncResult> =>
+    syncSeason(ctx, new Date().getUTCFullYear()),
 });
 
 // Type definitions for race results API response
