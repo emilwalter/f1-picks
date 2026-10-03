@@ -1,0 +1,32 @@
+name: Dependency Audit
+
+# Fails when a high or critical advisory affects the lockfile, so a new
+# advisory turns main red instead of waiting in Dependabot alerts. The daily
+# run catches advisories published after the last push.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Reads the pnpm version from "packageManager" in package.json.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      # --ignore-unfixable skips advisories with no patched release yet
+      # (braces via eslint-config-next, at the time of writing). They fail the
+      # audit again as soon as a fix ships.
+      - name: Audit
+        run: pnpm audit --audit-level=high --ignore-unfixable
