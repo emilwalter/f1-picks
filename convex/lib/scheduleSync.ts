@@ -1,12 +1,16 @@
 /**
- * Reconcile the races we store against f1api.dev's season calendar.
+ * Reconcile the races we store against the upstream season calendar
+ * (Jolpica since November 2026, f1api.dev before that).
  *
  * Pure functions only (no database, no network), so the rules for added,
  * moved and dropped races can be unit tested. actions/f1Connect fetches the
  * calendar and applies the plan this module returns.
  */
 
-/** One race in f1api.dev's season calendar. Times are null until published. */
+/**
+ * One race in the upstream season calendar. Times are null until published.
+ * The shape is f1api.dev's; lib/jolpica converts Jolpica entries to it.
+ */
 export interface RaceData {
   raceId?: string;
   raceName?: string;
@@ -259,10 +263,22 @@ function canMatch(race: StoredRace, raceStart: number): boolean {
   return race.status !== "cancelled" || utcDay(race.date) === utcDay(raceStart);
 }
 
+export type ScheduleSyncOptions = {
+  /**
+   * Overwrite name, circuit, location and country on races we already store.
+   * Off when switching data sources: races synced from f1api.dev carry full
+   * official names ("Formula 1 MSC Cruises Grande Premio de Sao Paulo 2026")
+   * that Jolpica's plain ones ("Brazilian Grand Prix") would replace.
+   * Identity (apiRaceId) and timing are always kept in step.
+   */
+  syncDisplayFields?: boolean;
+};
+
 export function planScheduleSync<TId extends string>(
   existing: StoredRace<TId>[],
   schedule: RaceData[],
-  now: number
+  now: number,
+  { syncDisplayFields = true }: ScheduleSyncOptions = {}
 ): ScheduleSyncPlan<TId> {
   const plan: ScheduleSyncPlan<TId> = {
     creates: [],
@@ -342,14 +358,19 @@ export function planScheduleSync<TId extends string>(
         entry.raceId && stored.apiRaceId !== entry.raceId
           ? entry.raceId
           : undefined,
-      name: stored.name !== name ? name : undefined,
+      name: syncDisplayFields && stored.name !== name ? name : undefined,
       date:
         stored.date !== raceDate && !isPlaceholderForSameDay(entry, stored.date)
           ? raceDate
           : undefined,
-      circuit: stored.circuit !== circuit ? circuit : undefined,
-      location: stored.location !== location ? location : undefined,
-      country: stored.country !== country ? country : undefined,
+      circuit:
+        syncDisplayFields && stored.circuit !== circuit ? circuit : undefined,
+      location:
+        syncDisplayFields && stored.location !== location
+          ? location
+          : undefined,
+      country:
+        syncDisplayFields && stored.country !== country ? country : undefined,
       sessionTimes:
         sessionTimes && !sessionTimesEqual(stored.sessionTimes, sessionTimes)
           ? sessionTimes

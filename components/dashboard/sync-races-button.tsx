@@ -44,7 +44,7 @@ export function SyncRacesButton() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to sync races from F1 Connect API"
+          : "Failed to sync races from Jolpica F1"
       );
     } finally {
       setIsSyncing(false);
