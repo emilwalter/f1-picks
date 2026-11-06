@@ -8,109 +8,77 @@ import {
   matchScheduleEntry,
   planScheduleSync,
   scheduleRound,
+  scheduleSessionTimes,
   type RaceData,
 } from "../lib/scheduleSync";
+import {
+  JOLPICA_BASE_URL,
+  JOLPICA_PAGE_LIMIT,
+  driversFromDriverList,
+  driversFromStandings,
+  parseOfficialResults,
+  toRaceData,
+  type JolpicaData,
+  type SeasonDriverRow,
+} from "../lib/jolpica";
 
-/** Base URL for F1 Connect–compatible HTTP API (schedules, drivers, results). */
-const F1API_BASE_URL = "https://f1api.dev/api";
+/*
+ * Race data comes from Jolpica F1 (see lib/jolpica). The action names still
+ * say "F1Connect" so the app's callers stay unchanged.
+ *
+ * Jolpica allows about 4 requests a second and 500 an hour per client. The
+ * hourly results cron makes three requests per unsynced race and the 6-hourly
+ * calendar cron one, well inside that.
+ */
 
-/** Fetch the season calendar from f1api.dev, normalizing its response shapes. */
-async function fetchSeasonSchedule(year: number): Promise<RaceData[]> {
-  const response = await fetch(`${F1API_BASE_URL}/${year}`);
+/** GET a Jolpica endpoint, e.g. `2026/races`, and return its MRData body. */
+async function jolpica(path: string): Promise<JolpicaData> {
+  const url = `${JOLPICA_BASE_URL}/${path}/?limit=${JOLPICA_PAGE_LIMIT}`;
+  const response = await fetch(url);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
     throw new Error(
-      `Failed to fetch races: ${response.statusText}. Response: ${errorText.substring(0, 200)}`
+      `Jolpica request failed: ${response.status} ${response.statusText} (${url}). ` +
+        errorText.substring(0, 200)
     );
   }
 
-  const data = (await response.json()) as
-    { races?: RaceData[]; message?: string } | RaceData[];
-
-  if (Array.isArray(data)) {
-    return data;
+  const data = (await response.json()) as { MRData?: JolpicaData };
+  if (!data?.MRData) {
+    throw new Error(`Unexpected Jolpica response from ${url}`);
   }
-  if ("races" in data && Array.isArray(data.races)) {
-    return data.races;
-  }
-  if (data.message) {
-    throw new Error(`API Error: ${data.message}`);
-  }
-  throw new Error(
-    `Unexpected API response format. Got: ${JSON.stringify(data).substring(0, 200)}`
-  );
+  return data.MRData;
 }
 
-interface DriverData {
-  number?: number;
-  driver_number?: number;
-  driverNumber?: number;
-  name?: string;
-  firstName?: string;
-  surname?: string;
-  lastName?: string;
-  last_name?: string;
-  shortName?: string;
-  nationality?: string;
-  country_code?: string;
-  countryCode?: string;
-}
-
-interface TeamData {
-  teamId?: string;
-  id?: string;
-  slug?: string;
-  teamName?: string;
-  name?: string;
-  team_name?: string;
-  logo?: string;
-}
-
-interface TeamDriverItem {
-  driver?: DriverData;
-}
-
-interface SessionData {
-  session_key?: string;
-  session_name?: string;
-  date_start?: string;
-  date_end?: string;
-  meeting_key?: string;
+/** Fetch a season's calendar, in the shape lib/scheduleSync works on. */
+async function fetchSeasonSchedule(year: number): Promise<RaceData[]> {
+  const data = await jolpica(`${year}/races`);
+  return (data.RaceTable?.Races ?? []).map(toRaceData);
 }
 
 /**
- * Get the next upcoming race from F1 Connect API
- * Uses /current/next endpoint for efficient fetching
+ * Get the next upcoming race.
  */
 export const getNextRace = action({
   args: {},
   handler: async () => {
-    const response = await fetch(`${F1API_BASE_URL}/current/next`);
+    const data = await jolpica("current/next/races");
+    const next = data.RaceTable?.Races[0];
+    if (!next) return null;
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch next race: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    // Extract race data from response
-    if (data.race && data.race.length > 0) {
-      const raceData = data.race[0];
-      return {
-        raceId: raceData.raceId,
-        raceName: raceData.raceName,
-        round: raceData.round,
-        date: raceData.schedule?.race?.date,
-        time: raceData.schedule?.race?.time,
-        circuit: raceData.circuit?.circuitName,
-        location: raceData.circuit?.city,
-        country: raceData.circuit?.country,
-        schedule: raceData.schedule,
-      };
-    }
-
-    return null;
+    const race = toRaceData(next);
+    return {
+      raceId: race.raceId,
+      raceName: race.raceName,
+      round: race.round,
+      date: next.date,
+      time: next.time,
+      circuit: race.circuit?.circuitName,
+      location: race.circuit?.city,
+      country: race.circuit?.country,
+      sessionTimes: scheduleSessionTimes(race),
+    };
   },
 });
 
@@ -126,7 +94,7 @@ type SeasonSyncResult = {
 };
 
 /**
- * Bring a season's races in line with f1api.dev's calendar: create races it
+ * Bring a season's races in line with Jolpica's calendar: create races it
  * added, update moved or renamed ones, and cancel races it dropped once they
  * have been missing for MISSING_RACE_GRACE_MS (24h). The rules live in
  * lib/scheduleSync so they can be tested; this function only does the I/O.
@@ -179,7 +147,9 @@ async function syncSeason(
       hasResults: (race.officialResults?.positions.length ?? 0) > 0,
     })),
     races,
-    Date.now()
+    Date.now(),
+    // Keep the names users know. See ScheduleSyncOptions.
+    { syncDisplayFields: false }
   );
 
   for (const name of plan.skipped) {
@@ -280,8 +250,7 @@ async function syncSeason(
 }
 
 /**
- * Sync season schedule from F1 Connect API
- * Fetches race schedule (dates, circuits, locations) for a given year
+ * Sync a season's schedule (dates, circuits, session times) from Jolpica
  * Note: Driver/team info is fetched on-demand when needed for predictions/results
  */
 export const syncSeasonFromF1Connect = action({
@@ -294,7 +263,7 @@ export const syncSeasonFromF1Connect = action({
 
 /**
  * Cron entry point (see crons.js). Keeps the current season in step with
- * f1api.dev without anyone pressing Sync, so races added, moved or dropped
+ * Jolpica without anyone pressing Sync, so races added, moved or dropped
  * mid-season show up on their own.
  */
 export const syncCurrentSeasonSchedule = internalAction({
@@ -303,79 +272,16 @@ export const syncCurrentSeasonSchedule = internalAction({
     syncSeason(ctx, new Date().getUTCFullYear()),
 });
 
-// Type definitions for race results API response
-interface RaceResultData {
-  /** f1api.dev often sends numeric places as strings (e.g. "1", "2") */
-  position: number | string;
-  points: number;
-  /** Grid slot is often a string in JSON */
-  grid: number | string | "not available";
-  time: string;
-  fastLap: string | null;
-  retired: string | null;
-  driver: {
-    driverId: string;
-    number: number;
-    shortName: string;
-    name: string;
-    surname: string;
-  };
-  team: {
-    teamId: string;
-    teamName: string;
-  };
-}
-
-/** Parse finishing position: numeric place, NC, or null if unknown. */
-function parseFinishPosition(position: number | string): number | "NC" | null {
-  if (position === "NC" || position === "nc") return "NC";
-  if (typeof position === "number" && Number.isFinite(position)) {
-    return position;
-  }
-  if (typeof position === "string") {
-    const trimmed = position.trim();
-    if (trimmed.toUpperCase() === "NC") return "NC";
-    // f1api.dev 2026+ uses "-" for DNFs (see japanese_2026 race results)
-    if (trimmed === "-" || trimmed === "—" || trimmed === "–") return "NC";
-    if (/^dnf\b/i.test(trimmed)) return "NC";
-    const n = parseInt(trimmed, 10);
-    if (!Number.isNaN(n)) return n;
-  }
-  return null;
-}
-
-function parseGridSlot(grid: number | string | "not available"): number | null {
-  if (grid === "not available") return null;
-  if (typeof grid === "number" && Number.isFinite(grid)) return grid;
-  if (typeof grid === "string") {
-    const n = parseInt(grid.trim(), 10);
-    if (!Number.isNaN(n)) return n;
-  }
-  return null;
-}
-
-interface RaceResultsResponse {
-  season: number;
-  races: {
-    round: string;
-    date: string;
-    raceId: string;
-    raceName: string;
-    results: RaceResultData[];
-  };
-}
-
 /**
- * Update race results from F1 Connect API
- * Uses the direct race endpoint: /api/{year}/{round}/race
- * This is much more reliable than trying to find sessions by date
+ * Fetch official results for a race and store them on the race.
+ * Endpoint: /{year}/{round}/results, with the round resolved from the live
+ * calendar because upstream round numbers are not stable.
  */
 export const updateRaceResultsFromF1Connect = action({
   args: {
     raceId: v.id("races"),
   },
   handler: async (ctx, args) => {
-    // Get race
     const race = await ctx.runQuery(api.queries.races.getRaceById, {
       raceId: args.raceId,
     });
@@ -384,7 +290,6 @@ export const updateRaceResultsFromF1Connect = action({
       throw new Error("Race not found");
     }
 
-    // Get season to get year
     const season = await ctx.runQuery(api.queries.seasons.getSeasonById, {
       seasonId: race.seasonId,
     });
@@ -393,222 +298,88 @@ export const updateRaceResultsFromF1Connect = action({
       throw new Error("Season not found for race");
     }
 
-    // The results endpoint is addressed by round, but f1api.dev's round numbers
-    // are not stable — when it dropped Bahrain and Saudi Arabia from the 2026
-    // calendar every later round shifted down by 2, so our stored rounds pointed
-    // at future races and every sync 404'd. Resolve the round the API is using
-    // *now* by matching this race's identity against the live schedule.
-    let schedule: RaceData[] | null = null;
-    try {
-      schedule = await fetchSeasonSchedule(season.year);
-    } catch (error) {
-      // Schedule endpoint unavailable: fall back to the stored round. The race
-      // name check below still guards against writing another race's results.
-      console.warn(
-        `Could not fetch ${season.year} schedule, falling back to stored round ${race.round}`,
-        error
-      );
-    }
+    // Our stored rounds don't follow upstream's (we keep cancelled races and
+    // put late additions at the end), so there is no safe fallback when the
+    // calendar can't be fetched. Let the error through; the cron retries hourly.
+    const schedule = await fetchSeasonSchedule(season.year);
+    const scheduleEntry = matchScheduleEntry(race, schedule);
 
-    let apiRound = race.round;
-
-    if (schedule) {
-      const scheduleEntry = matchScheduleEntry(race, schedule);
-
-      if (!scheduleEntry) {
-        throw new Error(
-          `${race.name} is not on f1api.dev's ${season.year} calendar ` +
-            `(stored round ${race.round}, circuit "${race.circuit}"). ` +
-            `Upstream dropped or renamed this race, so there are no results to sync. ` +
-            `Re-sync the season schedule, or cancel the race in the room.`
-        );
-      }
-
-      apiRound = scheduleRound(scheduleEntry) || race.round;
-
-      if (scheduleEntry.raceId && race.apiRaceId !== scheduleEntry.raceId) {
-        // Remember the stable identifier so later syncs skip the circuit match.
-        await ctx.runMutation(api.mutations.races.updateRaceFromSchedule, {
-          raceId: race._id,
-          apiRaceId: scheduleEntry.raceId,
-        });
-      }
-    }
-
-    if (!apiRound || apiRound <= 0) {
+    if (!scheduleEntry) {
       throw new Error(
-        `Race does not have a valid round number. Race: ${race.name}, Round: ${race.round}. ` +
-          `Please ensure races are synced from the season schedule first.`
+        `${race.name} is not on Jolpica's ${season.year} calendar ` +
+          `(stored round ${race.round}, circuit "${race.circuit}"). ` +
+          `Upstream dropped or renamed this race, so there are no results to sync. ` +
+          `Re-sync the season schedule, or cancel the race in the room.`
       );
     }
 
-    // Use the direct race endpoint: /api/{year}/{round}/race
-    const raceResultsUrl = `${F1API_BASE_URL}/${season.year}/${apiRound}/race`;
+    if (scheduleEntry.raceId && race.apiRaceId !== scheduleEntry.raceId) {
+      // Remember the stable identifier so later syncs skip the circuit match.
+      await ctx.runMutation(api.mutations.races.updateRaceFromSchedule, {
+        raceId: race._id,
+        apiRaceId: scheduleEntry.raceId,
+      });
+    }
 
-    console.log(`Fetching race results from: ${raceResultsUrl}`);
+    const apiRound = scheduleRound(scheduleEntry);
+    if (apiRound <= 0) {
+      throw new Error(`${race.name} has no round on Jolpica's calendar.`);
+    }
+
     console.log(
-      `Race details: ${race.name}, stored round: ${race.round}, ` +
-        `API round: ${apiRound}, Year: ${season.year}`
+      `Fetching results for ${race.name}: stored round ${race.round}, ` +
+        `Jolpica round ${apiRound}, year ${season.year}`
     );
 
-    const raceResultsResponse = await fetch(raceResultsUrl);
-
-    if (!raceResultsResponse.ok) {
-      // Try to get response body for better error message
-      let errorDetails = "";
-      try {
-        const errorBody = await raceResultsResponse.text();
-        errorDetails = errorBody
-          ? ` Response: ${errorBody.substring(0, 200)}`
-          : "";
-      } catch {
-        // Ignore errors reading response
-      }
-
-      if (raceResultsResponse.status === 404) {
-        throw new Error(
-          `Race results not found at ${raceResultsUrl}.${errorDetails} ` +
-            `The race may not have happened yet or results are not available in the API yet. ` +
-            `Race: ${race.name}, API round: ${apiRound} (stored round ${race.round}), Year: ${season.year}. ` +
-            `Please wait for the race to complete and results to become available.`
+    const [resultsData, qualifyingData] = await Promise.all([
+      jolpica(`${season.year}/${apiRound}/results`),
+      jolpica(`${season.year}/${apiRound}/qualifying`).catch((error) => {
+        console.warn(
+          "Qualifying fetch failed, using grid slot 1 for pole",
+          error
         );
-      }
+        return null;
+      }),
+    ]);
+
+    const resultRace = resultsData.RaceTable?.Races[0];
+    const results = resultRace?.Results ?? [];
+
+    if (!resultRace || results.length === 0) {
       throw new Error(
-        `Failed to fetch race results: ${raceResultsResponse.statusText} (${raceResultsResponse.status}).${errorDetails}`
+        `Results for ${race.name} are not on Jolpica yet (round ${apiRound}, ` +
+          `${season.year}). They usually appear a few hours after the race.`
       );
     }
 
-    const raceResultsData =
-      (await raceResultsResponse.json()) as RaceResultsResponse;
-
-    if (
-      !raceResultsData.races ||
-      !raceResultsData.races.results ||
-      raceResultsData.races.results.length === 0
-    ) {
-      throw new Error("No race results found in API response");
-    }
-
-    const results = raceResultsData.races.results;
-
-    const withParsed = results.map((r) => ({
-      row: r,
-      finish: parseFinishPosition(r.position),
-      gridSlot: parseGridSlot(r.grid),
-    }));
-
-    // Classified finishers only (numeric position — API may send "1" not 1)
-    const sortedPositions = withParsed
-      .filter(
-        (x): x is typeof x & { finish: number } => typeof x.finish === "number"
-      )
-      .sort((a, b) => a.finish - b.finish)
-      .map((x) => ({
-        position: x.finish,
-        driverNumber: x.row.driver.number,
-        points: Number(x.row.points) || 0,
-      }));
-
-    if (sortedPositions.length === 0) {
+    // Results are fetched by round, so confirm the round still points at this
+    // race before writing anything.
+    const resultRaceId = toRaceData(resultRace).raceId;
+    if (resultRaceId !== scheduleEntry.raceId) {
       throw new Error(
-        "No classified finishers parsed from API results (check position format)."
+        `Jolpica round ${apiRound} returned ${resultRace.raceName} ` +
+          `(${resultRaceId}), expected ${scheduleEntry.raceId}. ` +
+          `Not updating ${race.name}.`
       );
     }
 
-    // Find fastest lap driver (from fastLap field - driver with fastest lap time)
-    let fastestLapDriverId: number | undefined;
-    let fastestLapTime: number | null = null;
-    results.forEach((r) => {
-      if (r.fastLap) {
-        // Parse lap time (format: "1:33.365" -> seconds)
-        const timeParts = r.fastLap.split(":");
-        if (timeParts.length === 2) {
-          const minutes = parseFloat(timeParts[0]);
-          const seconds = parseFloat(timeParts[1]);
-          const totalSeconds = minutes * 60 + seconds;
-          if (fastestLapTime === null || totalSeconds < fastestLapTime) {
-            fastestLapTime = totalSeconds;
-            fastestLapDriverId = r.driver.number;
-          }
-        }
-      }
-    });
+    const officialResults = parseOfficialResults(
+      results,
+      qualifyingData?.RaceTable?.Races[0]?.QualifyingResults
+    );
 
-    // Pole: grid slot 1 (API may send grid as string "1")
-    let polePositionDriverId: number | undefined;
-    const poleEntry = withParsed.find((x) => x.gridSlot === 1);
-    if (poleEntry) {
-      polePositionDriverId = poleEntry.row.driver.number;
+    if (officialResults.positions.length === 0) {
+      throw new Error("No classified finishers in Jolpica results.");
     }
 
-    // DNF / not classified: NC, or explicit retirement string from API
-    const dnfDriverIds: number[] = withParsed
-      .filter((x) => {
-        if (x.finish === "NC") return true;
-        if (typeof x.finish === "number" && x.row.retired !== null) {
-          const msg = String(x.row.retired).trim();
-          return msg.length > 0;
-        }
-        return false;
-      })
-      .map((x) => x.row.driver.number);
-
-    // Verify we're updating the correct race by checking the race name in the API response
-    if (raceResultsData.races?.raceName) {
-      const apiRaceName = raceResultsData.races.raceName.toLowerCase().trim();
-      const storedRaceName = race.name.toLowerCase().trim();
-
-      // Simple verification - race names should be very similar (allowing for sponsor name differences)
-      // Remove common sponsor prefixes and compare
-      const normalizeRaceName = (name: string) => {
-        return name
-          .replace(
-            /^(qatar airways|heineken|lenovo|stc|crypto\.com|aws|msc cruises|pirelli|aramco|msc)\s+/gi,
-            ""
-          )
-          .trim();
-      };
-
-      const normalizedApi = normalizeRaceName(apiRaceName);
-      const normalizedStored = normalizeRaceName(storedRaceName);
-
-      // They should match after normalization (e.g., "Qatar Airways Qatar Grand Prix" vs "Qatar Grand Prix")
-      if (
-        normalizedApi !== normalizedStored &&
-        !normalizedApi.includes(normalizedStored) &&
-        !normalizedStored.includes(normalizedApi)
-      ) {
-        throw new Error(
-          `Race name mismatch! API returned results for "${raceResultsData.races.raceName}" ` +
-            `but we're trying to update "${race.name}". This prevents updating the wrong race. ` +
-            `Please verify the race round number is correct.`
-        );
-      }
-    }
-
-    // Update race with results
     await ctx.runMutation(api.mutations.races.updateRaceResults, {
       raceId: args.raceId,
-      officialResults: {
-        positions: sortedPositions,
-        fastestLapDriverId,
-        polePositionDriverId,
-        dnfDriverIds,
-      },
+      officialResults,
     });
 
     return { raceId: args.raceId, resultsUpdated: true };
   },
 });
-
-/** Normalized driver row returned by getDriversForRace (matches driverSeasonCache schema). */
-type SeasonDriverRow = {
-  driverNumber: number;
-  name: string;
-  teamName: string;
-  teamLogo?: string;
-  countryCode: string;
-};
 
 type DriverSeasonCacheDoc = {
   drivers: SeasonDriverRow[];
@@ -616,12 +387,16 @@ type DriverSeasonCacheDoc = {
 } | null;
 
 /**
- * Get drivers and teams for a specific season
- * Uses /{year}/drivers and /{year}/teams endpoints for season-specific data
+ * Drivers and teams for a season, cached for 6 hours.
+ *
+ * Built from the driver standings, which list everyone who has raced this
+ * season. A debutant appears after their first race. Before the season's
+ * first race there are no standings, so fall back to the driver list, which
+ * has no teams.
  */
 export const getDriversForRace = action({
   args: {
-    year: v.number(), // Season year (e.g. 2025, 2026) - determines which drivers/teams to fetch
+    year: v.number(), // Season year (e.g. 2025, 2026)
   },
   handler: async (ctx, args): Promise<SeasonDriverRow[]> => {
     const year = args.year;
@@ -634,453 +409,16 @@ export const getDriversForRace = action({
     }
 
     try {
-      // Fetch season-specific drivers and teams
-      const [driversResponse, teamsResponse] = await Promise.all([
-        fetch(`${F1API_BASE_URL}/${year}/drivers`),
-        fetch(`${F1API_BASE_URL}/${year}/teams`).catch(() => null),
-      ]);
+      const standingsData = await jolpica(`${year}/driverstandings`);
+      const standings =
+        standingsData.StandingsTable?.StandingsLists[0]?.DriverStandings ?? [];
 
-      if (!driversResponse.ok) {
-        const errorText = await driversResponse.text().catch(() => "");
-        throw new Error(
-          `Failed to fetch drivers: ${driversResponse.status} ${driversResponse.statusText}. ${errorText.substring(0, 200)}`
-        );
-      }
-
-      const driversData = (await driversResponse.json()) as
-        DriverData[] | { drivers?: DriverData[]; driver?: DriverData[] };
-
-      // Handle response format: {drivers: [...]} or {driver: [...]}
-      let drivers: DriverData[] = [];
-      if (Array.isArray(driversData)) {
-        drivers = driversData;
-      } else if (driversData.drivers && Array.isArray(driversData.drivers)) {
-        drivers = driversData.drivers;
-      } else if (driversData.driver && Array.isArray(driversData.driver)) {
-        drivers = driversData.driver;
-      } else {
-        console.warn(
-          "Unexpected drivers response format:",
-          JSON.stringify(driversData).substring(0, 500)
-        );
-        drivers = [];
-      }
-
-      // Build driver-to-team mapping using year-specific team endpoints
-      const teamMap: Map<number, { name: string; logo?: string }> = new Map();
-
-      // Known team names that work with the API (fallback if teams endpoint doesn't work)
-      const knownTeamNames = [
-        "mercedes",
-        "ferrari",
-        "red-bull-racing",
-        "mclaren",
-        "aston-martin",
-        "alpine",
-        "williams",
-        "alphatauri",
-        "alfa-romeo",
-        "haas",
-      ];
-
-      if (teamsResponse && teamsResponse.ok) {
-        const teamsData = (await teamsResponse.json()) as
-          TeamData[] | { teams?: TeamData[]; team?: TeamData[] };
-        // Handle both array and object with teams array
-        let teams: TeamData[] = [];
-        if (Array.isArray(teamsData)) {
-          teams = teamsData;
-        } else if (teamsData.teams && Array.isArray(teamsData.teams)) {
-          teams = teamsData.teams;
-        } else if (teamsData.team && Array.isArray(teamsData.team)) {
-          teams = teamsData.team;
-        }
-
-        console.log(`Found ${teams.length} teams from API`);
-        if (teams.length > 0) {
-          console.log(
-            `Sample team data:`,
-            JSON.stringify(teams[0]).substring(0, 200)
-          );
-        }
-
-        // Fetch drivers for each team using /{year}/teams/{teamId}/drivers endpoint
-        const teamDriverPromises = teams.map(async (team) => {
-          // Get teamId - this is what the API uses in URLs (e.g., "mercedes")
-          const teamId = team.teamId || team.id || team.slug;
-          // Get team display name (will be updated from API if available)
-          let teamName = team.teamName || team.name || team.team_name || teamId;
-
-          if (!teamId) {
-            return null;
-          }
-
-          try {
-            // Use teamId directly in the URL (API expects it as-is, e.g., "mercedes")
-            const teamSlug = String(teamId).toLowerCase();
-
-            const [teamInfoResponse, teamDriversResponse] = await Promise.all([
-              fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-                () => null
-              ),
-              fetch(
-                `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
-              ).catch(() => null),
-            ]);
-
-            let teamLogo: string | undefined = team.logo;
-            if (teamInfoResponse && teamInfoResponse.ok) {
-              const teamInfo = (await teamInfoResponse.json()) as
-                TeamData | { team?: TeamData[] };
-              // Handle team info response format: { team: [{ teamName: "...", ... }] }
-              const teamData = (
-                Array.isArray(teamInfo)
-                  ? teamInfo[0]
-                  : "team" in teamInfo && Array.isArray(teamInfo.team)
-                    ? teamInfo.team[0]
-                    : teamInfo
-              ) as TeamData;
-              teamLogo =
-                teamData.logo || (teamInfo as TeamData).logo || team.logo;
-              // Update teamName from API if available
-              if (teamData.teamName || (teamInfo as TeamData).teamName) {
-                teamName =
-                  teamData.teamName ||
-                  (teamInfo as TeamData).teamName ||
-                  teamName;
-              }
-            }
-
-            let driversList: TeamDriverItem[] = [];
-            if (teamDriversResponse && teamDriversResponse.ok) {
-              const teamDriversData = (await teamDriversResponse.json()) as
-                TeamDriverItem[] | { drivers?: TeamDriverItem[] };
-              // API returns { drivers: [{ driver: {...} }] }
-              if (
-                !Array.isArray(teamDriversData) &&
-                "drivers" in teamDriversData &&
-                Array.isArray(teamDriversData.drivers)
-              ) {
-                driversList = teamDriversData.drivers;
-              } else if (Array.isArray(teamDriversData)) {
-                driversList = teamDriversData;
-              }
-            }
-
-            // Extract driver numbers from the drivers array
-            // Each item has format: { driver: { number: 44, ... } }
-            const driverNumbers = driversList
-              .map((item) => {
-                const driver = item.driver || item;
-                return (
-                  (driver as DriverData).number ||
-                  (driver as DriverData).driverNumber ||
-                  (driver as DriverData).driver_number
-                );
-              })
-              .filter((n): n is number => typeof n === "number");
-
-            if (driverNumbers.length > 0) {
-              return {
-                teamName,
-                teamLogo,
-                driverNumbers,
-              };
-            } else {
-              console.warn(
-                `No drivers found for team ${teamName} (teamId: ${teamId})`
-              );
-            }
-          } catch (err) {
-            console.warn(
-              `Failed to fetch drivers for team ${teamName} (teamId: ${teamId}):`,
-              err
+      const result =
+        standings.length > 0
+          ? driversFromStandings(standings)
+          : driversFromDriverList(
+              (await jolpica(`${year}/drivers`)).DriverTable?.Drivers ?? []
             );
-          }
-          return null;
-        });
-
-        const teamDriverMappings = await Promise.all(teamDriverPromises);
-        const successfulMappings = teamDriverMappings.filter(
-          (
-            m
-          ): m is {
-            teamName: string;
-            teamLogo: string | undefined;
-            driverNumbers: number[];
-          } =>
-            m !== null &&
-            m.teamName !== undefined &&
-            typeof m.teamName === "string"
-        );
-
-        console.log(
-          `Successfully mapped ${successfulMappings.length} teams out of ${teams.length}`
-        );
-
-        successfulMappings.forEach((mapping) => {
-          const teamName: string = mapping.teamName;
-          mapping.driverNumbers.forEach((driverNumber: number) => {
-            if (driverNumber) {
-              teamMap.set(driverNumber, {
-                name: teamName,
-                logo: mapping.teamLogo,
-              });
-            }
-          });
-        });
-
-        // If we didn't get enough mappings, try fallback with known team names
-        if (
-          successfulMappings.length === 0 ||
-          teamMap.size < drivers.length * 0.5
-        ) {
-          console.log("Using fallback: fetching drivers for known team names");
-          const fallbackPromises = knownTeamNames.map(
-            async (teamSlug: string) => {
-              try {
-                const [teamInfoResponse, teamDriversResponse] =
-                  await Promise.all([
-                    fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-                      () => null
-                    ),
-                    fetch(
-                      `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
-                    ).catch(() => null),
-                  ]);
-
-                let teamLogo: string | undefined;
-                let teamDisplayName = teamSlug
-                  .replace(/-/g, " ")
-                  .replace(/\b\w/g, (l) => l.toUpperCase());
-
-                if (teamInfoResponse && teamInfoResponse.ok) {
-                  const teamInfo = (await teamInfoResponse.json()) as
-                    TeamData | { team?: TeamData[] };
-                  // Handle team info response format: { team: [{ teamName: "...", ... }] }
-                  const teamData = (
-                    Array.isArray(teamInfo)
-                      ? teamInfo[0]
-                      : "team" in teamInfo && Array.isArray(teamInfo.team)
-                        ? teamInfo.team[0]
-                        : teamInfo
-                  ) as TeamData;
-                  teamLogo = teamData.logo || (teamInfo as TeamData).logo;
-                  teamDisplayName =
-                    teamData.teamName ||
-                    (teamInfo as TeamData).teamName ||
-                    teamData.name ||
-                    (teamInfo as TeamData).name ||
-                    teamDisplayName;
-                }
-
-                if (teamDriversResponse && teamDriversResponse.ok) {
-                  const teamDriversData = (await teamDriversResponse.json()) as
-                    TeamDriverItem[] | { drivers?: TeamDriverItem[] };
-                  // API returns { drivers: [{ driver: {...} }] }
-                  let driversList: TeamDriverItem[] = [];
-                  if (
-                    !Array.isArray(teamDriversData) &&
-                    "drivers" in teamDriversData &&
-                    Array.isArray(teamDriversData.drivers)
-                  ) {
-                    driversList = teamDriversData.drivers;
-                  } else if (Array.isArray(teamDriversData)) {
-                    driversList = teamDriversData;
-                  }
-
-                  // Extract driver numbers from the drivers array
-                  // Each item has format: { driver: { number: 44, ... } }
-                  const driverNumbers = driversList
-                    .map((item) => {
-                      const driver = item.driver || item;
-                      return (
-                        (driver as DriverData).number ||
-                        (driver as DriverData).driverNumber ||
-                        (driver as DriverData).driver_number
-                      );
-                    })
-                    .filter((n): n is number => typeof n === "number");
-
-                  if (driverNumbers.length > 0) {
-                    return {
-                      teamName: teamDisplayName,
-                      teamLogo,
-                      driverNumbers,
-                    };
-                  }
-                }
-              } catch {
-                // Silently continue
-              }
-              return null;
-            }
-          );
-
-          const fallbackMappings = await Promise.all(fallbackPromises);
-          fallbackMappings.forEach((mapping) => {
-            if (mapping) {
-              mapping.driverNumbers.forEach((driverNumber: number) => {
-                if (driverNumber && !teamMap.has(driverNumber)) {
-                  teamMap.set(driverNumber, {
-                    name: mapping.teamName,
-                    logo: mapping.teamLogo,
-                  });
-                }
-              });
-            }
-          });
-
-          console.log(`Fallback mapped ${teamMap.size} drivers to teams`);
-        }
-      } else {
-        console.warn(
-          `Teams endpoint failed: ${teamsResponse?.status || "no response"}, using fallback`
-        );
-
-        // Use fallback immediately if teams endpoint failed
-        const fallbackPromises = knownTeamNames.map(async (teamSlug) => {
-          try {
-            const [teamInfoResponse, teamDriversResponse] = await Promise.all([
-              fetch(`${F1API_BASE_URL}/${year}/teams/${teamSlug}`).catch(
-                () => null
-              ),
-              fetch(
-                `${F1API_BASE_URL}/${year}/teams/${teamSlug}/drivers`
-              ).catch(() => null),
-            ]);
-
-            let teamLogo: string | undefined;
-            let teamDisplayName = teamSlug
-              .replace(/-/g, " ")
-              .replace(/\b\w/g, (l) => l.toUpperCase());
-
-            if (teamInfoResponse && teamInfoResponse.ok) {
-              const teamInfo = (await teamInfoResponse.json()) as
-                TeamData | { team?: TeamData[] };
-              // Handle team info response format: { team: [{ teamName: "...", ... }] }
-              const teamData = (
-                Array.isArray(teamInfo)
-                  ? teamInfo[0]
-                  : "team" in teamInfo && Array.isArray(teamInfo.team)
-                    ? teamInfo.team[0]
-                    : teamInfo
-              ) as TeamData;
-              teamLogo = teamData.logo || (teamInfo as TeamData).logo;
-              teamDisplayName =
-                teamData.teamName ||
-                (teamInfo as TeamData).teamName ||
-                teamData.name ||
-                (teamInfo as TeamData).name ||
-                teamDisplayName;
-            }
-
-            if (teamDriversResponse && teamDriversResponse.ok) {
-              const teamDriversData = (await teamDriversResponse.json()) as
-                TeamDriverItem[] | { drivers?: TeamDriverItem[] };
-              // API returns { drivers: [{ driver: {...} }] }
-              let driversList: TeamDriverItem[] = [];
-              if (
-                !Array.isArray(teamDriversData) &&
-                "drivers" in teamDriversData &&
-                Array.isArray(teamDriversData.drivers)
-              ) {
-                driversList = teamDriversData.drivers;
-              } else if (Array.isArray(teamDriversData)) {
-                driversList = teamDriversData;
-              }
-
-              // Extract driver numbers from the drivers array
-              // Each item has format: { driver: { number: 44, ... } }
-              const driverNumbers = driversList
-                .map((item) => {
-                  const driver = item.driver || item;
-                  return (
-                    (driver as DriverData).number ||
-                    (driver as DriverData).driverNumber ||
-                    (driver as DriverData).driver_number
-                  );
-                })
-                .filter((n): n is number => typeof n === "number");
-
-              if (driverNumbers.length > 0) {
-                return {
-                  teamName: teamDisplayName,
-                  teamLogo,
-                  driverNumbers,
-                };
-              }
-            }
-          } catch {
-            // Silently continue
-          }
-          return null;
-        });
-
-        const fallbackMappings = await Promise.all(fallbackPromises);
-        fallbackMappings.forEach((mapping) => {
-          if (mapping) {
-            mapping.driverNumbers.forEach((driverNumber: number) => {
-              if (driverNumber) {
-                teamMap.set(driverNumber, {
-                  name: mapping.teamName,
-                  logo: mapping.teamLogo,
-                });
-              }
-            });
-          }
-        });
-
-        console.log(`Fallback mapped ${teamMap.size} drivers to teams`);
-      }
-
-      // Return formatted driver data with team information
-      if (!Array.isArray(drivers) || drivers.length === 0) {
-        console.warn(
-          `No drivers found. Response data:`,
-          JSON.stringify(driversData).substring(0, 500)
-        );
-        return [];
-      }
-
-      const result = drivers
-        .map((driver) => {
-          // Handle different API response formats
-          const driverNumber =
-            driver.number || driver.driver_number || driver.driverNumber;
-          if (!driverNumber) {
-            return null;
-          }
-          const firstName = driver.name || driver.firstName || "";
-          const lastName =
-            driver.surname || driver.lastName || driver.last_name || "";
-          const fullName =
-            `${firstName} ${lastName}`.trim() ||
-            driver.shortName ||
-            `Driver ${driverNumber}`;
-
-          // Get team from API mapping
-          const teamInfo = teamMap.get(driverNumber);
-          const teamName = teamInfo?.name || "Unknown Team";
-          const teamLogo = teamInfo?.logo;
-
-          const countryCode =
-            driver.nationality ||
-            driver.country_code ||
-            driver.countryCode ||
-            "";
-
-          return {
-            driverNumber,
-            name: fullName,
-            teamName,
-            teamLogo,
-            countryCode,
-          };
-        })
-        .filter(
-          (driver): driver is NonNullable<typeof driver> => driver !== null
-        );
 
       if (result.length > 0) {
         await ctx.runMutation(internal.driversCache.upsert, {
@@ -1088,6 +426,8 @@ export const getDriversForRace = action({
           drivers: result,
           updatedAt: Date.now(),
         });
+      } else {
+        console.warn(`No drivers with numbers found for ${year}`);
       }
 
       return result;
@@ -1101,145 +441,5 @@ export const getDriversForRace = action({
       }
       throw err;
     }
-  },
-});
-
-/**
- * Get session data (practice, qualifying, race)
- */
-export const getSessionData = action({
-  args: {
-    sessionKey: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const response = await fetch(
-      `${F1API_BASE_URL}/sessions?session_key=${args.sessionKey}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch session data: ${response.statusText}`);
-    }
-
-    const data = (await response.json()) as unknown[];
-    return (data[0] as unknown) || null;
-  },
-});
-
-/**
- * Get driver-specific data for a session
- */
-export const getDriverData = action({
-  args: {
-    driverNumber: v.number(),
-    sessionKey: v.string(),
-  },
-  handler: async (ctx, args) => {
-    // Fetch multiple endpoints for comprehensive driver data
-    const [laps, positions, carData] = await Promise.all([
-      fetch(
-        `${F1API_BASE_URL}/laps?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`
-      ).then((r) => (r.ok ? r.json() : [])),
-      fetch(
-        `${F1API_BASE_URL}/position?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`
-      ).then((r) => (r.ok ? r.json() : [])),
-      fetch(
-        `${F1API_BASE_URL}/car_data?session_key=${args.sessionKey}&driver_number=${args.driverNumber}`
-      ).then((r) => (r.ok ? r.json() : [])),
-    ]);
-
-    return {
-      driverNumber: args.driverNumber,
-      sessionKey: args.sessionKey,
-      laps,
-      positions,
-      carData,
-    };
-  },
-});
-
-/**
- * Extract session start/end times from F1 Connect session payloads
- */
-function extractSessionTime(
-  sessions: SessionData[],
-  sessionType: string
-): { start: number; end: number } | undefined {
-  const session = sessions.find((s) => s.session_name === sessionType);
-  if (!session || !session.date_start || !session.date_end) {
-    return undefined;
-  }
-  return {
-    start: new Date(session.date_start).getTime(),
-    end: new Date(session.date_end).getTime(),
-  };
-}
-
-/**
- * Sync session times for a specific race
- * Useful for updating session times if they weren't available during initial sync
- */
-export const syncRaceSessionTimes = action({
-  args: {
-    raceId: v.id("races"),
-  },
-  handler: async (
-    ctx,
-    args
-  ): Promise<{ raceId: Id<"races">; sessionTimesUpdated: boolean }> => {
-    const race = await ctx.runQuery(api.queries.races.getRaceById, {
-      raceId: args.raceId,
-    });
-
-    if (!race) {
-      throw new Error("Race not found");
-    }
-
-    // Get meeting key from race date
-    const raceDate = new Date(race.date).toISOString().split("T")[0];
-    const sessionsResponse = await fetch(
-      `${F1API_BASE_URL}/sessions?date=${raceDate}`
-    );
-
-    if (!sessionsResponse.ok) {
-      throw new Error(
-        `Failed to fetch sessions: ${sessionsResponse.statusText}`
-      );
-    }
-
-    const sessions = (await sessionsResponse.json()) as SessionData[];
-    if (sessions.length === 0) {
-      throw new Error("No sessions found for this race date");
-    }
-
-    // Group by meeting_key to get all sessions for this race
-    const meetingKey = sessions[0]?.meeting_key;
-    if (!meetingKey) {
-      throw new Error("No meeting key found");
-    }
-    const allSessionsResponse = await fetch(
-      `${F1API_BASE_URL}/sessions?meeting_key=${meetingKey}`
-    );
-
-    if (!allSessionsResponse.ok) {
-      throw new Error(
-        `Failed to fetch all sessions: ${allSessionsResponse.statusText}`
-      );
-    }
-
-    const allSessions = (await allSessionsResponse.json()) as SessionData[];
-    const sessionTimes = {
-      fp1: extractSessionTime(allSessions, "FP1"),
-      fp2: extractSessionTime(allSessions, "FP2"),
-      fp3: extractSessionTime(allSessions, "FP3"),
-      qualifying: extractSessionTime(allSessions, "Qualifying"),
-      race: extractSessionTime(allSessions, "Race"),
-    };
-
-    await ctx.runMutation(api.mutations.races.updateSessionTimes, {
-      raceId: args.raceId,
-      sessionTimes,
-    });
-
-    return { raceId: args.raceId, sessionTimesUpdated: true };
   },
 });

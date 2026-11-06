@@ -7,12 +7,12 @@ export function Attribution() {
         <p className="text-center text-xs text-paddock-on-muted">
           Data provided by{" "}
           <a
-            href="https://f1-connect-api.vercel.app/"
+            href="https://github.com/jolpica/jolpica-f1"
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-paddock-on underline transition-colors hover:text-paddock-cyan"
           >
-            F1 Connect API
+            Jolpica F1
           </a>
         </p>
       </div>

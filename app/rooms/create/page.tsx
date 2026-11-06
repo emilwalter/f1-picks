@@ -208,7 +208,7 @@ export default function CreateRoomPage() {
                 </Select>
                 {needsSync && isSyncing && (
                   <FieldDescription className="text-paddock-cyan">
-                    Fetching {selectedYear} season from F1 Connect API...
+                    Fetching {selectedYear} season from Jolpica F1...
                   </FieldDescription>
                 )}
               </Field>

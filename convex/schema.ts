@@ -25,11 +25,12 @@ export default defineSchema({
     seasonId: v.id("seasons"),
     round: v.number(),
     /**
-     * Stable race identifier from f1api.dev (e.g. "hungarian_2026").
-     * `round` is NOT stable: f1api.dev renumbers rounds when its calendar
-     * changes (mid-2026 it dropped Bahrain + Saudi Arabia, shifting every
-     * later round down by 2), which silently broke results sync. Address the
-     * API by identity, not by our stored round.
+     * Stable upstream race identifier: Jolpica circuitId plus season
+     * (e.g. "hungaroring_2026", see lib/jolpica). Races first synced from
+     * f1api.dev hold its ids ("hungarian_2026") until the next sync.
+     * `round` is NOT stable upstream: mid-2026 the calendar dropped Bahrain
+     * and Saudi Arabia, shifting every later round down by 2, which silently
+     * broke results sync. Address the API by identity, not by our stored round.
      */
     apiRaceId: v.optional(v.string()),
     name: v.string(),
@@ -79,7 +80,7 @@ export default defineSchema({
      * Unset on races whose status predates this field.
      */
     statusSource: v.optional(v.union(v.literal("host"), v.literal("schedule"))),
-    /** When the calendar sync first found this race missing from f1api.dev. */
+    /** When the calendar sync first found this race missing upstream. */
     missingFromScheduleSince: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -209,7 +210,7 @@ export default defineSchema({
     .index("by_room_race_user", ["roomId", "raceId", "userId"])
     .index("by_room_points", ["roomId", "points"]),
 
-  /** Cached F1 driver list per season (f1api.dev rate limits heavy client fetches). */
+  /** Cached F1 driver list per season (keeps page loads inside Jolpica's rate limits). */
   driverSeasonCache: defineTable({
     year: v.number(),
     drivers: v.array(

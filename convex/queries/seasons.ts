@@ -42,7 +42,7 @@ export const getSeasonByYear = query({
 /**
  * Get race by season and round.
  *
- * Note: our stored `round` is not the round f1api.dev is currently using — it
+ * Note: our stored `round` is not the round upstream is currently using, which
  * renumbers rounds when its calendar changes. Never use this to address the
  * upstream API; match on `apiRaceId` / circuit instead (see actions/f1Connect).
  */

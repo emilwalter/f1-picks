@@ -1,6 +1,6 @@
 /**
  * Local static assets from public/f1-2026-images (scraped from formula1.com).
- * Round numbers must match the schedule returned by f1api.dev (used in Convex sync),
+ * Keys are our stored race rounds, which the Convex calendar sync keeps stable,
  * not necessarily the order shown on formula1.com (which omits Bahrain/Saudi as
  * separate rounds in the public 2026 list).
  */
