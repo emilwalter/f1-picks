@@ -121,9 +121,7 @@ export function calculateScore(
     ruleLines.push({
       rule: "nearMiss",
       label:
-        nearMisses === 0
-          ? "Near-Miss: none one place off"
-          : `Near-Miss: ${nearMisses} one place off`,
+        nearMisses === 0 ? "None one place off" : `${nearMisses} one place off`,
       points: round2(nearMissPoints),
     });
   }
@@ -184,8 +182,8 @@ export function calculateScore(
       rule: "setMultiplier",
       label:
         setMultiplier === 1
-          ? `Set ${hits}/10: no multiplier`
-          : `Set ${hits}/10: ×${setMultiplier}`,
+          ? `${hits}/10, no multiplier`
+          : `${hits}/10, ×${setMultiplier}`,
       points: round2(bonus),
     });
   }
@@ -206,8 +204,8 @@ export function calculateScore(
       ruleLines.push({
         rule: "doubleDown",
         label: hit
-          ? `Double Down P${doubleDownPosition}: hit, slot pays ${slot * DOUBLE_DOWN_FACTOR}`
-          : `Double Down P${doubleDownPosition}: missed`,
+          ? `P${doubleDownPosition} hit, slot pays ${slot * DOUBLE_DOWN_FACTOR}`
+          : `P${doubleDownPosition} missed`,
         points,
       });
     }
@@ -222,17 +220,17 @@ export function calculateScore(
       let points = 0;
       let label: string;
       if (hand.status === "dnf") {
-        label = "Blackjack: a pick did not finish";
+        label = "A pick did not finish";
       } else if (hand.status === "bust") {
-        label = `Blackjack: ${hand.sum}, bust`;
+        label = `${hand.sum}, bust`;
       } else if (hand.sum === BLACKJACK_TARGET) {
         points = BLACKJACK_EXACT_POINTS;
-        label = `Blackjack: exactly ${BLACKJACK_TARGET}`;
+        label = `Exactly ${BLACKJACK_TARGET}`;
       } else if (hand.sum === context.blackjackBestSum) {
         points = BLACKJACK_WIN_POINTS;
-        label = `Blackjack: ${hand.sum}, closest to ${BLACKJACK_TARGET}`;
+        label = `${hand.sum}, closest to ${BLACKJACK_TARGET}`;
       } else {
-        label = `Blackjack: ${hand.sum}, beaten by ${context.blackjackBestSum}`;
+        label = `${hand.sum}, beaten by ${context.blackjackBestSum}`;
       }
       flatRulePoints += points;
       ruleLines.push({ rule: "blackjack", label, points });
