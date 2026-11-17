@@ -42,7 +42,8 @@ export const predictionExtrasValidator = v.object({
 });
 
 /**
- * One labelled line a rule adds to a score. `rule` stays machine-readable so
+ * One labelled line a rule adds to a score. `label` is the detail only
+ * ("8/10, ×2"); the UI takes the rule's name from RACE_RULE_INFO. `rule` stays machine-readable so
  * later features can add lines up across races, e.g. a pot built from every
  * negative doubleDown line.
  */
@@ -65,30 +66,40 @@ export const ruleLineValidator = v.object({
 
 export const RACE_RULE_INFO: Record<
   RaceRuleKind,
-  { name: string; summary: string; needsPicks: boolean }
+  {
+    name: string;
+    /** The payout in a few characters, shown next to the name. */
+    payout: string;
+    /** One or two sentences, in player terms. */
+    summary: string;
+    needsPicks: boolean;
+  }
 > = {
   setMultiplier: {
     name: "Set Multiplier",
+    payout: "up to ×5",
     summary:
-      "Count how many of your top 10 finish in the top 10, in any order. 6: ×1.2, 7: ×1.5, 8: ×2, 9: ×3, 10: ×5 on your race score.",
+      "Your picks that finish in the top 10, in any order, multiply your race score.",
     needsPicks: false,
   },
   nearMiss: {
     name: "Near-Miss",
-    summary:
-      "A driver who finishes one place off your pick earns half the points for the position you predicted.",
+    payout: "½ slot",
+    summary: "A pick that finishes one place off pays half its slot.",
     needsPicks: false,
   },
   doubleDown: {
     name: "Double Down",
+    payout: "3× or −1×",
     summary:
-      "Mark one of your top 10 picks. Exact finish: that slot pays 3×. Off: you lose that slot's points.",
+      "Tap 3× on one pick. An exact finish triples that slot. Anything else costs you the slot.",
     needsPicks: true,
   },
   blackjack: {
     name: "Blackjack",
+    payout: "15 · 30",
     summary:
-      "Pick three drivers and add up their finishing positions. Closest to 21 without going over wins 15 pts, exactly 21 wins 30. Over 21 or a DNF scores nothing.",
+      "Three drivers, finishing positions added up. Closest to 21 without going over wins 15, exactly 21 wins 30.",
     needsPicks: true,
   },
 };

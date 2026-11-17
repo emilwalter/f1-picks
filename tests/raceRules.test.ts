@@ -77,7 +77,7 @@ describe("Set Multiplier", () => {
     );
     expect(line(score, "setMultiplier")).toEqual({
       rule: "setMultiplier",
-      label: "Set 8/10: ×2",
+      label: "8/10, ×2",
       points: 25 + 4, // P1 exact 25, P8 exact 4
     });
     expect(score.total).toBe((25 + 4) * 2);
@@ -114,7 +114,7 @@ describe("Double Down", () => {
     );
     expect(line(score, "doubleDown")).toEqual({
       rule: "doubleDown",
-      label: "Double Down P7: hit, slot pays 18",
+      label: "P7 hit, slot pays 18",
       points: 12,
     });
     expect(score.total).toBe(25 + 18 + 15 + 12 + 10 + 8 + 6 + 12);
@@ -179,12 +179,10 @@ describe("Blackjack", () => {
 
     expect(score([4, 6, 8]).total).toBe(15);
     expect(line(score([4, 6, 8]), "blackjack")?.label).toBe(
-      "Blackjack: 18, closest to 21"
+      "18, closest to 21"
     );
     expect(score([1, 2, 3]).total).toBe(0);
-    expect(line(score([1, 2, 3]), "blackjack")?.label).toBe(
-      "Blackjack: 6, beaten by 18"
-    );
+    expect(line(score([1, 2, 3]), "blackjack")?.label).toBe("6, beaten by 18");
     expect(score([5, 9, 10]).total).toBe(0);
     expect(score([1, 2, 19]).total).toBe(0);
   });
