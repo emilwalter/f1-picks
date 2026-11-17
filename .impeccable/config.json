@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": ["components/room/race-rules.tsx"],
+        "createdAt": "2026-11-17T12:28:43.629Z",
+        "reason": "DESIGN.md line 79 specifies a 4px left 'Leading Edge' accent for active status; banner matches the existing override and locked banners on the picks page"
+      }
+    ]
+  }
+}

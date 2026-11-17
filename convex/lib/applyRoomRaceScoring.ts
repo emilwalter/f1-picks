@@ -1,6 +1,7 @@
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { calculateScore } from "./scoring";
+import { bestBlackjackSum, blackjackHand, isRuleActive } from "./raceRules";
 
 /**
  * Recompute and upsert score rows for every prediction in a room for one race.
@@ -49,11 +50,29 @@ export async function applyScoringForRoomRace(
     dnfDriverIds: race.officialResults.dnfDriverIds ?? [],
   };
 
+  const raceRules = await ctx.db
+    .query("raceRules")
+    .withIndex("by_room_race", (q) =>
+      q.eq("roomId", args.roomId).eq("raceId", args.raceId)
+    )
+    .first();
+  const rules = raceRules?.rules ?? [];
+
+  // Blackjack is scored against the room: the best live hand wins.
+  const blackjackBest = isRuleActive(rules, "blackjack")
+    ? bestBlackjackSum(
+        predictions.map((p) =>
+          blackjackHand(p.extras?.blackjackDriverIds, officialResults)
+        )
+      )
+    : undefined;
+
   for (const prediction of predictions) {
     const score = calculateScore(
       prediction,
       officialResults,
-      room.scoringConfig
+      room.scoringConfig,
+      { rules, blackjackBestSum: blackjackBest }
     );
 
     const existingScore = await ctx.db

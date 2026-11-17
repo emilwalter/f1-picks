@@ -1,6 +1,6 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
-import { calculateScore } from "../lib/scoring";
+import { applyScoringForRoomRace } from "../lib/applyRoomRaceScoring";
 
 /**
  * Apply official race results and calculate scores for all participants for a specific race
@@ -68,52 +68,11 @@ export const applyRaceResults = mutation({
       updatedAt: Date.now(),
     });
 
-    // Get all predictions for this room and race
-    const predictions = await ctx.db
-      .query("predictions")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect()
-      .then((preds) => preds.filter((p) => p.raceId === args.raceId));
-
-    // Calculate scores for each prediction
-    const now = Date.now();
-    for (const prediction of predictions) {
-      const score = calculateScore(
-        prediction,
-        args.officialResults,
-        room.scoringConfig
-      );
-
-      // Check if score already exists for this race
-      const existingScore = await ctx.db
-        .query("scores")
-        .withIndex("by_room_race_user", (q) =>
-          q
-            .eq("roomId", args.roomId)
-            .eq("raceId", args.raceId)
-            .eq("userId", prediction.userId)
-        )
-        .first();
-
-      if (existingScore) {
-        // Update existing score
-        await ctx.db.patch(existingScore._id, {
-          points: score.total,
-          breakdown: score.breakdown,
-          calculatedAt: now,
-        });
-      } else {
-        // Create new score for this race
-        await ctx.db.insert("scores", {
-          roomId: args.roomId,
-          raceId: args.raceId,
-          userId: prediction.userId,
-          points: score.total,
-          breakdown: score.breakdown,
-          calculatedAt: now,
-        });
-      }
-    }
+    // Score with the same path as scheduled sync, so per-race rules apply.
+    await applyScoringForRoomRace(ctx, {
+      roomId: args.roomId,
+      raceId: args.raceId,
+    });
 
     return args.raceId;
   },
