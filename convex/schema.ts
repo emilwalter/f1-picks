@@ -1,5 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  predictionExtrasValidator,
+  raceRuleValidator,
+  ruleLineValidator,
+} from "./lib/raceRules";
 
 export default defineSchema({
   users: defineTable({
@@ -176,6 +181,8 @@ export default defineSchema({
     fastestLapDriverId: v.optional(v.number()),
     polePositionDriverId: v.optional(v.number()),
     dnfDriverIds: v.array(v.number()),
+    /** Picks for per-race rules (Double Down, Blackjack). Scored only when the rule is on. */
+    extras: v.optional(predictionExtrasValidator),
     submittedAt: v.number(),
     updatedAt: v.number(),
   })
@@ -199,6 +206,8 @@ export default defineSchema({
       dnfMultiplierApplied: v.optional(v.number()),
       dnfMultiplierBonus: v.optional(v.number()),
       dnfPenalty: v.number(),
+      /** Lines from per-race rules, see convex/lib/raceRules.ts */
+      ruleLines: v.optional(v.array(ruleLineValidator)),
       total: v.number(),
     }),
     calculatedAt: v.number(),
@@ -209,6 +218,18 @@ export default defineSchema({
     .index("by_room_user", ["roomId", "userId"])
     .index("by_room_race_user", ["roomId", "raceId", "userId"])
     .index("by_room_points", ["roomId", "points"]),
+
+  /**
+   * Extra scoring rules a host switched on for one race in a room.
+   * No row means the race uses the room's normal scoring.
+   */
+  raceRules: defineTable({
+    roomId: v.id("rooms"),
+    raceId: v.id("races"),
+    rules: v.array(raceRuleValidator),
+    updatedBy: v.id("users"),
+    updatedAt: v.number(),
+  }).index("by_room_race", ["roomId", "raceId"]),
 
   /** Cached F1 driver list per season (keeps page loads inside Jolpica's rate limits). */
   driverSeasonCache: defineTable({

@@ -2,6 +2,28 @@ import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { ensureUser } from "../lib/userHelpers";
 import { isLocked } from "../lib/lockout";
+import {
+  BLACKJACK_PICKS,
+  predictionExtrasValidator,
+  type PredictionExtras,
+} from "../lib/raceRules";
+
+/** Reject extras that could never score instead of silently storing them. */
+function validateExtras(extras: PredictionExtras | undefined) {
+  if (!extras) return;
+  const dd = extras.doubleDownPosition;
+  if (dd !== undefined && (!Number.isInteger(dd) || dd < 1 || dd > 10)) {
+    throw new Error("Double Down must be one of your top 10 picks");
+  }
+  const bj = extras.blackjackDriverIds;
+  if (
+    bj !== undefined &&
+    bj.length > 0 &&
+    (bj.length !== BLACKJACK_PICKS || new Set(bj).size !== BLACKJACK_PICKS)
+  ) {
+    throw new Error("Blackjack needs three different drivers");
+  }
+}
 
 /**
  * Submit a prediction for a specific race within a room
@@ -20,6 +42,7 @@ export const submitPrediction = mutation({
       fastestLapDriverId: v.optional(v.number()),
       polePositionDriverId: v.optional(v.number()),
       dnfDriverIds: v.array(v.number()),
+      extras: v.optional(predictionExtrasValidator),
     }),
   },
   handler: async (ctx, args) => {
@@ -61,6 +84,8 @@ export const submitPrediction = mutation({
       throw new Error("Prediction lockout time has passed for this race");
     }
 
+    validateExtras(args.prediction.extras);
+
     // Check if user is a participant
     const participant = await ctx.db
       .query("roomParticipants")
@@ -93,6 +118,7 @@ export const submitPrediction = mutation({
         fastestLapDriverId: args.prediction.fastestLapDriverId,
         polePositionDriverId: args.prediction.polePositionDriverId,
         dnfDriverIds: args.prediction.dnfDriverIds,
+        extras: args.prediction.extras,
         updatedAt: now,
       });
       return existingPrediction._id;
@@ -106,6 +132,7 @@ export const submitPrediction = mutation({
         fastestLapDriverId: args.prediction.fastestLapDriverId,
         polePositionDriverId: args.prediction.polePositionDriverId,
         dnfDriverIds: args.prediction.dnfDriverIds,
+        extras: args.prediction.extras,
         submittedAt: now,
         updatedAt: now,
       });
@@ -130,6 +157,7 @@ export const updatePrediction = mutation({
       fastestLapDriverId: v.optional(v.number()),
       polePositionDriverId: v.optional(v.number()),
       dnfDriverIds: v.array(v.number()),
+      extras: v.optional(predictionExtrasValidator),
     }),
   },
   handler: async (ctx, args) => {
@@ -183,12 +211,15 @@ export const updatePrediction = mutation({
       throw new Error("Prediction lockout time has passed for this race");
     }
 
+    validateExtras(args.prediction.extras);
+
     // Update prediction
     await ctx.db.patch(args.predictionId, {
       predictedPositions: args.prediction.predictedPositions,
       fastestLapDriverId: args.prediction.fastestLapDriverId,
       polePositionDriverId: args.prediction.polePositionDriverId,
       dnfDriverIds: args.prediction.dnfDriverIds,
+      extras: args.prediction.extras,
       updatedAt: Date.now(),
     });
 

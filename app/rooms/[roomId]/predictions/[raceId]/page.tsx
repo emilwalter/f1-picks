@@ -16,6 +16,7 @@ import { Lock, LockOpen, Ban } from "lucide-react";
 import { useAction } from "convex/react";
 import { getF1RaceStaticImagePaths } from "@/lib/f1-race-images";
 import { getRaceStartTimestamp } from "@/lib/race-time";
+import { RaceRulesBanner } from "@/components/room/race-rules";
 
 const PredictionForm = dynamic(
   () =>
@@ -64,6 +65,11 @@ export default function PredictionPage() {
   } = useRoomPredictionPage(roomId, raceId);
 
   const lockoutInfo = useQuery(api.queries.lockout.getRoomLockoutInfo, {
+    roomId,
+    raceId,
+  });
+
+  const raceRules = useQuery(api.queries.raceRules.getRaceRules, {
     roomId,
     raceId,
   });
@@ -328,6 +334,8 @@ export default function PredictionPage() {
         </div>
       )}
 
+      <RaceRulesBanner rules={raceRules ?? []} className="mb-6" />
+
       {/* Locked predictions summary */}
       {(isLocked || isPast) && allPredictions && allPredictions.length > 0 && (
         <div className="mb-6">
@@ -368,6 +376,7 @@ export default function PredictionPage() {
                 : undefined
             }
             lockoutInfo={lockoutInfo}
+            rules={raceRules ?? []}
           />
         ) : (
           <div className="rounded-sm bg-paddock-surface-low p-8 text-center">

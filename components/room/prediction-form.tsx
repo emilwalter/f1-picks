@@ -11,7 +11,14 @@ import { getDriverImageUrl } from "@/lib/f1-images";
 import { DriverCombobox } from "@/components/room/driver-combobox";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
 import { UnlockPredictions } from "@/components/room/unlock-predictions";
+import { RaceRulesHostPanel } from "@/components/room/race-rules";
 import { X } from "lucide-react";
+import {
+  BLACKJACK_PICKS,
+  DOUBLE_DOWN_FACTOR,
+  isRuleActive,
+  type RaceRule,
+} from "@/convex/lib/raceRules";
 
 interface Driver {
   driverNumber: number;
@@ -34,6 +41,8 @@ interface PredictionFormProps {
     locked: boolean;
     unlockOverride: { expiresAt: number; remainingMs: number } | null;
   } | null;
+  /** Extra rules the host switched on for this race. */
+  rules?: RaceRule[];
 }
 
 export function PredictionForm({
@@ -45,6 +54,7 @@ export function PredictionForm({
   currentUser,
   prefetchedDrivers,
   lockoutInfo,
+  rules = [],
 }: PredictionFormProps) {
   const submitPrediction = useMutation(
     api.mutations.predictions.submitPrediction
@@ -99,7 +109,15 @@ export function PredictionForm({
   const [dnfDriverIds, setDnfDriverIds] = useState<number[]>(
     currentPrediction?.dnfDriverIds || []
   );
+  const [doubleDownPosition, setDoubleDownPosition] = useState<
+    number | undefined
+  >(currentPrediction?.extras?.doubleDownPosition);
+  const [blackjackDriverIds, setBlackjackDriverIds] = useState<number[]>(
+    currentPrediction?.extras?.blackjackDriverIds ?? []
+  );
   const [syncedPrediction, setSyncedPrediction] = useState(currentPrediction);
+  const doubleDownOn = isRuleActive(rules, "doubleDown");
+  const blackjackOn = isRuleActive(rules, "blackjack");
 
   if (currentPrediction !== syncedPrediction) {
     setSyncedPrediction(currentPrediction);
@@ -115,6 +133,8 @@ export function PredictionForm({
       setPolePositionDriverId(currentPrediction.polePositionDriverId);
       setFastestLapDriverId(currentPrediction.fastestLapDriverId);
       setDnfDriverIds(currentPrediction.dnfDriverIds);
+      setDoubleDownPosition(currentPrediction.extras?.doubleDownPosition);
+      setBlackjackDriverIds(currentPrediction.extras?.blackjackDriverIds ?? []);
     }
   }
 
@@ -172,6 +192,22 @@ export function PredictionForm({
       return;
     }
 
+    if (doubleDownOn && doubleDownPosition === undefined) {
+      toast.error("Pick one of your top 10 to double down on");
+      return;
+    }
+
+    if (
+      blackjackOn &&
+      blackjackDriverIds.length > 0 &&
+      blackjackDriverIds.length !== BLACKJACK_PICKS
+    ) {
+      toast.error(
+        `Blackjack needs ${BLACKJACK_PICKS} drivers, or none to sit out`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await submitPrediction({
@@ -185,6 +221,11 @@ export function PredictionForm({
           fastestLapDriverId,
           polePositionDriverId,
           dnfDriverIds,
+          // Kept even when a rule is off, so toggling a rule never wipes picks.
+          extras: {
+            doubleDownPosition,
+            blackjackDriverIds,
+          },
         },
       });
       toast.success(
@@ -464,6 +505,145 @@ export function PredictionForm({
           </div>
         </div>
 
+        {/* Double Down (race rule) */}
+        {doubleDownOn && (
+          <div className="rounded-sm bg-paddock-surface-low p-5 ring-1 ring-paddock-cyan/30">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <h3 className="font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+                Double Down
+              </h3>
+              <span className="rounded-full bg-paddock-cyan/15 px-2.5 py-0.5 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-cyan">
+                Race rule
+              </span>
+            </div>
+            <p className="mb-4 text-xs text-paddock-on-muted">
+              Mark one of your top 10. Exact finish: that slot pays{" "}
+              {DOUBLE_DOWN_FACTOR}×. Off by any amount: you lose that
+              slot&apos;s points.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {predictedPositions.map((slot) => {
+                const pts = ptsForPosition(slot.position);
+                const selected = doubleDownPosition === slot.position;
+                const empty = slot.driverNumber === 0;
+                return (
+                  <button
+                    key={slot.position}
+                    type="button"
+                    disabled={empty}
+                    aria-pressed={selected}
+                    onClick={() =>
+                      setDoubleDownPosition(
+                        selected ? undefined : slot.position
+                      )
+                    }
+                    className={cn(
+                      "flex min-h-14 min-w-0 flex-col items-start justify-center rounded-sm px-3 py-2 text-left touch-manipulation transition-colors",
+                      selected
+                        ? "bg-paddock-cyan/20 ring-1 ring-paddock-cyan"
+                        : "bg-paddock-surface hover:bg-paddock-surface-high",
+                      empty && "cursor-not-allowed opacity-40"
+                    )}
+                  >
+                    <span className="font-display text-[10px] font-semibold tabular-nums text-paddock-on-muted">
+                      P{slot.position} · +{pts * DOUBLE_DOWN_FACTOR} / −{pts}
+                    </span>
+                    <span
+                      className={cn(
+                        "w-full truncate font-display text-xs font-bold uppercase tracking-wide",
+                        selected ? "text-paddock-cyan" : "text-paddock-on"
+                      )}
+                    >
+                      {empty ? "Empty" : getDriverLastName(slot.driverNumber)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Blackjack (race rule) */}
+        {blackjackOn && (
+          <div className="rounded-sm bg-paddock-surface-low p-5 ring-1 ring-paddock-cyan/30">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <h3 className="font-display text-sm font-bold uppercase tracking-widest text-paddock-on">
+                Blackjack
+              </h3>
+              <span className="rounded-full bg-paddock-cyan/15 px-2.5 py-0.5 font-display text-[10px] font-semibold uppercase tracking-widest text-paddock-cyan">
+                Race rule
+              </span>
+            </div>
+            <p className="mb-4 text-xs text-paddock-on-muted">
+              Pick {BLACKJACK_PICKS} drivers. Their finishing positions add up.
+              Closest to 21 without going over wins 15 pts, exactly 21 wins 30.
+              Over 21 or a DNF scores nothing.
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {Array.from({ length: BLACKJACK_PICKS }, (_, i) => {
+                const driverNumber = blackjackDriverIds[i];
+                const selectedDriver =
+                  driverNumber !== undefined
+                    ? drivers.find((d) => d.driverNumber === driverNumber)
+                    : null;
+                if (selectedDriver) {
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 rounded-sm bg-paddock-surface px-3 py-2"
+                    >
+                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-sm">
+                        <Image
+                          src={getDriverImageUrl(
+                            selectedDriver.driverNumber,
+                            selectedDriver.name,
+                            selectedDriver.teamName
+                          )}
+                          alt={selectedDriver.name}
+                          fill
+                          className="object-cover"
+                          sizes="32px"
+                        />
+                      </div>
+                      <span className="min-w-0 flex-1 truncate font-display text-sm font-bold uppercase tracking-wide text-paddock-on">
+                        {getDriverLastName(selectedDriver.driverNumber)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setBlackjackDriverIds((prev) =>
+                            prev.filter((n) => n !== driverNumber)
+                          )
+                        }
+                        className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-sm text-paddock-on-muted touch-manipulation transition-colors hover:text-paddock-on active:bg-paddock-surface-high"
+                        aria-label={`Remove ${selectedDriver.name} from Blackjack`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <DriverCombobox
+                    key={i}
+                    drivers={drivers}
+                    value={undefined}
+                    onChange={(num) =>
+                      setBlackjackDriverIds((prev) =>
+                        prev.includes(num) || prev.length >= BLACKJACK_PICKS
+                          ? prev
+                          : [...prev, num]
+                      )
+                    }
+                    excludeDriverNumbers={blackjackDriverIds}
+                    placeholder={`Card ${i + 1}...`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Pole Position & Fastest Lap */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {/* Pole Position */}
@@ -696,6 +876,26 @@ export function PredictionForm({
                 {dnfDriverIds.length}
               </span>
             </div>
+            {doubleDownOn && (
+              <div className="flex items-center justify-between">
+                <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                  Double Down
+                </span>
+                <span className="font-display text-sm font-bold text-white">
+                  {doubleDownPosition ? `P${doubleDownPosition}` : "—"}
+                </span>
+              </div>
+            )}
+            {blackjackOn && (
+              <div className="flex items-center justify-between">
+                <span className="font-display text-[10px] font-semibold uppercase tracking-widest text-white/70">
+                  Blackjack
+                </span>
+                <span className="font-display text-sm font-bold text-white">
+                  {blackjackDriverIds.length} / {BLACKJACK_PICKS}
+                </span>
+              </div>
+            )}
           </div>
 
           <button
@@ -724,6 +924,12 @@ export function PredictionForm({
         {/* Host tools */}
         {currentUser && currentUser._id === room.hostId && (
           <>
+            <RaceRulesHostPanel
+              room={room}
+              race={race}
+              rules={rules}
+              isLocked={isLocked}
+            />
             <UnlockPredictions
               room={room}
               race={race}

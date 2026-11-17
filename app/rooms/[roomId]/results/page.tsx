@@ -8,6 +8,7 @@ import { useRoom } from "@/hooks/use-room";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { RoomLeaderboard } from "@/components/room/room-leaderboard";
 import { YourPicksBreakdown } from "@/components/room/your-picks-breakdown";
+import { RaceRulesResults } from "@/components/room/race-rules";
 import { PickQualityPanel } from "@/components/room/pick-quality-panel";
 import { SyncRaceResults } from "@/components/room/sync-race-results";
 import {
@@ -592,6 +593,10 @@ export default function RoomResultsPage() {
               )}
             </div>
           </section>
+
+          {raceId && raceLeaderboard && (
+            <RaceRulesResults entries={raceLeaderboard} />
+          )}
         </div>
 
         {/* ── Right sidebar ── */}
