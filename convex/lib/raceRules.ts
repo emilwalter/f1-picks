@@ -99,7 +99,7 @@ export const RACE_RULE_INFO: Record<
     name: "Blackjack",
     payout: "15 · 30",
     summary:
-      "Three drivers, finishing positions added up. Closest to 21 without going over wins 15, exactly 21 wins 30.",
+      "Three drivers, finishing positions added up, P11 and below too. Closest to 21 without going over wins 15, exactly 21 wins 30.",
     needsPicks: true,
   },
 };
