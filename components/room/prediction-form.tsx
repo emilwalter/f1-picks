@@ -26,6 +26,13 @@ import {
   type RaceRule,
 } from "@/convex/lib/raceRules";
 
+/**
+ * What a Blackjack pick outside the player's own top 10 counts as in the
+ * preview: the best place it can finish if their order is right. Scoring
+ * always uses the real finish.
+ */
+const BLACKJACK_PREVIEW_OUTSIDE = 11;
+
 interface Driver {
   driverNumber: number;
   name: string;
@@ -606,10 +613,11 @@ export function PredictionForm({
               </span>
             </div>
             <p className="mb-4 max-w-prose text-xs leading-relaxed text-paddock-on-muted">
-              Three drivers, finishing positions added up. Closest to{" "}
-              {BLACKJACK_TARGET} without going over wins {BLACKJACK_WIN_POINTS},
-              exactly {BLACKJACK_TARGET} wins {BLACKJACK_EXACT_POINTS}. Over{" "}
-              {BLACKJACK_TARGET} or a DNF scores nothing. Optional.
+              Three drivers, finishing positions added up. Any finish counts,
+              P11 and below too. Closest to {BLACKJACK_TARGET} without going
+              over wins {BLACKJACK_WIN_POINTS}, exactly {BLACKJACK_TARGET} wins{" "}
+              {BLACKJACK_EXACT_POINTS}. Over {BLACKJACK_TARGET} or a DNF scores
+              nothing. Optional.
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {Array.from({ length: BLACKJACK_PICKS }, (_, i) => {
@@ -644,8 +652,8 @@ export function PredictionForm({
                         </p>
                         <p className="font-display text-[10px] tabular-nums text-paddock-on-muted">
                           {yourSlot !== undefined
-                            ? `Your P${yourSlot}`
-                            : "Not in your top 10"}
+                            ? `Your P${yourSlot}, counts as ${yourSlot}`
+                            : `Not in your top 10, counts as ${BLACKJACK_PREVIEW_OUTSIDE}`}
                         </p>
                       </div>
                       <button
@@ -695,7 +703,11 @@ export function PredictionForm({
               const slots = blackjackDriverIds.map(yourSlotFor);
               const outside = slots.filter((s) => s === undefined).length;
               // Drivers outside your top 10 finish P11 or lower on your order.
-              const sum = slots.reduce<number>((acc, s) => acc + (s ?? 11), 0);
+              const counts = slots.map((s) => s ?? BLACKJACK_PREVIEW_OUTSIDE);
+              const sum = counts.reduce((acc, c) => acc + c, 0);
+              const breakdown = blackjackDriverIds
+                .map((d, i) => `${getDriverLastName(d)} ${counts[i]}`)
+                .join(" + ");
               const bust = sum > BLACKJACK_TARGET;
               const exact = sum === BLACKJACK_TARGET && outside === 0;
               const note = bust
@@ -736,8 +748,14 @@ export function PredictionForm({
                       }}
                     />
                   </div>
-                  <p className="mt-2 text-[11px] text-paddock-on-muted">
-                    {note} The real finishing order decides it.
+                  <p className="mt-2.5 font-display text-[10px] uppercase tracking-wide tabular-nums text-paddock-on">
+                    {breakdown}
+                  </p>
+                  <p className="mt-1 text-[11px] text-paddock-on-muted">
+                    {note}{" "}
+                    {outside > 0 &&
+                      `Drivers outside your top 10 count as ${BLACKJACK_PREVIEW_OUTSIDE} here, the best they can finish if your top 10 is right. `}
+                    This is a preview. The real finishing order decides it.
                   </p>
                 </div>
               );
